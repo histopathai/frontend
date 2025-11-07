@@ -1,7 +1,7 @@
 import { AnnotationType } from '../entities/AnnotationType';
 import type { PaginatedResult, Pagination } from '../types/common';
 
-export interface CreateAnnotationTypeRequest {
+export interface CreateNewAnnotationTypeRequest {
   creatorId: string;
   name: string;
   description?: string;
@@ -16,7 +16,7 @@ export interface CreateAnnotationTypeRequest {
 export interface IAnnotationType {
   list(pagination: Pagination): Promise<PaginatedResult<AnnotationType>>;
   getById(id: string): Promise<AnnotationType>;
-  create(data: CreateAnnotationTypeRequest): Promise<AnnotationType>;
-  update(id: string, data: Partial<CreateAnnotationTypeRequest>): Promise<void>;
+  create(data: CreateNewAnnotationTypeRequest): Promise<AnnotationType>;
+  update(id: string, data: Partial<CreateNewAnnotationTypeRequest>): Promise<void>;
   delete(id: string): Promise<void>;
 }
