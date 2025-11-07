@@ -15,10 +15,6 @@ export interface CreatePatientRequest {
 
 
 export interface IPatientRepository {
-<<<<<<< HEAD
-=======
-    list(workspaceId: string, pagination: Pagination): Promise<PaginatedResult<Patient>>;
->>>>>>> cd44f8c (feat: initialize frontend project with Vite and Vue 3)
     getById(id: string): Promise<Patient | null>;
     getByWorkspaceId(workspaceId: string, pagination: Pagination): Promise<PaginatedResult<Patient>>;
     create(data: CreatePatientRequest): Promise<Patient>;
