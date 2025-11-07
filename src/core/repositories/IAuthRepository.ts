@@ -12,7 +12,7 @@ export interface LoginRequest {
 }
 
 export interface IAuthRepository {
-  register(request: RegisterRequest): Promise<User>;
+  register(data: RegisterRequest): Promise<User>;
   login(token: string): Promise<Session>;
   getProfile(): Promise<User>;
   listMySessions(): Promise<Session[]>;
