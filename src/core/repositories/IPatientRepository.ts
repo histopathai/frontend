@@ -15,7 +15,6 @@ export interface CreatePatientRequest {
 
 
 export interface IPatientRepository {
-    list(workspaceId: string, pagination: Pagination): Promise<PaginatedResult<Patient>>;
     getById(id: string): Promise<Patient | null>;
     getByWorkspaceId(workspaceId: string, pagination: Pagination): Promise<PaginatedResult<Patient>>;
     create(data: CreatePatientRequest): Promise<Patient>;
