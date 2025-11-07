@@ -1,5 +1,5 @@
 import { Patient } from '../entities/Patient';
-import { PaginatedResult, Pagination } from '../types/common';
+import type { PaginatedResult, Pagination } from '../types/common';
 
 export interface CreatePatientRequest {
   workspaceId: string;
@@ -13,12 +13,11 @@ export interface CreatePatientRequest {
   history?: string;
 }
 
-
 export interface IPatientRepository {
-    getById(id: string): Promise<Patient | null>;
-    getByWorkspaceId(workspaceId: string, pagination: Pagination): Promise<PaginatedResult<Patient>>;
-    create(data: CreatePatientRequest): Promise<Patient>;
-    update(id: string, data: Partial<CreatePatientRequest>): Promise<void>;
-    delete(id: string): Promise<void>;
-    transfer(id: string, newWorkspaceId: string): Promise<void>;
+  getById(id: string): Promise<Patient | null>;
+  getByWorkspaceId(workspaceId: string, pagination: Pagination): Promise<PaginatedResult<Patient>>;
+  create(data: CreatePatientRequest): Promise<Patient>;
+  update(id: string, data: Partial<CreatePatientRequest>): Promise<void>;
+  delete(id: string): Promise<void>;
+  transfer(id: string, newWorkspaceId: string): Promise<void>;
 }

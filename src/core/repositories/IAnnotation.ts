@@ -1,20 +1,20 @@
-import {Annotation} from '../entities/Annotation';
-import { PaginatedResult, Pagination } from '../types/common';
+import { Annotation } from '../entities/Annotation';
+import type { PaginatedResult, Pagination } from '../types/common';
 import { Point } from '../value-objects/Point';
 
 export interface CreateAnnotationRequest {
-    imageId: string;
-    annotatorId: string;
-    polygon: Point[];
-    score?: number;
-    class?: string;
-    description?: string;
+  imageId: string;
+  annotatorId: string;
+  polygon: Point[];
+  score?: number;
+  class?: string;
+  description?: string;
 }
 
 export interface IAnnotationRepository {
-    getByImageId(imageId: string, pagination: Pagination): Promise<PaginatedResult<Annotation>>;
-    create(data: CreateAnnotationRequest): Promise<Annotation>;
-    getById(id: string): Promise<Annotation>;
-    update(id: string, data: Partial<CreateAnnotationRequest>): Promise<Annotation>;
-    delete(id: string): Promise<void>;
+  getByImageId(imageId: string, pagination: Pagination): Promise<PaginatedResult<Annotation>>;
+  create(data: CreateAnnotationRequest): Promise<Annotation>;
+  getById(id: string): Promise<Annotation>;
+  update(id: string, data: Partial<CreateAnnotationRequest>): Promise<Annotation>;
+  delete(id: string): Promise<void>;
 }
