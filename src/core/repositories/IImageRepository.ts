@@ -15,10 +15,12 @@ export interface CreateNewImageRequest {
   height?: number;
   size?: number;
 }
+export type OnUploadProgress = (percentage: number) => void;
 
 export interface UploadImageParams {
   payload: ImageUploadPayload;
   file: File;
+  onUploadProgress?: OnUploadProgress; // Optional progress callback to track upload progress
 }
 
 export interface IImageRepository {
