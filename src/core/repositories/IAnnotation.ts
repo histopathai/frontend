@@ -12,10 +12,9 @@ export interface CreateAnnotationRequest {
 }
 
 export interface IAnnotationRepository {
-    list(pagination: Pagination): Promise<PaginatedResult<Annotation>>;
+    getByImageId(imageId: string, pagination: Pagination): Promise<PaginatedResult<Annotation>>;
     create(data: CreateAnnotationRequest): Promise<Annotation>;
     getById(id: string): Promise<Annotation>;
     update(id: string, data: Partial<CreateAnnotationRequest>): Promise<Annotation>;
     delete(id: string): Promise<void>;
-    getByImageId(imageId: string, pagination: Pagination): Promise<PaginatedResult<Annotation>>;
 }
