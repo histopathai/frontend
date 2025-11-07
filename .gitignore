@@ -7,26 +7,37 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+
+# Temp / Cache
 .DS_Store
+*.tsbuildinfo
+.eslintcache
+.vite
+
+# Build output
 dist
 dist-ssr
+
+# Other
 coverage
 *.local
 
 # Editor directories and files
+# Tüm .vscode dosyalarını yoksay...
 .vscode/*
+# ...ANCAK ekiple paylaşmak istediklerimiz HARİÇ
 !.vscode/extensions.json
+!.vscode/settings.json
+
+# Other editors
 .idea
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-
-*.tsbuildinfo
-
-.eslintcache
 
 # Cypress
 /cypress/videos/
