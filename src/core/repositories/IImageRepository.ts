@@ -6,7 +6,7 @@ export interface ImageUploadPayload {
   headers: Record<string, string>;
 }
 
-export interface CreateImageRequest {
+export interface CreateNewImageRequest {
   patientId: string;
   contentType: string;
   name: string;
@@ -22,7 +22,7 @@ export interface UploadImageParams {
 }
 
 export interface IImageRepository {
-  create(request: CreateImageRequest): Promise<ImageUploadPayload>;
+  create(request: CreateNewImageRequest): Promise<ImageUploadPayload>;
   upload(params: UploadImageParams): Promise<void>;
   getById(imageId: string): Promise<Image>;
   delete(imageId: string): Promise<void>;
