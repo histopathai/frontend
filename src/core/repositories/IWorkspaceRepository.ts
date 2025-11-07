@@ -27,6 +27,6 @@ export interface IWorkspaceRepository {
   list(pagination: Pagination): Promise<PaginatedResult<Workspace>>;
   getById(id: string): Promise<Workspace | null>;
   create(data: CreateNewWorkspaceRequest): Promise<Workspace>;
-  update(id: string, data: UpdateWorkspaceRequest): Promise<Workspace>;
+  update(id: string, data: UpdateWorkspaceRequest): Promise<void>;
   delete(id: string): Promise<void>;
 }

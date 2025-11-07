@@ -17,6 +17,6 @@ export interface IAnnotationType {
   list(pagination: Pagination): Promise<PaginatedResult<AnnotationType>>;
   getById(id: string): Promise<AnnotationType>;
   create(data: CreateAnnotationTypeRequest): Promise<AnnotationType>;
-  update(id: string, data: Partial<CreateAnnotationTypeRequest>): Promise<AnnotationType>;
+  update(id: string, data: Partial<CreateAnnotationTypeRequest>): Promise<void>;
   delete(id: string): Promise<void>;
 }
