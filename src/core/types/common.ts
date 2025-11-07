@@ -1,6 +1,8 @@
 export interface Pagination {
   limit: number;
   offset: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
   hasMore?: boolean;
 }
 
