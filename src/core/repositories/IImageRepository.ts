@@ -22,7 +22,7 @@ export interface UploadImageParams {
 }
 
 export interface IImageRepository {
-  create(request: CreateNewImageRequest): Promise<ImageUploadPayload>;
+  create(data: CreateNewImageRequest): Promise<ImageUploadPayload>;
   upload(params: UploadImageParams): Promise<void>;
   getById(imageId: string): Promise<Image>;
   delete(imageId: string): Promise<void>;
