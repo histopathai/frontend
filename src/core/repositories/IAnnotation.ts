@@ -15,6 +15,6 @@ export interface IAnnotationRepository {
   getByImageId(imageId: string, pagination: Pagination): Promise<PaginatedResult<Annotation>>;
   create(data: CreateAnnotationRequest): Promise<Annotation>;
   getById(id: string): Promise<Annotation>;
-  update(id: string, data: Partial<CreateAnnotationRequest>): Promise<Annotation>;
+  update(id: string, data: Partial<CreateAnnotationRequest>): Promise<void>;
   delete(id: string): Promise<void>;
 }
