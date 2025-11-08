@@ -47,7 +47,6 @@ export function useLoginForm() {
   // --- Giriş İşlemi Mantığı (Use Case) ---
   const handleLogin = async () => {
     if (!validateForm()) return;
-
     try {
       // 1. Dış sağlayıcıdan (Firebase) token al
       const userCredential = await signInWithEmailAndPassword(auth, email.value, password.value);
@@ -57,7 +56,7 @@ export function useLoginForm() {
       await authStore.login(idToken); // Bu, infrastructure'ı tetikleyecek
 
       toast.success('Giriş başarılı!');
-      router.push('/dashboard'); // Başarı durumunda yönlendirme
+      router.push('/dashboard');
     } catch (error: any) {
       // Hata yönetimi
       console.error('Giriş Hatası:', error);

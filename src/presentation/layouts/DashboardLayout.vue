@@ -110,49 +110,30 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
+import { useUserMenu } from '@/presentation/composables/useUserMenu';
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 const toast = useToast();
 const appName = import.meta.env.VITE_APP_NAME || 'HistopathAI';
-const showUserMenu = ref(false);
 
-const toggleUserMenu = () => {
-  showUserMenu.value = !showUserMenu.value;
-};
+const { showUserMenu, toggleUserMenu, closeMenu } = useUserMenu(
+  '.user-menu-button', // DashboardLayout'un kendi seçicisi
+  '.user-dropdown' // DashboardLayout'un kendi seçicisi
+);
 
 const handleLogout = () => {
-  showUserMenu.value = false;
+  closeMenu();
   authStore.logout();
   toast.success('Başarıyla çıkış yapıldı.');
   router.push('/auth/login');
 };
 
-const handleClickOutside = (event: MouseEvent) => {
-  const dropdownElement = document.querySelector('.user-dropdown');
-  const buttonElement = document.querySelector('.user-menu-button');
-  if (dropdownElement && buttonElement) {
-    if (
-      !dropdownElement.contains(event.target as Node) &&
-      !buttonElement.contains(event.target as Node)
-    ) {
-      showUserMenu.value = false;
-    }
-  }
-};
 const mainClasses = computed(() => {
   if (route.meta.fullWidth) {
     return 'flex-1 w-full flex';
   }
   return 'flex-1 w-full max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8';
-});
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside);
-});
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside);
 });
 </script>

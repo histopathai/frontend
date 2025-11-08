@@ -42,7 +42,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       // infrastructure/repositories/AuthRepository.ts içindeki 'register'ı çağır
       const newUser = await authRepo.register(payload);
-      user.value = newUser;
+      //user.value = newUser;
       return newUser;
     } catch (err: any) {
       error.value = err.response?.data?.message || err.message;
@@ -62,10 +62,9 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       // infrastructure/repositories/AuthRepository.ts içindeki 'login'i çağır
       const newSession = await authRepo.login(token);
-      session.value = newSession;
 
-      // Oturum açıldıktan sonra profili de çekelim
-      await getProfile();
+      session.value = newSession;
+      await getProfile(); // Kullanıcı profilini al
       return newSession;
     } catch (err: any) {
       error.value = err.response?.data?.message || err.message;
