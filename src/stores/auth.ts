@@ -16,6 +16,21 @@ export const useAuthStore = defineStore('auth', () => {
   // === GETTERS ===
   const isAuthenticated = computed(() => !!session.value && !!user.value);
   const isLoading = computed(() => loading.value);
+  const isAdmin = computed(() => user.value?.role.isAdmin() ?? false);
+
+  const userInitials = computed(() => {
+    if (user.value?.displayName) {
+      return user.value.displayName.charAt(0).toUpperCase();
+    }
+    if (user.value?.email) {
+      return user.value.email.charAt(0).toUpperCase();
+    }
+    return '?';
+  });
+
+  // ---
+
+  // === ACTIONS ===
 
   /**
    * KAYIT: Firebase KULLANMAZ.
@@ -74,6 +89,27 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function logout() {
+    loading.value = true;
+    error.value = null;
+    try {
+      if (session.value) {
+        // Backend'deki oturumu da sonlandır
+        await authRepo.revokeSession(session.value.id);
+      }
+    } catch (err: any) {
+      console.error('Logout error:', err);
+      // Çıkışta hata olsa bile client tarafını temizle
+    } finally {
+      session.value = null;
+      user.value = null;
+      loading.value = false;
+      // Firebase'den de çıkış yap (isteğe bağlı, ama önerilir)
+      // auth.signOut(); // 'auth'u main.ts'den import etmen gerekir
+    }
+  }
+  // ---
+
   return {
     loading,
     error,
@@ -81,8 +117,11 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     isAuthenticated,
     isLoading,
+    isAdmin,
+    userInitials,
     register,
     login,
+    logout,
     getProfile,
   };
 });
