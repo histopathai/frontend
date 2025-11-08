@@ -1,10 +1,9 @@
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
-//import { useAuthStore } from '@/stores/auth';
-
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/main';
+import { auth } from '@/main'; // Firebase 'auth' nesnesi
 
 interface LoginErrors {
   email: string | null;
@@ -12,7 +11,7 @@ interface LoginErrors {
 }
 
 export function useLoginForm() {
-  //const authStore = useAuthStore();
+  const authStore = useAuthStore();
   const router = useRouter();
   const toast = useToast();
 
@@ -49,16 +48,13 @@ export function useLoginForm() {
   const handleLogin = async () => {
     if (!validateForm()) return;
 
-    //authStore.loading = true;
-    //authStore.error = null;
-
     try {
       // 1. Dış sağlayıcıdan (Firebase) token al
       const userCredential = await signInWithEmailAndPassword(auth, email.value, password.value);
       const idToken = await userCredential.user.getIdToken();
 
-      // 2. Token'ı 'core' katmanının beklediği şekilde store üzerinden sisteme login et
-      //await authStore.verifyToken(idToken); // Bu fonksiyonu authStore'da tanımlayacağız
+      // 2. Token'ı STORE'daki 'login' fonksiyonuna ver
+      await authStore.login(idToken); // Bu, infrastructure'ı tetikleyecek
 
       toast.success('Giriş başarılı!');
       router.push('/dashboard'); // Başarı durumunda yönlendirme
@@ -86,11 +82,7 @@ export function useLoginForm() {
         default:
           errorMessage = error.response?.data?.message || error.message || errorMessage;
       }
-
       toast.error(errorMessage);
-      //authStore.error = errorMessage;
-    } finally {
-      //authStore.loading = false;
     }
   };
 
@@ -98,7 +90,7 @@ export function useLoginForm() {
     email,
     password,
     errors,
-    //isLoading: authStore.loading,
+    isLoading: authStore.loading,
     handleLogin,
   };
 }
