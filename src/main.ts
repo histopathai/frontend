@@ -1,6 +1,7 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import Toast, { type PluginOptions } from 'vue-toastification';
+import './assets/main.css';
 import 'vue-toastification/dist/index.css';
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
@@ -17,31 +18,6 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 export const auth = getAuth(firebaseApp);
 
-// Gerekli infrastructure sınıflarını import et
-import { ApiClient } from '@/infrastructure/api/ApiClient';
-import { AuthRepository } from '@/infrastructure/repositories/AuthRepository';
-import { WorkspaceRepository } from '@/infrastructure/repositories/WorkspaceRepository';
-import { PatientRepository } from '@/infrastructure/repositories/PatientRepository';
-import { ImageRepository } from '@/infrastructure/repositories/ImageRepository';
-import { AnnotationRepository } from '@/infrastructure/repositories/AnnotationRepository';
-import { AnnotationTypeRepository } from '@/infrastructure/repositories/AnnotationTypeRepository';
-
-// 2a. Ana API İstemcisini oluştur (.env'den okuyor)
-const apiClient = new ApiClient(import.meta.env.VITE_API_BASE_URL);
-
-// 2b. Tüm Repository'leri oluştur ve export et
-// Pinia store'ları (örn: useAuthStore) bu 'repositories' nesnesini import edecek.
-export const repositories = {
-  auth: new AuthRepository(apiClient),
-  workspace: new WorkspaceRepository(apiClient),
-  patient: new PatientRepository(apiClient),
-  image: new ImageRepository(apiClient),
-  annotation: new AnnotationRepository(apiClient),
-  annotationType: new AnnotationTypeRepository(apiClient),
-};
-// --- MİMARİ KURULUMU BİTTİ ---
-
-// --- 3. Vue Uygulamasını Başlatma ---
 import App from './App.vue';
 import router from './router';
 

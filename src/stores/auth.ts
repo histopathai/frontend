@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
-import { repositories } from '@/main';
+import { ref, computed } from 'vue';
+import { repositories } from '@/services';
 import type { Session } from '@/core/entities/Session';
 import type { User } from '@/core/entities/User';
 import type { RegisterRequest } from '@/core/repositories/IAuthRepository';
@@ -12,6 +12,10 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null);
   const session = ref<Session | null>(null);
   const user = ref<User | null>(null);
+
+  // === GETTERS ===
+  const isAuthenticated = computed(() => !!session.value && !!user.value);
+  const isLoading = computed(() => loading.value);
 
   /**
    * KAYIT: Firebase KULLANMAZ.
@@ -75,6 +79,8 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     session,
     user,
+    isAuthenticated,
+    isLoading,
     register,
     login,
     getProfile,
