@@ -1,9 +1,7 @@
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
-// 'useAuthStore'un Pinia store'u olarak tanımlandığını varsayıyoruz
-// import { useAuthStore } from '@/stores/auth';
-// Doğrudan core katmanımızdaki arayüzü import ediyoruz
+import { useAuthStore } from '@/stores/auth'; // Gerçek store'u kullan
 import type { RegisterRequest } from '@/core/repositories/IAuthRepository';
 
 // Form hata durumları için bir tip tanımlaması
@@ -15,7 +13,7 @@ interface RegistrationErrors {
 
 export function useRegistrationForm() {
   // Bağımlılıklar (Vue ve diğer kütüphaneler)
-  // const authStore = useAuthStore();
+  const authStore = useAuthStore();
   const router = useRouter();
   const toast = useToast();
 
@@ -69,9 +67,6 @@ export function useRegistrationForm() {
   const handleRegister = async () => {
     if (!validateForm()) return;
 
-    authStore.loading = true; // authStore'daki loading durumunu kullanıyoruz
-    authStore.error = null;
-
     try {
       // Core katmanından gelen RegisterRequest tipini kullanıyoruz
       const payload: RegisterRequest = {
@@ -80,20 +75,17 @@ export function useRegistrationForm() {
         displayName: displayName.value || '',
       };
 
-      // Bu .register fonksiyonunun authStore içinde tanımlı olması gerekir
-      const result = await authStore.register(payload);
+      await authStore.register(payload); // Bu, infrastructure'ı tetikleyecek
 
-      if (result.success) {
-        toast.success(result.message || 'Kayıt başarılı! Yönetici onayı bekleniyor.');
+      if (authStore.user) {
+        toast.success('Kayıt başarılı! Yönetici onayı bekleniyor.');
         router.push('/auth/login');
       } else {
-        toast.error(result.error || 'Kayıt başarısız.');
+        toast.error(authStore.error || 'Kayıt başarısız.');
       }
     } catch (err: any) {
       console.error('Kayıt Hatası:', err);
       toast.error(authStore.error || err.message || 'Beklenmeyen bir hata oluştu.');
-    } finally {
-      authStore.loading = false;
     }
   };
   return {
