@@ -109,7 +109,7 @@
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
-import { useUserMenu } from '@/presentation/composables/useUserMenu';
+import { useUserMenu } from '@/presentation/composables/layout/useUserMenu';
 
 const router = useRouter();
 const route = useRoute();
