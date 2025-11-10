@@ -23,7 +23,7 @@ export class ApiClient {
       (error: AxiosError<ApiError>) => {
         if (error.response?.status === 401) {
           // Redirect to login
-          window.location.href = '/login';
+          window.location.href = '/auth/login';
         }
         throw error;
       }

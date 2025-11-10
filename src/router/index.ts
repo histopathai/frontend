@@ -3,8 +3,8 @@ import { useAuthStore } from '@/stores/auth';
 import AuthLayout from '@/presentation/layouts/AuthLayout.vue';
 import DashboardLayout from '@/presentation/layouts/DashboardLayout.vue';
 import AdminLayout from '@/presentation/layouts/AdminLayout.vue';
-import RegisterForm from '@/presentation/components/RegisterForm.vue';
-import LoginForm from '@/presentation/components/LoginForm.vue';
+import RegisterForm from '@/presentation/components/auth/RegisterForm.vue';
+import LoginForm from '@/presentation/components/auth/LoginForm.vue';
 
 const routes = [
   // --- AUTH ROTALARI (Layout: AuthLayout) ---
@@ -18,11 +18,46 @@ const routes = [
     ],
   },
 
+  // --- ADMIN ROTALARI (Layout: AdminLayout) ---
+  {
+    path: '/admin',
+    component: AdminLayout,
+    meta: { requiresAuth: true, requiresActive: true, requiresAdmin: true },
+    children: [
+      {
+        path: '',
+        name: 'AdminDashboard',
+        component: () => import('@/presentation/views/admin/AdminDashboardView.vue'),
+        meta: { title: 'Admin Panel' },
+      },
+      {
+        path: 'users', // '/admin/users' rotası
+        name: 'UserManagement',
+        component: () => import('@/presentation/views/admin/UserManagementView.vue'),
+        meta: { title: 'Kullanıcı Yönetimi' },
+      },
+    ],
+  },
+
   // --- DASHBOARD ROTALARI (Layout: DashboardLayout) ---
   {
     path: '/dashboard',
     component: DashboardLayout,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresActive: true },
+    children: [
+      {
+        path: '',
+        name: 'DashboardHome',
+        component: () => import('@/presentation/views/dashboard/DashboardView.vue'),
+        meta: { title: 'Dashboard' },
+      },
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('@/presentation/views/dashboard/ProfileView.vue'),
+        meta: { title: 'Profilim' },
+      },
+    ],
   },
 
   // --- WSI Görüntüleyici Rotası (Layout: DashboardLayout) ---
@@ -51,30 +86,40 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, from, next) => {
-  // 'requiresAuth' meta bilgisine sahip rotaları kontrol et
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore();
+  if (authStore.session && !authStore.user) {
+    try {
+      await authStore.getProfile();
+    } catch (error) {
+      await authStore.logout();
+      return next({ name: 'Login' });
+    }
+  }
+  const isAuthenticated = authStore.isAuthenticated;
+  const isActive = authStore.user?.status.isActive() ?? false;
   if (to.meta.requiresAuth) {
-    const authStore = useAuthStore();
+    if (!isAuthenticated) {
+      return next({ name: 'Login' });
+    }
+    if (!isActive) {
+      if (to.name !== 'AccountStatus') {
+        return next({ name: 'AccountStatus' });
+      }
+    }
+    if (isActive) {
+      if (to.meta.requiresAdmin && !authStore.isAdmin) {
+        return next({ name: 'DashboardHome' }); // '/dashboard'
+      }
+    }
 
-    // Eğer Pinia'da kullanıcı oturumu yoksa (isAuthenticated=false)
-    if (!authStore.isAuthenticated) {
-      // Kullanıcıyı login sayfasına yönlendir
-      next({ name: 'Login' });
-    }
-    // Eğer rota admin yetkisi gerektiriyorsa VE kullanıcı admin değilse
-    else if (to.meta.requiresAdmin && !authStore.isAdmin) {
-      // Kullanıcıyı dashboard ana sayfasına yönlendir
-      next({ name: 'DashboardHome' });
-    }
-    // Oturum açıksa ve yetki varsa, gitmesine izin ver
-    else {
-      next();
-    }
+    return next();
   }
-  // 'requiresAuth' olmayan rotalar (Login, Register) için
-  else {
-    next();
+
+  if (isAuthenticated && isActive && (to.name === 'Login' || to.name === 'Register')) {
+    return next({ name: 'DashboardHome' }); // '/dashboard'
   }
+  return next();
 });
 
 export default router;

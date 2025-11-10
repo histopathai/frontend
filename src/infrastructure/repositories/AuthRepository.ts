@@ -1,6 +1,10 @@
 import { User } from '@/core/entities/User';
 import { Session } from '@/core/entities/Session';
-import type { RegisterRequest, IAuthRepository } from '@/core/repositories/IAuthRepository';
+import type {
+  RegisterRequest,
+  IAuthRepository,
+  ChangePasswordRequest,
+} from '@/core/repositories/IAuthRepository';
 import type { ApiClient } from '../api/ApiClient'; // Varsayılan
 
 // Backend DTO'larını modellemek için
@@ -46,5 +50,9 @@ export class AuthRepository implements IAuthRepository {
 
   async revokeSession(sessionId: string): Promise<void> {
     await this.apiClient.delete(`/api/v1/sessions/${sessionId}`);
+  }
+
+  async changePassword(payload: ChangePasswordRequest): Promise<void> {
+    await this.apiClient.put<void>('/api/v1/user/password', payload);
   }
 }

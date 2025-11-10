@@ -1,11 +1,35 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { repositories } from '@/services';
-import type { Session } from '@/core/entities/Session';
-import type { User } from '@/core/entities/User';
-import type { RegisterRequest } from '@/core/repositories/IAuthRepository';
+import { Session } from '@/core/entities/Session';
+import { User } from '@/core/entities/User';
+import type { RegisterRequest, ChangePasswordRequest } from '@/core/repositories/IAuthRepository';
 
 const authRepo = repositories.auth;
+
+function getSessionFromStorage(): Session | null {
+  const stored = localStorage.getItem('auth_session');
+  if (!stored) return null;
+  try {
+    // Session.create kullanarak veriyi entity'e dönüştür
+    return Session.create(JSON.parse(stored));
+  } catch {
+    localStorage.removeItem('auth_session');
+    return null;
+  }
+}
+
+function getUserFromStorage(): User | null {
+  const stored = localStorage.getItem('auth_user');
+  if (!stored) return null;
+  try {
+    // User.create kullanarak veriyi entity'e dönüştür
+    return User.create(JSON.parse(stored));
+  } catch {
+    localStorage.removeItem('auth_user');
+    return null;
+  }
+}
 
 export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false);
@@ -40,13 +64,12 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     error.value = null;
     try {
-      // infrastructure/repositories/AuthRepository.ts içindeki 'register'ı çağır
       const newUser = await authRepo.register(payload);
       //user.value = newUser;
       return newUser;
     } catch (err: any) {
       error.value = err.response?.data?.message || err.message;
-      throw err; // Hatanın composable'da yakalanması için fırlat
+      throw err;
     } finally {
       loading.value = false;
     }
@@ -60,11 +83,11 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     error.value = null;
     try {
-      // infrastructure/repositories/AuthRepository.ts içindeki 'login'i çağır
       const newSession = await authRepo.login(token);
 
       session.value = newSession;
-      await getProfile(); // Kullanıcı profilini al
+      localStorage.setItem('auth_session', JSON.stringify(newSession.toJSON()));
+      await getProfile();
       return newSession;
     } catch (err: any) {
       error.value = err.response?.data?.message || err.message;
@@ -79,6 +102,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const profile = await authRepo.getProfile();
       user.value = profile;
+      localStorage.setItem('auth_user', JSON.stringify(profile.toJSON()));
       return profile;
     } catch (err: any) {
       error.value = err.response?.data?.message || err.message;
@@ -93,18 +117,30 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null;
     try {
       if (session.value) {
-        // Backend'deki oturumu da sonlandır
         await authRepo.revokeSession(session.value.id);
       }
     } catch (err: any) {
       console.error('Logout error:', err);
-      // Çıkışta hata olsa bile client tarafını temizle
     } finally {
       session.value = null;
       user.value = null;
+      localStorage.removeItem('auth_session');
+      localStorage.removeItem('auth_user');
       loading.value = false;
-      // Firebase'den de çıkış yap (isteğe bağlı, ama önerilir)
-      // auth.signOut(); // 'auth'u main.ts'den import etmen gerekir
+    }
+  }
+
+  async function changePassword(newPassword: string): Promise<void> {
+    loading.value = true;
+    error.value = null;
+    try {
+      const payload: ChangePasswordRequest = { new_password: newPassword };
+      await authRepo.changePassword(payload);
+    } catch (err: any) {
+      error.value = err.response?.data?.message || 'Şifre değiştirilemedi.';
+      throw err;
+    } finally {
+      loading.value = false;
     }
   }
   // ---
@@ -122,5 +158,6 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     logout,
     getProfile,
+    changePassword,
   };
 });

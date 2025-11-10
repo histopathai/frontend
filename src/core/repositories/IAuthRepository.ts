@@ -11,10 +11,15 @@ export interface LoginRequest {
   token: string;
 }
 
+export interface ChangePasswordRequest {
+  new_password: string;
+}
+
 export interface IAuthRepository {
   register(data: RegisterRequest): Promise<User>;
   login(token: string): Promise<Session>;
   getProfile(): Promise<User>;
   listMySessions(): Promise<Session[]>;
   revokeSession(sessionId: string): Promise<void>;
+  changePassword(data: ChangePasswordRequest): Promise<void>;
 }
