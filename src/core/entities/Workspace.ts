@@ -41,8 +41,44 @@ export class Workspace {
     return this.props.name;
   }
 
+  get creatorId(): string {
+    return this.props.creatorId;
+  }
+
   get annotationTypeId(): string | null {
     return this.props.annotationTypeId;
+  }
+
+  get organType(): string {
+    return this.props.organType;
+  }
+
+  get organization(): string {
+    return this.props.organization;
+  }
+
+  get description(): string {
+    return this.props.description;
+  }
+
+  get license(): string {
+    return this.props.license;
+  }
+
+  get resourceURL(): string | null {
+    return this.props.resourceURL;
+  }
+
+  get releaseYear(): number | null {
+    return this.props.releaseYear;
+  }
+
+  get createdAt(): Date {
+    return this.props.createdAt;
+  }
+
+  get updatedAt(): Date {
+    return this.props.updatedAt;
   }
 
   // Business logic
