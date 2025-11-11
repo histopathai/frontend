@@ -50,7 +50,7 @@
       <div class="mt-6 flex flex-wrap gap-2">
         <button
           v-if="user.status.isPending() || user.status.isSuspended()"
-          @click="$emit('approve', user.uid)"
+          @click="$emit('approve', user.userId)"
           :disabled="loading"
           class="btn btn-primary btn-sm"
         >
@@ -59,7 +59,7 @@
 
         <button
           v-if="user.status.isActive()"
-          @click="$emit('suspend', user.uid)"
+          @click="$emit('suspend', user.userId)"
           :disabled="loading"
           class="btn btn-secondary btn-sm"
         >
@@ -68,7 +68,7 @@
 
         <button
           v-if="!user.role.isAdmin() && user.status.isActive()"
-          @click="$emit('make-admin', user.uid)"
+          @click="$emit('make-admin', user.userId)"
           :disabled="loading"
           class="btn btn-success btn-sm"
         >

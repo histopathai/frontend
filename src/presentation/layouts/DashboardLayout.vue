@@ -119,8 +119,8 @@ const toast = useToast();
 const appName = import.meta.env.VITE_APP_NAME || 'HistopathAI';
 
 const { showUserMenu, toggleUserMenu, closeMenu } = useUserMenu(
-  '.user-menu-button', // DashboardLayout'un kendi seçicisi
-  '.user-dropdown' // DashboardLayout'un kendi seçicisi
+  '.user-menu-button',
+  '.user-dropdown'
 );
 
 const handleLogout = () => {

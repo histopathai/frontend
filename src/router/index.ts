@@ -57,6 +57,12 @@ const routes = [
         component: () => import('@/presentation/views/dashboard/ProfileView.vue'),
         meta: { title: 'Profilim' },
       },
+      {
+        path: 'workspaces',
+        name: 'Workspaces',
+        component: () => import('@/presentation/views/dashboard/WorkspaceView.vue'),
+        meta: { title: 'Çalışma Alanlarım' },
+      },
     ],
   },
 

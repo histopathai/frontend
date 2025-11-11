@@ -39,12 +39,12 @@
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <UserCard
           v-for="user in users"
-          :key="user.uid"
+          :key="user.userId"
           :user="user"
           :loading="isLoading"
-          @approve="handleApprove(user.uid)"
-          @suspend="handleSuspend(user.uid)"
-          @make-admin="handleMakeAdmin(user.uid)"
+          @approve="handleApprove(user.userId)"
+          @suspend="handleSuspend(user.userId)"
+          @make-admin="handleMakeAdmin(user.userId)"
         />
       </div>
     </div>

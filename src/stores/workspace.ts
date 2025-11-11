@@ -2,66 +2,84 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { repositories } from '@/services';
 import type { Workspace } from '@/core/entities/Workspace';
-import type { Patient } from '@/core/entities/Patient';
+import { Patient } from '@/core/entities/Patient';
 import type { Image } from '@/core/entities/Image';
 import type {
-  CreateWorkspaceRequest,
+  CreateNewWorkspaceRequest,
   UpdateWorkspaceRequest,
 } from '@/core/repositories/IWorkspaceRepository';
 import type {
-  CreatePatientRequest,
-  UpdatePatientRequest,
+  CreateNewPatientRequest,
+  IPatientRepository,
 } from '@/core/repositories/IPatientRepository';
-import type { CreateImageRequest, MoveImageRequest } from '@/core/repositories/IImageRepository';
-import type { MovePatientRequest } from '@/core/repositories/IPatientRepository';
+import type {
+  CreateNewImageRequest,
+  ImageUploadPayload,
+  UploadImageParams,
+} from '@/core/repositories/IImageRepository';
+import type { Pagination } from '@/core/types/common';
 
-// Depoları (Repositories) al
 const workspaceRepo = repositories.workspace;
 const patientRepo = repositories.patient;
 const imageRepo = repositories.image;
 
+// Workspace verisini, iç içe geçmiş hasta ve görüntüleriyle birlikte tutmak için bir arayüz
+export interface WorkspaceStateEntry {
+  details: Workspace;
+  patients: PatientStateEntry[];
+}
+
+export interface PatientStateEntry {
+  details: Patient;
+  images: Image[];
+}
+
+// Store'un state'ini, workspace ID'sine göre map'lenmiş bir yapıda tutmak daha performanslı olabilir.
+// Ancak eski yapınıza benzer şekilde bir dizi olarak da tutabiliriz.
+// Şimdilik entity'leri ayrı listelerde tutalım.
 export const useWorkspaceStore = defineStore('workspace', () => {
   // === STATE ===
   const workspaces = ref<Workspace[]>([]);
+
+  // Hangi workspace'in hastalarının yüklendiğini takip etmek için bir map
+  // Key: workspaceId, Value: Patient[]
+  const patientsByWorkspace = ref<Map<string, Patient[]>>(new Map());
+
+  // Hangi hastanın görüntülerinin yüklendiğini takip etmek için bir map
+  // Key: patientId, Value: Image[]
+  const imagesByPatient = ref<Map<string, Image[]>>(new Map());
+
   const loading = ref(false);
   const error = ref<string | null>(null);
 
   // === GETTERS ===
   const allWorkspaces = computed(() => workspaces.value);
-
-  const uniqueOrganTypes = computed(() => {
-    const allTypes = workspaces.value.map((ws) => ws.organType).filter(Boolean);
-    return [...new Set(allTypes)].sort();
-  });
-
-  const uniqueOrganizations = computed(() => {
-    const allOrgs = workspaces.value.map((ws) => ws.organization).filter(Boolean);
-    return [...new Set(allOrgs)].sort();
-  });
-
-  const allWorkspaceNames = computed(() => workspaces.value.map((ws) => ws.name).sort());
+  const isLoading = computed(() => loading.value);
+  const getPatientsForWorkspace = (workspaceId: string) => {
+    return computed(() => patientsByWorkspace.value.get(workspaceId) || []);
+  };
+  const getImagesForPatient = (patientId: string) => {
+    return computed(() => imagesByPatient.value.get(patientId) || []);
+  };
 
   // === ACTIONS ===
 
-  // --- Workspace CRUD ---
-  async function fetchAllWorkspaces() {
-    if (workspaces.value.length > 0) {
-      // Basit cache
-      return;
-    }
+  // --- Workspace Actions ---
+  async function fetchWorkspaces(pagination: Pagination = { limit: 100, offset: 0 }) {
     loading.value = true;
     error.value = null;
     try {
-      workspaces.value = await workspaceRepo.getAll();
+      const result = await workspaceRepo.list(pagination);
+      workspaces.value = result.data;
     } catch (err: any) {
-      error.value = 'Çalışma alanları yüklenemedi.';
+      error.value = err.response?.data?.message || 'Çalışma alanları alınamadı.';
       throw err;
     } finally {
       loading.value = false;
     }
   }
 
-  async function createWorkspace(data: CreateWorkspaceRequest): Promise<Workspace> {
+  async function createWorkspace(data: CreateNewWorkspaceRequest): Promise<Workspace> {
     loading.value = true;
     error.value = null;
     try {
@@ -69,226 +87,250 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       workspaces.value.push(newWorkspace);
       return newWorkspace;
     } catch (err: any) {
-      error.value = `Çalışma alanı '${data.name}' oluşturulamadı: ${err.response?.data?.message || err.message}`;
+      error.value = err.response?.data?.message || 'Çalışma alanı oluşturulamadı.';
       throw err;
     } finally {
       loading.value = false;
     }
   }
 
-  async function updateWorkspace(id: string, data: UpdateWorkspaceRequest): Promise<Workspace> {
+  async function updateWorkspace(id: string, data: UpdateWorkspaceRequest): Promise<void> {
     loading.value = true;
     error.value = null;
     try {
-      const updatedWorkspace = await workspaceRepo.update(id, data);
+      await workspaceRepo.update(id, data);
+      // State'i güncelle
       const index = workspaces.value.findIndex((ws) => ws.id === id);
       if (index !== -1) {
-        workspaces.value[index] = updatedWorkspace;
+        // Yeniden fetch etmek daha kolay olabilir veya objeyi güncelleyebiliriz
+        const updatedWs = await workspaceRepo.getById(id);
+        if (updatedWs) workspaces.value[index] = updatedWs;
       }
-      return updatedWorkspace;
     } catch (err: any) {
-      error.value = 'Çalışma alanı güncellenemedi.';
+      error.value = err.response?.data?.message || 'Çalışma alanı güncellenemedi.';
       throw err;
     } finally {
       loading.value = false;
     }
   }
 
-  async function deleteWorkspace(id: string) {
+  async function deleteWorkspace(id: string): Promise<void> {
     loading.value = true;
     error.value = null;
     try {
       await workspaceRepo.delete(id);
       workspaces.value = workspaces.value.filter((ws) => ws.id !== id);
+      // İlgili hastaları da temizle
+      patientsByWorkspace.value.delete(id);
     } catch (err: any) {
-      error.value = 'Çalışma alanı silinemedi.';
+      error.value = err.response?.data?.message || 'Çalışma alanı silinemedi.';
       throw err;
     } finally {
       loading.value = false;
     }
   }
 
-  // --- Patient CRUD ---
-  async function createPatient(workspaceId: string, data: CreatePatientRequest): Promise<Patient> {
-    loading.value = true;
-    error.value = null;
-    try {
-      const newPatient = await patientRepo.create(workspaceId, data);
-      const ws = workspaces.value.find((w) => w.id === workspaceId);
-      if (ws) {
-        ws.patients.push(newPatient);
-      }
-      return newPatient;
-    } catch (err: any) {
-      error.value = 'Hasta oluşturulamadı.';
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  async function updatePatient(
+  // --- Patient Actions ---
+  async function fetchPatients(
     workspaceId: string,
-    patientId: string,
-    data: UpdatePatientRequest
-  ): Promise<Patient> {
-    loading.value = true;
-    error.value = null;
-    try {
-      const updatedPatient = await patientRepo.update(workspaceId, patientId, data);
-      const ws = workspaces.value.find((w) => w.id === workspaceId);
-      if (ws) {
-        const pIndex = ws.patients.findIndex((p) => p.id === patientId);
-        if (pIndex !== -1) ws.patients[pIndex] = updatedPatient;
-      }
-      return updatedPatient;
-    } catch (err: any) {
-      error.value = 'Hasta güncellenemedi.';
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  async function deletePatient(workspaceId: string, patientId: string) {
-    loading.value = true;
-    error.value = null;
-    try {
-      await patientRepo.delete(workspaceId, patientId);
-      const ws = workspaces.value.find((w) => w.id === workspaceId);
-      if (ws) {
-        ws.patients = ws.patients.filter((p) => p.id !== patientId);
-      }
-    } catch (err: any) {
-      error.value = 'Hasta silinemedi.';
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  async function movePatient(workspaceId: string, patientId: string, data: MovePatientRequest) {
-    loading.value = true;
-    error.value = null;
-    try {
-      await patientRepo.move(workspaceId, patientId, data);
-
-      const sourceWS = workspaces.value.find((w) => w.id === workspaceId);
-      const targetWS = workspaces.value.find((w) => w.id === data.targetWorkspaceID);
-      const pIndex = sourceWS?.patients.findIndex((p) => p.id === patientId);
-
-      if (sourceWS && targetWS && pIndex !== -1) {
-        const [movedPatient] = sourceWS.patients.splice(pIndex, 1);
-        targetWS.patients.push(movedPatient);
-      }
-    } catch (err: any) {
-      error.value = 'Hasta taşınamadı.';
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  // --- Image CRUD ---
-  async function createImage(
-    workspaceId: string,
-    patientId: string,
-    data: CreateImageRequest
-  ): Promise<Image> {
-    loading.value = true;
-    error.value = null;
-    try {
-      const newImage = await imageRepo.create(workspaceId, patientId, data);
-      const ws = workspaces.value.find((w) => w.id === workspaceId);
-      const p = ws?.patients.find((p) => p.id === patientId);
-      if (p) {
-        p.images.push(newImage);
-      }
-      return newImage;
-    } catch (err: any) {
-      error.value = 'Görüntü yüklenemedi.';
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  async function deleteImage(workspaceId: string, patientId: string, imageId: string) {
-    loading.value = true;
-    error.value = null;
-    try {
-      await imageRepo.delete(workspaceId, patientId, imageId);
-      const ws = workspaces.value.find((w) => w.id === workspaceId);
-      const p = ws?.patients.find((p) => p.id === patientId);
-      if (p) {
-        p.images = p.images.filter((img) => img.id !== imageId);
-      }
-    } catch (err: any) {
-      error.value = 'Görüntü silinemedi.';
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  async function moveImage(
-    workspaceId: string,
-    patientId: string,
-    imageId: string,
-    data: MoveImageRequest
+    pagination: Pagination = { limit: 100, offset: 0 }
   ) {
     loading.value = true;
     error.value = null;
     try {
-      await imageRepo.move(workspaceId, patientId, imageId, data);
-
-      // State'i manuel güncelle
-      const sourceWS = workspaces.value.find((w) => w.id === workspaceId);
-      const sourcePatient = sourceWS?.patients.find((p) => p.id === patientId);
-      const targetWS = workspaces.value.find((w) => w.id === data.targetWorkspaceID);
-      const targetPatient = targetWS?.patients.find((p) => p.id === data.targetPatientID);
-      const imgIndex = sourcePatient?.images.findIndex((img) => img.id === imageId);
-
-      if (sourcePatient && targetPatient && imgIndex !== -1) {
-        const [movedImage] = sourcePatient.images.splice(imgIndex, 1);
-        targetPatient.images.push(movedImage);
-      }
+      const result = await patientRepo.getByWorkspaceId(workspaceId, pagination);
+      patientsByWorkspace.value.set(workspaceId, result.data);
     } catch (err: any) {
-      error.value = 'Görüntü taşınamadı.';
+      error.value = err.response?.data?.message || 'Hastalar alınamadı.';
       throw err;
     } finally {
       loading.value = false;
     }
   }
 
-  function getThumbnailUrl(imageId: string): string {
-    // Bu, imageRepo.getThumbnailUrl(imageId) çağrısından gelmeli,
-    // ancak şimdilik URL'yi manuel oluşturuyoruz (ApiClient baseURL'ine göre).
-    // NOT: `ApiClient`'inizde `getBaseURL()` metodu yoksa,
-    // bunu `repositories.image.getThumbnailUrl(imageId)` olarak implemente edin.
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    return `${baseUrl}/api/v1/images/${imageId}/thumbnail`;
+  async function createPatient(data: CreateNewPatientRequest): Promise<Patient> {
+    loading.value = true;
+    error.value = null;
+    try {
+      const newPatient = await patientRepo.create(data);
+      // İlgili workspace'in hasta listesini güncelle
+      const currentPatients = patientsByWorkspace.value.get(data.workspaceId) || [];
+      patientsByWorkspace.value.set(data.workspaceId, [...currentPatients, newPatient]);
+      return newPatient;
+    } catch (err: any) {
+      error.value = err.response?.data?.message || 'Hasta oluşturulamadı.';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function deletePatient(patient: Patient): Promise<void> {
+    loading.value = true;
+    error.value = null;
+    try {
+      await patientRepo.delete(patient.id);
+      // State'den sil
+      const currentPatients = patientsByWorkspace.value.get(patient.workspaceId) || [];
+      patientsByWorkspace.value.set(
+        patient.workspaceId,
+        currentPatients.filter((p) => p.id !== patient.id)
+      );
+      // İlgili görüntüleri de temizle
+      imagesByPatient.value.delete(patient.id);
+    } catch (err: any) {
+      error.value = err.response?.data?.message || 'Hasta silinemedi.';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function transferPatient(
+    patientId: string,
+    oldWorkspaceId: string,
+    newWorkspaceId: string
+  ) {
+    loading.value = true;
+    error.value = null;
+    try {
+      await patientRepo.transfer(patientId, newWorkspaceId);
+      const oldPatients = patientsByWorkspace.value.get(oldWorkspaceId) || [];
+      const patientToMove = oldPatients.find((p) => p.id === patientId);
+      patientsByWorkspace.value.set(
+        oldWorkspaceId,
+        oldPatients.filter((p) => p.id !== patientId)
+      );
+      if (patientToMove && patientsByWorkspace.value.has(newWorkspaceId)) {
+        const newPatients = patientsByWorkspace.value.get(newWorkspaceId) || [];
+        const patientData = patientToMove.toJSON();
+
+        const patientApiData = {
+          id: patientData.id,
+          creator_id: patientData.creatorId,
+          workspace_id: newWorkspaceId,
+          name: patientData.name,
+          age: patientData.age,
+          gender: patientData.gender,
+          race: patientData.race,
+          disease: patientData.disease,
+          subtype: patientData.subtype,
+          grade: patientData.grade,
+          history: patientData.history,
+          created_at: patientData.createdAt,
+          updated_at: patientData.updatedAt,
+        };
+
+        const newPatientInstance = Patient.create(patientApiData);
+        patientsByWorkspace.value.set(newWorkspaceId, [...newPatients, newPatientInstance]);
+      }
+    } catch (err: any) {
+      error.value = err.response?.data?.message || 'Hasta taşınamadı.';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  // --- Image Actions ---
+
+  async function fetchImages(
+    patientId: string,
+    pagination: Pagination = { limit: 100, offset: 0 }
+  ) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const result = await imageRepo.getByPatientId(patientId, pagination);
+      imagesByPatient.value.set(patientId, result.data);
+    } catch (err: any) {
+      error.value = err.response?.data?.message || 'Görüntüler alınamadı.';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function refreshPatientImages(
+    patientId: string,
+    pagination: Pagination = { limit: 100, offset: 0 }
+  ): Promise<Image[]> {
+    try {
+      const result = await imageRepo.getByPatientId(patientId, pagination);
+      imagesByPatient.value.set(patientId, result.data);
+      return result.data; // Polling mantığının durumu kontrol etmesi için
+    } catch (err: any) {
+      console.error(`Failed to refresh images for patient ${patientId}:`, err);
+      throw err;
+    }
+  }
+
+  async function getUploadPayload(data: CreateNewImageRequest): Promise<ImageUploadPayload> {
+    return await imageRepo.create(data);
+  }
+
+  async function uploadImage(params: UploadImageParams): Promise<void> {
+    // Bu eylem state'i değiştirmez, sadece yükler.
+    await imageRepo.upload(params);
+    // Yükleme başarılı olduktan sonra, 'confirm' backend'de tetiklenir
+    // ve (idealde) bir websocket veya polling ile state güncellenir.
+    // Şimdilik, yükleme sonrası listeyi manuel yeniliyoruz.
+  }
+
+  async function deleteImage(image: Image): Promise<void> {
+    loading.value = true;
+    error.value = null;
+    try {
+      await imageRepo.delete(image.id);
+      // State'den sil
+      const currentImages = imagesByPatient.value.get(image.patientId) || [];
+      imagesByPatient.value.set(
+        image.patientId,
+        currentImages.filter((i) => i.id !== image.id)
+      );
+    } catch (err: any) {
+      error.value = err.response?.data?.message || 'Görüntü silinemedi.';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  // onUploaded (upload bittiğinde çağrılır)
+  function markImageAsUploaded(patientId: string, image: Image) {
+    const currentImages = imagesByPatient.value.get(patientId) || [];
+    const existingIndex = currentImages.findIndex((i) => i.id === image.id);
+    if (existingIndex > -1) {
+      currentImages[existingIndex] = image;
+      imagesByPatient.value.set(patientId, [...currentImages]);
+    } else {
+      imagesByPatient.value.set(patientId, [...currentImages, image]);
+    }
   }
 
   return {
     workspaces,
+    patientsByWorkspace,
+    imagesByPatient,
     loading,
     error,
     allWorkspaces,
-    uniqueOrganTypes,
-    uniqueOrganizations,
-    allWorkspaceNames,
-    fetchAllWorkspaces,
+    isLoading,
+    getPatientsForWorkspace,
+    getImagesForPatient,
+    fetchWorkspaces,
     createWorkspace,
     updateWorkspace,
     deleteWorkspace,
+    fetchPatients,
     createPatient,
-    updatePatient,
     deletePatient,
-    movePatient,
-    createImage,
+    transferPatient,
+    fetchImages,
+    refreshPatientImages,
+    getUploadPayload,
+    uploadImage,
     deleteImage,
-    moveImage,
-    getThumbnailUrl,
+    markImageAsUploaded,
   };
 });
