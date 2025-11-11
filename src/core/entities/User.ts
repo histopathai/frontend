@@ -2,7 +2,7 @@ import { UserStatus } from '../value-objects/UserStatus';
 import { UserRole } from '../value-objects/UserRole';
 
 export interface UserProps {
-  uid: string;
+  userId: string;
   email: string;
   displayName: string;
   status: UserStatus;
@@ -17,35 +17,35 @@ export class User {
   private constructor(private props: UserProps) {}
 
   static create(data: {
-    uid: string;
+    user_id: string;
     email: string;
-    displayName: string;
+    display_name: string;
     status: string;
     role: string;
-    adminApproved: boolean;
-    createdAt: string | Date;
-    updatedAt: string | Date;
-    approvalDate?: string | Date;
+    admin_approved: boolean;
+    created_at: string | Date;
+    updated_at: string | Date;
+    approval_date?: string | Date;
   }): User {
     return new User({
-      uid: data.uid,
+      userId: data.user_id,
       email: data.email,
-      displayName: data.displayName,
+      displayName: data.display_name,
       status: UserStatus.fromString(data.status),
       role: UserRole.fromString(data.role),
-      adminApproved: data.adminApproved,
-      createdAt: typeof data.createdAt === 'string' ? new Date(data.createdAt) : data.createdAt,
-      updatedAt: typeof data.updatedAt === 'string' ? new Date(data.updatedAt) : data.updatedAt,
-      approvalDate: data.approvalDate
-        ? typeof data.approvalDate === 'string'
-          ? new Date(data.approvalDate)
-          : data.approvalDate
+      adminApproved: data.admin_approved,
+      createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,
+      updatedAt: typeof data.updated_at === 'string' ? new Date(data.updated_at) : data.updated_at,
+      approvalDate: data.approval_date
+        ? typeof data.approval_date === 'string'
+          ? new Date(data.approval_date)
+          : data.approval_date
         : undefined,
     });
   }
 
-  get uid(): string {
-    return this.props.uid;
+  get userId(): string {
+    return this.props.userId;
   }
 
   get email(): string {
@@ -110,7 +110,7 @@ export class User {
   // Serialization
   toJSON() {
     return {
-      uid: this.uid,
+      userId: this.userId,
       email: this.email,
       displayName: this.displayName,
       status: this.status.toString(),

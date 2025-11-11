@@ -19,17 +19,17 @@ export class Workspace {
   static create(data: any): Workspace {
     return new Workspace({
       id: data.id,
-      creatorId: data.creatorId,
-      annotationTypeId: data.annotationTypeId ?? null,
+      creatorId: data.creator_id,
+      annotationTypeId: data.annotation_type_id ?? null,
       name: data.name,
-      organType: data.organType,
+      organType: data.organ_type,
       organization: data.organization,
       description: data.description,
       license: data.license,
-      resourceURL: data.resourceURL ?? null,
-      releaseYear: data.releaseYear ?? null,
-      createdAt: typeof data.createdAt === 'string' ? new Date(data.createdAt) : data.createdAt,
-      updatedAt: typeof data.updatedAt === 'string' ? new Date(data.updatedAt) : data.updatedAt
+      resourceURL: data.resource_url ?? null,
+      releaseYear: data.release_year ?? null,
+      createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,
+      updatedAt: typeof data.updated_at === 'string' ? new Date(data.updated_at) : data.updated_at,
     });
   }
 
