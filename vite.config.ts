@@ -3,6 +3,7 @@ import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueDevTools from 'vite-plugin-vue-devtools';
+import { configDefaults } from 'vitest/config';
 
 export default defineConfig({
   plugins: [vue(), vueDevTools()],
@@ -10,5 +11,10 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+  },
+  test: {
+    environment: 'happy-dom',
+    globals: true,
+    exclude: [...configDefaults.exclude, 'node_modules/**'],
   },
 });

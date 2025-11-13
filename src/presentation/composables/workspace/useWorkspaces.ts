@@ -4,7 +4,10 @@ import { useToast } from 'vue-toastification';
 import type { Workspace } from '@/core/entities/Workspace';
 import type { Patient } from '@/core/entities/Patient';
 import type { Image } from '@/core/entities/Image';
-import type { CreateNewWorkspaceRequest } from '@/core/repositories/IWorkspaceRepository';
+import type {
+  CreateNewWorkspaceRequest,
+  UpdateWorkspaceRequest,
+} from '@/core/repositories/IWorkspaceRepository';
 import type { CreateNewPatientRequest } from '@/core/repositories/IPatientRepository';
 
 export function useWorkspaces() {
@@ -73,6 +76,22 @@ export function useWorkspaces() {
   const isDeleteImageModalOpen = ref(false);
   const imageToDelete = ref<Image | null>(null);
 
+  const isMovePatientModalOpen = ref(false);
+  const patientToMove = ref<Patient | null>(null);
+
+  const isMoveImageModalOpen = ref(false);
+  const imageToMove = ref<Image | null>(null);
+
+  const isViewerModalOpen = ref(false);
+  const imageToView = ref<Image | null>(null);
+
+  // --- YENİ EKLENEN STATE'LER ---
+  const isEditModalOpen = ref(false);
+  const workspaceToEdit = ref<Workspace | null>(null);
+  const isEditPatientModalOpen = ref(false);
+  const patientToEdit = ref<Patient | null>(null);
+  // --- BİTTİ ---
+
   // === Data Fetching ===
   onMounted(() => {
     if (workspaces.value.length === 0) {
@@ -120,6 +139,32 @@ export function useWorkspaces() {
     imageToDelete.value = image;
     isDeleteImageModalOpen.value = true;
   };
+
+  const promptMovePatient = (patient: Patient) => {
+    patientToMove.value = patient;
+    isMovePatientModalOpen.value = true;
+  };
+
+  const promptMoveImage = (image: Image) => {
+    imageToMove.value = image;
+    isMoveImageModalOpen.value = true;
+  };
+
+  const promptViewImage = (image: Image) => {
+    imageToView.value = image;
+    isViewerModalOpen.value = true;
+  };
+
+  const promptEditWorkspace = (workspace: Workspace) => {
+    workspaceToEdit.value = workspace;
+    isEditModalOpen.value = true;
+  };
+
+  const promptEditPatient = (patient: Patient) => {
+    patientToEdit.value = patient;
+    isEditPatientModalOpen.value = true;
+  };
+  // --- BİTTİ ---
 
   // === Modal Handlers (CRUD) ===
   const handleWorkspaceCreated = async (data: CreateNewWorkspaceRequest) => {
@@ -191,6 +236,60 @@ export function useWorkspaces() {
     }
   };
 
+  const executeMovePatient = async (newWorkspaceId: string) => {
+    if (!patientToMove.value) return;
+    try {
+      await store.transferPatient(
+        patientToMove.value.id,
+        patientToMove.value.workspaceId,
+        newWorkspaceId
+      );
+      toast.success(`'${patientToMove.value.name}' hastası taşındı.`);
+      isMovePatientModalOpen.value = false;
+      patientToMove.value = null;
+    } catch {
+      toast.error(store.error);
+    }
+  };
+
+  const executeMoveImage = async (newPatientId: string) => {
+    if (!imageToMove.value) return;
+    try {
+      await store.transferImage(imageToMove.value.id, imageToMove.value.patientId, newPatientId);
+      toast.success(`'${imageToMove.value.name}' görüntüsü taşındı.`);
+      isMoveImageModalOpen.value = false;
+      imageToMove.value = null;
+    } catch {
+      toast.error(store.error);
+    }
+  };
+
+  // --- YENİ EKLENEN HANDLER'LAR ---
+  const handleWorkspaceUpdated = async (data: UpdateWorkspaceRequest) => {
+    if (!workspaceToEdit.value) return;
+    try {
+      await store.updateWorkspace(workspaceToEdit.value.id, data);
+      toast.success(`'${data.name}' çalışma alanı güncellendi!`);
+      isEditModalOpen.value = false;
+      workspaceToEdit.value = null;
+    } catch {
+      toast.error(store.error);
+    }
+  };
+
+  const handlePatientUpdated = async (data: Partial<CreateNewPatientRequest>) => {
+    if (!patientToEdit.value) return;
+    try {
+      await store.updatePatient(patientToEdit.value.id, patientToEdit.value.workspaceId, data);
+      toast.success(`'${data.name}' hastası güncellendi.`);
+      isEditPatientModalOpen.value = false;
+      patientToEdit.value = null;
+    } catch {
+      toast.error(store.error);
+    }
+  };
+  // --- BİTTİ ---
+
   return {
     // State & Getters
     loading,
@@ -218,6 +317,20 @@ export function useWorkspaces() {
     patientForNewImage,
     isDeleteImageModalOpen,
     imageToDelete,
+    isMovePatientModalOpen,
+    patientToMove,
+    isMoveImageModalOpen,
+    imageToMove,
+    isViewerModalOpen,
+    imageToView,
+
+    patientsByWorkspace: store.patientsByWorkspace,
+    allWorkspaces: workspaces,
+
+    isEditModalOpen,
+    workspaceToEdit,
+    isEditPatientModalOpen,
+    patientToEdit,
 
     // Loaders
     loadPatientsFor,
@@ -229,6 +342,14 @@ export function useWorkspaces() {
     promptDeletePatient,
     promptUploadImage,
     promptDeleteImage,
+    promptMovePatient,
+    promptMoveImage,
+    promptViewImage,
+
+    // --- YENİ ---
+    promptEditWorkspace,
+    promptEditPatient,
+    // --- BİTTİ ---
 
     // Modal Handlers
     handleWorkspaceCreated,
@@ -237,5 +358,12 @@ export function useWorkspaces() {
     executeDeletePatient,
     handleImageUploaded,
     executeDeleteImage,
+    executeMovePatient,
+    executeMoveImage,
+
+    // --- YENİ ---
+    handleWorkspaceUpdated,
+    handlePatientUpdated,
+    // --- BİTTİ ---
   };
 }

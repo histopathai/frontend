@@ -62,13 +62,13 @@
     <div v-else-if="error" class="text-red-500 text-center py-10">
       <p>{{ error }}</p>
     </div>
-
     <div v-else-if="filteredWorkspaces.length === 0" class="text-center py-10 text-gray-500">
       <p v-if="filters.name || filters.organType || filters.organization || filters.releaseYear">
         Filtre kriterlerinize uygun bir çalışma alanı bulunamadı.
       </p>
       <p v-else>Henüz bir çalışma alanı oluşturmadınız.</p>
     </div>
+
     <div v-else class="space-y-6">
       <WorkspaceCard
         v-for="workspace in filteredWorkspaces"
@@ -83,6 +83,8 @@
         @delete-patient="promptDeletePatient($event)"
         @upload-image="promptUploadImage($event)"
         @delete-image="promptDeleteImage($event)"
+        @edit-workspace="promptEditWorkspace(workspace)"
+        @edit-patient="promptEditPatient($event)"
       />
     </div>
 
@@ -109,6 +111,13 @@
       @close="isDeletePatientModalOpen = false"
       @confirm="executeDeletePatient"
     />
+    <MovePatientModal
+      :is-open="isMovePatientModalOpen"
+      :patient="patientToMove"
+      :all-workspaces="allWorkspaces"
+      @close="isMovePatientModalOpen = false"
+      @confirm="executeMovePatient"
+    />
     <ImageUploadModal
       :is-open="isUploadModalOpen"
       :patient="patientForNewImage"
@@ -120,6 +129,32 @@
       :image="imageToDelete"
       @close="isDeleteImageModalOpen = false"
       @confirm="executeDeleteImage"
+    />
+    <WSIViewerModal
+      :is-open="isViewerModalOpen"
+      :image="imageToView"
+      @close="isViewerModalOpen = false"
+    />
+    <MoveImageModal
+      :is-open="isMoveImageModalOpen"
+      :image="imageToMove"
+      :all-workspaces="allWorkspaces"
+      :patients-by-workspace="patientsByWorkspace"
+      @close="isMoveImageModalOpen = false"
+      @confirm="executeMoveImage"
+    />
+
+    <EditWorkspaceModal
+      :is-open="isEditModalOpen"
+      :workspace="workspaceToEdit"
+      @close="isEditModalOpen = false"
+      @updated="handleWorkspaceUpdated"
+    />
+    <EditPatientModal
+      :is-open="isEditPatientModalOpen"
+      :patient="patientToEdit"
+      @close="isEditPatientModalOpen = false"
+      @updated="handlePatientUpdated"
     />
   </div>
 </template>
@@ -133,19 +168,23 @@ import CreatePatientModal from '@/presentation/components/workspace/CreatePatien
 import DeletePatientModal from '@/presentation/components/workspace/DeletePatientModal.vue';
 import ImageUploadModal from '@/presentation/components/workspace/ImageUploadModal.vue';
 import DeleteImageModal from '@/presentation/components/workspace/DeleteImageModal.vue';
+import MovePatientModal from '@/presentation/components/workspace/MovePatientModal.vue';
+import WSIViewerModal from '@/presentation/components/workspace/WSIViewerModal.vue';
+import MoveImageModal from '@/presentation/components/workspace/MoveImageModal.vue';
+
+// --- YENİ IMPORTLAR ---
+import EditWorkspaceModal from '@/presentation/components/workspace/EditWorkspaceModal.vue';
+import EditPatientModal from '@/presentation/components/workspace/EditPatientModal.vue';
+// --- BİTTİ ---
 
 const {
   loading,
   error,
-  // 'workspaces' değişkeni 'useWorkspaces' tarafından döndürülmediği için kaldırıldı.
   filteredWorkspaces,
-  getPatientsForWorkspace,
-  getImagesForPatient,
   isFilterAreaVisible,
-  filters, // Bu değişkeni 'v-if' içinde kullanacağız
+  filters,
   uniqueOrganTypes,
   uniqueOrganizations,
-  resetFilters,
   isCreateModalOpen,
   isDeleteModalOpen,
   workspaceToDelete,
@@ -157,6 +196,21 @@ const {
   patientForNewImage,
   isDeleteImageModalOpen,
   imageToDelete,
+  allWorkspaces,
+  patientsByWorkspace,
+  isMovePatientModalOpen,
+  patientToMove,
+  isViewerModalOpen,
+  imageToView,
+  isMoveImageModalOpen,
+  imageToMove,
+  isEditModalOpen,
+  workspaceToEdit,
+  isEditPatientModalOpen,
+  patientToEdit,
+  resetFilters,
+  getPatientsForWorkspace,
+  getImagesForPatient,
   loadPatientsFor,
   loadImagesFor,
   promptDeleteWorkspace,
@@ -170,5 +224,11 @@ const {
   executeDeletePatient,
   handleImageUploaded,
   executeDeleteImage,
+  executeMovePatient,
+  executeMoveImage,
+  promptEditWorkspace,
+  promptEditPatient,
+  handleWorkspaceUpdated,
+  handlePatientUpdated,
 } = useWorkspaces();
 </script>

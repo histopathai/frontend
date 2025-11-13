@@ -165,6 +165,36 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   }
 
+  async function updatePatient(
+    id: string,
+    workspaceId: string,
+    data: Partial<CreateNewPatientRequest>
+  ): Promise<void> {
+    loading.value = true;
+    error.value = null;
+    try {
+      await patientRepo.update(id, data);
+      // State'i güncelle
+      const currentPatients = patientsByWorkspace.value.get(workspaceId);
+      if (currentPatients) {
+        const index = currentPatients.findIndex((p) => p.id === id);
+        if (index !== -1) {
+          // Güncel veriyi çek
+          const updatedPatient = await patientRepo.getById(id);
+          if (updatedPatient) {
+            currentPatients[index] = updatedPatient;
+            patientsByWorkspace.value.set(workspaceId, [...currentPatients]);
+          }
+        }
+      }
+    } catch (err: any) {
+      error.value = err.response?.data?.message || 'Hasta güncellenemedi.';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   async function deletePatient(patient: Patient): Promise<void> {
     loading.value = true;
     error.value = null;
@@ -282,7 +312,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     error.value = null;
     try {
       await imageRepo.delete(image.id);
-      // State'den sil
       const currentImages = imagesByPatient.value.get(image.patientId) || [];
       imagesByPatient.value.set(
         image.patientId,
@@ -296,7 +325,45 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   }
 
-  // onUploaded (upload bittiğinde çağrılır)
+  async function transferImage(
+    imageId: string,
+    oldPatientId: string,
+    newPatientId: string
+  ): Promise<void> {
+    loading.value = true;
+    error.value = null;
+    try {
+      await imageRepo.transfer(imageId, newPatientId);
+      const oldImages = imagesByPatient.value.get(oldPatientId) || [];
+      const imageToMove = oldImages.find((i) => i.id === imageId);
+
+      if (imageToMove) {
+        imagesByPatient.value.set(
+          oldPatientId,
+          oldImages.filter((i) => i.id !== imageId)
+        );
+
+        if (imagesByPatient.value.has(newPatientId)) {
+          const newImages = imagesByPatient.value.get(newPatientId) || [];
+
+          const imageData = imageToMove.toJSON();
+          const newImageData = {
+            ...imageData,
+            patient_id: newPatientId, // patient_id'yi güncelle
+            updated_at: new Date().toISOString(),
+          };
+
+          imagesByPatient.value.set(newPatientId, [...newImages, Image.create(newImageData)]);
+        }
+      }
+    } catch (err: any) {
+      error.value = err.response?.data?.message || 'Görüntü taşınamadı.';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   function markImageAsUploaded(patientId: string, image: Image) {
     const currentImages = imagesByPatient.value.get(patientId) || [];
     const existingIndex = currentImages.findIndex((i) => i.id === image.id);
@@ -324,6 +391,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     deleteWorkspace,
     fetchPatients,
     createPatient,
+    updatePatient,
     deletePatient,
     transferPatient,
     fetchImages,

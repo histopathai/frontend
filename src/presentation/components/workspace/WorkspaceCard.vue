@@ -75,10 +75,14 @@ const emit = defineEmits([
   'load-patients',
   'load-images',
   'create-patient',
+  'edit-workspace',
   'delete-workspace',
   'delete-patient',
   'upload-image',
   'delete-image',
+  'move-patient',
+  'move-image',
+  'view-image',
 ]);
 
 const isExpanded = ref(false);

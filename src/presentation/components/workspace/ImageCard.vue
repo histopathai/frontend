@@ -99,7 +99,7 @@ const props = defineProps({
   image: { type: Object as PropType<Image>, required: true },
 });
 
-const emit = defineEmits(['delete-image', 'view-image']);
+const emit = defineEmits(['delete-image', 'view-image', 'move-image']);
 const router = useRouter();
 
 const thumbnailUrl = computed(() => {
@@ -116,7 +116,6 @@ const onImageError = (event: Event) => {
 };
 
 const viewImage = () => {
-  alert(`Görüntüleyici açılıyor: ${props.image.id}`);
   emit('view-image', props.image);
 };
 </script>

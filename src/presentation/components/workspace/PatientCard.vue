@@ -61,7 +61,16 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['load-images', 'upload-image', 'delete-patient', 'delete-image']);
+const emit = defineEmits([
+  'load-images',
+  'upload-image',
+  'edit-patient',
+  'delete-patient',
+  'delete-image',
+  'move-patient',
+  'move-image',
+  'view-image',
+]);
 
 const store = useWorkspaceStore();
 const isExpanded = ref(false);

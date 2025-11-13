@@ -8,7 +8,7 @@
               {{ appName }}
             </router-link>
             <router-link
-              to="/wsi-viewer"
+              to="/dashboard/wsi-viewer"
               class="text-sm font-medium text-gray-600 hover:text-indigo-600 ml-6"
             >
               WSI Görüntüleyici

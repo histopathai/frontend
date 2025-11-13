@@ -63,14 +63,16 @@ const routes = [
         component: () => import('@/presentation/views/dashboard/WorkspaceView.vue'),
         meta: { title: 'Çalışma Alanlarım' },
       },
+      {
+        path: 'wsi-viewer', // '/dashboard/wsi-viewer' olacak
+        name: 'WSIViewer',
+        component: () => import('@/presentation/views/dashboard/WSIViewerView.vue'),
+        meta: {
+          title: 'WSI Görüntüleyici',
+          fullWidth: true, // Bu, layout'un padding'leri kaldırmasını sağlar
+        },
+      },
     ],
-  },
-
-  // --- WSI Görüntüleyici Rotası (Layout: DashboardLayout) ---
-  {
-    path: '/wsi-viewer',
-    component: DashboardLayout,
-    meta: { requiresAuth: true },
   },
 
   // --- GÜNCELLENEN ADMIN ROTASI (Layout: AdminLayout) ---
