@@ -27,13 +27,13 @@ const routes = [
       {
         path: '',
         name: 'AdminDashboard',
-        component: () => import('@/presentation/views/admin/AdminDashboardView.vue'),
+        component: () => import('@/presentation/views/admin/AdminHomeView.vue'),
         meta: { title: 'Admin Panel' },
       },
       {
         path: 'users', // '/admin/users' rotası
         name: 'UserManagement',
-        component: () => import('@/presentation/views/admin/UserManagementView.vue'),
+        component: () => import('@/presentation/views/admin/UserListView.vue'),
         meta: { title: 'Kullanıcı Yönetimi' },
       },
     ],
@@ -48,7 +48,7 @@ const routes = [
       {
         path: '',
         name: 'DashboardHome',
-        component: () => import('@/presentation/views/dashboard/DashboardView.vue'),
+        component: () => import('@/presentation/views/dashboard/HomeView.vue'),
         meta: { title: 'Dashboard' },
       },
       {
@@ -66,7 +66,7 @@ const routes = [
       {
         path: 'wsi-viewer', // '/dashboard/wsi-viewer' olacak
         name: 'WSIViewer',
-        component: () => import('@/presentation/views/dashboard/WSIViewerView.vue'),
+        component: () => import('@/presentation/views/dashboard/ImageViewerView.vue'),
         meta: {
           title: 'WSI Görüntüleyici',
           fullWidth: true, // Bu, layout'un padding'leri kaldırmasını sağlar

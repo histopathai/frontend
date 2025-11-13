@@ -4,6 +4,8 @@ import { repositories } from '@/services';
 import { Session } from '@/core/entities/Session';
 import { User } from '@/core/entities/User';
 import type { RegisterRequest, ChangePasswordRequest } from '@/core/repositories/IAuthRepository';
+import router from '@/router';
+import { useToast } from 'vue-toastification';
 
 const authRepo = repositories.auth;
 
@@ -11,7 +13,6 @@ function getSessionFromStorage(): Session | null {
   const stored = localStorage.getItem('auth_session');
   if (!stored) return null;
   try {
-    // Session.create kullanarak veriyi entity'e dönüştür
     return Session.create(JSON.parse(stored));
   } catch {
     localStorage.removeItem('auth_session');
@@ -23,7 +24,6 @@ function getUserFromStorage(): User | null {
   const stored = localStorage.getItem('auth_user');
   if (!stored) return null;
   try {
-    // User.create kullanarak veriyi entity'e dönüştür
     return User.create(JSON.parse(stored));
   } catch {
     localStorage.removeItem('auth_user');
@@ -36,6 +36,8 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null);
   const session = ref<Session | null>(null);
   const user = ref<User | null>(null);
+
+  const toast = useToast();
 
   // === GETTERS ===
   const isAuthenticated = computed(() => !!session.value && !!user.value);
@@ -57,6 +59,40 @@ export const useAuthStore = defineStore('auth', () => {
   // === ACTIONS ===
 
   /**
+   * Oturum verilerini yerelden temizler.
+   */
+  function clearAuthData() {
+    session.value = null;
+    user.value = null;
+    localStorage.removeItem('auth_session');
+    localStorage.removeItem('auth_user');
+  }
+
+  /**
+   * (YENİ) Uygulama başladığında veya sayfa yenilendiğinde
+   * localStorage'daki oturum bilgilerini yükler.
+   */
+  async function initializeAuth() {
+    loading.value = true;
+    try {
+      const storedSession = getSessionFromStorage();
+      const storedUser = getUserFromStorage();
+
+      if (storedSession && storedUser) {
+        session.value = storedSession;
+        user.value = storedUser;
+        // İsteğe bağlı: Token'ı backend'de hızlıca doğrulayabilirsiniz
+        // await getProfile();
+      }
+    } catch (err: any) {
+      console.error('Auth initialization error:', err);
+      clearAuthData();
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  /**
    * KAYIT: Firebase KULLANMAZ.
    * Doğrudan backend'e e-posta/şifre yollar.
    */
@@ -65,7 +101,6 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null;
     try {
       const newUser = await authRepo.register(payload);
-      //user.value = newUser;
       return newUser;
     } catch (err: any) {
       error.value = err.response?.data?.message || err.message;
@@ -106,6 +141,9 @@ export const useAuthStore = defineStore('auth', () => {
       return profile;
     } catch (err: any) {
       error.value = err.response?.data?.message || err.message;
+      if (err.response?.status === 401) {
+        handleUnauthorized();
+      }
       throw err;
     } finally {
       loading.value = false;
@@ -122,10 +160,7 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (err: any) {
       console.error('Logout error:', err);
     } finally {
-      session.value = null;
-      user.value = null;
-      localStorage.removeItem('auth_session');
-      localStorage.removeItem('auth_user');
+      clearAuthData();
       loading.value = false;
     }
   }
@@ -141,6 +176,18 @@ export const useAuthStore = defineStore('auth', () => {
       throw err;
     } finally {
       loading.value = false;
+    }
+  }
+
+  /**
+   * (YENİ) 401 - Yetkisiz hatası alındığında merkezi olarak çağrılır.
+   * Oturumu temizler ve kullanıcıyı girişe yönlendirir.
+   */
+  function handleUnauthorized() {
+    if (isAuthenticated.value) {
+      clearAuthData();
+      toast.error('Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.');
+      router.push('/auth/login');
     }
   }
   // ---
@@ -159,5 +206,7 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     getProfile,
     changePassword,
+    initializeAuth, // <-- EKLENDİ
+    handleUnauthorized, // <-- EKLENDİ
   };
 });

@@ -10,12 +10,18 @@
             <router-link
               to="/dashboard/wsi-viewer"
               class="text-sm font-medium text-gray-600 hover:text-indigo-600 ml-6"
+              :class="{
+                'text-indigo-600 font-semibold': route.path.startsWith('/dashboard/wsi-viewer'),
+              }"
             >
               WSI Görüntüleyici
             </router-link>
             <router-link
               to="/dashboard/workspaces"
               class="text-sm font-medium text-gray-600 hover:text-indigo-600 ml-4"
+              :class="{
+                'text-indigo-600 font-semibold': route.path.startsWith('/dashboard/workspaces'),
+              }"
             >
               Çalışma Alanlarım
             </router-link>

@@ -75,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { useLoginForm } from '@/presentation/composables/auth/useLoginForm';
+import { useLoginForm } from '@/presentation/composables/auth/useLogin';
 
 const { email, password, errors, isLoading, handleLogin } = useLoginForm();
 </script>

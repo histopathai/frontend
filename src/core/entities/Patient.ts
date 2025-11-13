@@ -77,6 +77,14 @@ export class Patient {
     return this.props.history;
   }
 
+  get createdAt(): Date {
+    return this.props.createdAt;
+  }
+
+  get updatedAt(): Date {
+    return this.props.updatedAt;
+  }
+
   // Business logic
   hasDemographics(): boolean {
     return this.age !== null || this.gender !== null || this.race !== null;

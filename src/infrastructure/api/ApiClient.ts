@@ -1,6 +1,7 @@
 // infrastructure/api/ApiClient.ts
 import axios, { type AxiosInstance, AxiosError } from 'axios';
 import type { ApiError } from '@/core/types/common';
+import { useAuthStore } from '@/stores/auth';
 
 export class ApiClient {
   private client: AxiosInstance;
@@ -22,9 +23,27 @@ export class ApiClient {
       (response) => response,
       (error: AxiosError<ApiError>) => {
         if (error.response?.status === 401) {
-          // Redirect to login
-          window.location.href = '/auth/login';
+          // --- 2. DEĞİŞİKLİK: 401 yönetimi güncellendi ---
+
+          // Store'dan bir örnek al
+          const authStore = useAuthStore();
+
+          // "Hard refresh" YERİNE merkezi eylemi çağır
+          authStore.handleUnauthorized();
+
+          // 'window.location.href = '/login';' satırını sildik.
+
+          // Hatayı burada sonlandırıyoruz. 'handleUnauthorized'
+          // zaten kullanıcıyı bilgilendirip yönlendirdi.
+          // 'throw error;' yapsaydık, API'yi çağıran
+          // composable (örn. useWorkspaces) da hatayı yakalayıp
+          // ikinci bir toast mesajı gösterecekti.
+          // Bu şekilde çift hatayı engelliyoruz.
+          return Promise.reject(new Error('Oturum sonlandı veya yetkisiz.'));
+          // --- DEĞİŞİKLİK SONU ---
         }
+
+        // Diğer hatalar (404, 500 vb.) normal şekilde fırlatılmaya devam eder
         throw error;
       }
     );

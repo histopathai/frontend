@@ -160,7 +160,7 @@
 </template>
 
 <script setup lang="ts">
-import { useWorkspaces } from '@/presentation/composables/workspace/useWorkspaces';
+import { useWorkspaces } from '@/presentation/composables/workspace/useWorkspaceManager';
 import WorkspaceCard from '@/presentation/components/workspace/WorkspaceCard.vue';
 import CreateWorkspaceModal from '@/presentation/components/workspace/CreateWorkspaceModal.vue';
 import DeleteWorkspaceModal from '@/presentation/components/workspace/DeleteWorkspaceModal.vue';
@@ -169,7 +169,7 @@ import DeletePatientModal from '@/presentation/components/workspace/DeletePatien
 import ImageUploadModal from '@/presentation/components/workspace/ImageUploadModal.vue';
 import DeleteImageModal from '@/presentation/components/workspace/DeleteImageModal.vue';
 import MovePatientModal from '@/presentation/components/workspace/MovePatientModal.vue';
-import WSIViewerModal from '@/presentation/components/workspace/WSIViewerModal.vue';
+import WSIViewerModal from '@/presentation/components/workspace/ImageViewerModal.vue';
 import MoveImageModal from '@/presentation/components/workspace/MoveImageModal.vue';
 
 // --- YENİ IMPORTLAR ---

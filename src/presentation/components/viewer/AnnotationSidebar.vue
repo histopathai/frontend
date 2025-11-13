@@ -19,8 +19,10 @@
               : 'font-medium text-gray-700 hover:bg-gray-100',
           ]"
           :style="{
-            backgroundColor: selectedType?.id === annType.id ? annType.color : 'transparent',
-            color: selectedType?.id === annType.id ? 'white' : annType.color,
+            /* */
+            backgroundColor:
+              selectedType?.id === annType.id ? (annType as any).color : 'transparent',
+            color: selectedType?.id === annType.id ? 'white' : (annType as any).color,
           }"
         >
           {{ annType.name }}
@@ -45,9 +47,12 @@
           <div class="flex items-center gap-2">
             <span
               class="w-3 h-3 rounded-full"
-              :style="{ backgroundColor: getTypeColor(ann.annotationTypeId) }"
+              :style="{ backgroundColor: getTypeColor((ann as any).annotationTypeId) }"
             ></span>
-            <span class="text-sm text-gray-800">{{ getTypeName(ann.annotationTypeId) }}</span>
+            /* */
+            <span class="text-sm text-gray-800">{{
+              getTypeName((ann as any).annotationTypeId)
+            }}</span>
           </div>
           <button
             @click.stop="$emit('annotation-deleted', ann.id)"
@@ -94,6 +99,6 @@ const getTypeName = (typeId: string) => {
 };
 
 const getTypeColor = (typeId: string) => {
-  return findType(typeId)?.color || '#9CA3AF'; // Varsa color, yoksa gray
+  return (findType(typeId) as any)?.color || '#9CA3AF';
 };
 </script>

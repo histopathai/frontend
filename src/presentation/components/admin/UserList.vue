@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import UserCard from '@/presentation/components/admin/UserCard.vue';
-import { useUserManagement } from '@/presentation/composables/admin/useUserManagement';
+import { useUserManagement } from '@/presentation/composables/admin/useUsers';
 
 const { users, isLoading, error, handleRefresh, handleApprove, handleSuspend, handleMakeAdmin } =
   useUserManagement();

@@ -67,10 +67,10 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue';
 import { Dialog, DialogPanel, TransitionChild, TransitionRoot } from '@headlessui/vue';
-import { useAnnotationViewer } from '@/presentation/composables/viewer/useAnnotationViewer';
+import { useAnnotationViewer } from '@/presentation/composables/viewer/useImageViewer';
 import ViewerToolbar from '@/presentation/components/viewer/ViewerToolbar.vue';
 import AnnotationSidebar from '@/presentation/components/viewer/AnnotationSidebar.vue';
-import AnnotationNotification from '@/presentation/components/viewer/AnnotationNotification.vue';
+import AnnotationNotification from '@/presentation/components/viewer/ViewerNotification.vue';
 import type { ToolName } from '@/presentation/components/viewer/ViewerToolbar.vue';
 import type { Image } from '@/core/entities/Image';
 import type { PropType } from 'vue';

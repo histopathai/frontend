@@ -6,7 +6,7 @@ import { useToast } from 'vue-toastification';
 import type { Image } from '@/core/entities/Image';
 import type { AnnotationType } from '@/core/entities/AnnotationType';
 import type { ToolName } from '@/presentation/components/viewer/ViewerToolbar.vue';
-import type { NotificationStatus } from '@/presentation/components/viewer/AnnotationNotification.vue';
+import type { NotificationStatus } from '@/presentation/components/viewer/ViewerNotification.vue';
 
 // OpenSeadragon Annotations eklentisi için tipleri genişlet
 declare module 'openseadragon' {

@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { useProfileForm } from '@/presentation/composables/user/useProfileForm';
+import { useProfileForm } from '@/presentation/composables/user/useChangePassword';
 
 const { newPassword, confirmNewPassword, errors, isLoading, handleChangePassword } =
   useProfileForm();

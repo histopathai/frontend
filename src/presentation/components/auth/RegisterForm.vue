@@ -88,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { useRegistrationForm } from '@/presentation/composables/auth/useRegistrationForm';
+import { useRegistrationForm } from '@/presentation/composables/auth/useRegister';
 
 const { email, password, confirmPassword, displayName, errors, isLoading, handleRegister } =
   useRegistrationForm();

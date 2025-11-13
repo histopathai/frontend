@@ -9,7 +9,7 @@ import { getAuth } from 'firebase/auth';
 import { useAuthStore } from '@/stores/auth';
 import { User } from '@/core/entities/User';
 import { Session } from '@/core/entities/Session';
-// ------------------------------------
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -28,7 +28,6 @@ import router from './router';
 const pinia = createPinia();
 const app = createApp(App);
 
-// Eklentileri (Plugin) kur
 app.use(pinia);
 
 // --- BAŞLANGIÇ: TEST İÇİN GEÇİCİ GİRİŞ KODU ---
