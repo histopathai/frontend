@@ -1,25 +1,19 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-    <div class="sm:mx-auto sm:w-full sm:max-w-md">
-      <div class="flex justify-center">
-        <h1 class="text-3xl font-bold text-primary-600">{{ appName }}</h1>
-      </div>
+  <div
+    class="flex min-h-screen flex-col items-center justify-center space-y-8 bg-gray-100 px-4 py-12 sm:px-6 lg:px-8"
+  >
+    <div>
+      <h1 class="text-center text-4xl font-bold text-indigo-600">HistoPathAI</h1>
     </div>
 
-    <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-      <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-        <router-view />
-      </div>
+    <RouterView />
 
-      <div class="mt-6 text-center">
-        <p class="text-sm text-gray-500">
-          © {{ new Date().getFullYear() }} {{ appName }}. All rights reserved.
-        </p>
-      </div>
+    <div>
+      <p class="text-center text-sm text-gray-500">© 2025 HistopathAI. All rights reserved.</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-const appName = import.meta.env.VITE_APP_NAME || 'HistopathAI';
+import { RouterView } from 'vue-router';
 </script>

@@ -12,11 +12,6 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-  test: {
-    environment: 'happy-dom',
-    globals: true,
-    exclude: [...configDefaults.exclude, 'node_modules/**'],
-  },
   server: {
     https: {
       key: fs.readFileSync('./localhost+2-key.pem'),

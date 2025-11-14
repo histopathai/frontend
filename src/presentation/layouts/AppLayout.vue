@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-gray-100">
-    <AdminHeader />
+    <AppHeader />
 
     <main>
       <div class="py-6 px-4 sm:px-6 lg:px-8">
@@ -12,5 +12,5 @@
 
 <script setup lang="ts">
 import { RouterView } from 'vue-router';
-import AdminHeader from '@/presentation/components/common/AdminHeader.vue';
+import AppHeader from '@/presentation/components/common/AppHeader.vue';
 </script>

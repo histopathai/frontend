@@ -57,7 +57,7 @@
     @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm;
   }
   .form-label {
-    @apply block text-sm font-medium text-gray-700 mb-1; /* mb-2'den mb-1'e çekildi */
+    @apply block text-sm font-medium text-gray-700 mb-1;
   }
   .form-input-sm {
     @apply py-1.5 px-2.5 text-xs;
@@ -65,13 +65,13 @@
 
   /* Kart Yapısı */
   .card {
-    @apply bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200; /* Hafif gölge ve border */
+    @apply bg-white overflow-hidden shadow-lg rounded-xl;
   }
   .card-header {
-    @apply px-4 py-4 sm:px-6 border-b border-gray-200; /* Padding ayarlandı */
+    @apply px-6 py-5 border-b border-gray-200;
   }
   .card-body {
-    @apply px-4 py-4 sm:p-6;
+    @apply p-6;
   }
 
   .router-link-exact-active {
