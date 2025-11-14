@@ -169,7 +169,7 @@ import DeletePatientModal from '@/presentation/components/workspace/DeletePatien
 import ImageUploadModal from '@/presentation/components/workspace/ImageUploadModal.vue';
 import DeleteImageModal from '@/presentation/components/workspace/DeleteImageModal.vue';
 import MovePatientModal from '@/presentation/components/workspace/MovePatientModal.vue';
-import WSIViewerModal from '@/presentation/components/workspace/ImageViewerModal.vue';
+import WSIViewerModal from '@/presentation/components/viewer/ImageViewerModal.vue';
 import MoveImageModal from '@/presentation/components/workspace/MoveImageModal.vue';
 
 // --- YENİ IMPORTLAR ---
