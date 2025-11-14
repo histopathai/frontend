@@ -1,6 +1,7 @@
 import type { ApiClient } from '../api/ApiClient';
 import type { IAdminRepository, ApproveUserRequest } from '@/core/repositories/IAdminRepository';
 import { User } from '@/core/entities/User';
+import type { Pagination } from '@/core/types/common';
 
 export class AdminRepository implements IAdminRepository {
   constructor(private apiClient: ApiClient) {}
