@@ -35,7 +35,12 @@ export class AuthRepository implements IAuthRepository {
     const response = await this.apiClient.post<BackendSessionResponse>('/api/v1/sessions', {
       token,
     });
+    console.log('AuthRepository login response:', response);
     return Session.create(response.data.session);
+  }
+
+  async logout(): Promise<void> {
+    await this.apiClient.post('/api/v1/sessions/revoke');
   }
 
   async getProfile(): Promise<User> {

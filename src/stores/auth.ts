@@ -9,17 +9,6 @@ import { useToast } from 'vue-toastification';
 
 const authRepo = repositories.auth;
 
-function getSessionFromStorage(): Session | null {
-  const stored = localStorage.getItem('auth_session');
-  if (!stored) return null;
-  try {
-    return Session.create(JSON.parse(stored));
-  } catch {
-    localStorage.removeItem('auth_session');
-    return null;
-  }
-}
-
 function getUserFromStorage(): User | null {
   const stored = localStorage.getItem('auth_user');
   if (!stored) return null;
@@ -34,13 +23,12 @@ function getUserFromStorage(): User | null {
 export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false);
   const error = ref<string | null>(null);
-  const session = ref<Session | null>(null);
   const user = ref<User | null>(null);
 
   const toast = useToast();
 
   // === GETTERS ===
-  const isAuthenticated = computed(() => !!session.value && !!user.value);
+  const isAuthenticated = computed(() => !!user.value);
   const isLoading = computed(() => loading.value);
   const isAdmin = computed(() => user.value?.role.isAdmin() ?? false);
 
@@ -72,7 +60,7 @@ export const useAuthStore = defineStore('auth', () => {
    * (YENİ) Uygulama başladığında veya sayfa yenilendiğinde
    * localStorage'daki oturum bilgilerini yükler.
    */
-  async function initializeAuth() {
+  /* async function initializeAuth() {
     loading.value = true;
     try {
       const storedSession = getSessionFromStorage();
@@ -90,7 +78,7 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       loading.value = false;
     }
-  }
+  } */
 
   /**
    * KAYIT: Firebase KULLANMAZ.
@@ -114,16 +102,12 @@ export const useAuthStore = defineStore('auth', () => {
    * GİRİŞ: Firebase token'ı alır, backend'e yollar.
    * (useLoginForm'daki verifyToken'ın gerçek karşılığı)
    */
-  async function login(token: string): Promise<Session> {
+  async function login(token: string): Promise<void> {
     loading.value = true;
     error.value = null;
     try {
-      const newSession = await authRepo.login(token);
-
-      session.value = newSession;
-      localStorage.setItem('auth_session', JSON.stringify(newSession.toJSON()));
+      await authRepo.login(token);
       await getProfile();
-      return newSession;
     } catch (err: any) {
       error.value = err.response?.data?.message || err.message;
       throw err;
@@ -137,13 +121,9 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const profile = await authRepo.getProfile();
       user.value = profile;
-      localStorage.setItem('auth_user', JSON.stringify(profile.toJSON()));
       return profile;
     } catch (err: any) {
       error.value = err.response?.data?.message || err.message;
-      if (err.response?.status === 401) {
-        handleUnauthorized();
-      }
       throw err;
     } finally {
       loading.value = false;
@@ -154,14 +134,21 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     error.value = null;
     try {
-      if (session.value) {
-        await authRepo.revokeSession(session.value.id);
-      }
+      // Backend'e logout isteği gönder (cookie'yi siler)
+      await authRepo.logout(); // yazılacak
     } catch (err: any) {
       console.error('Logout error:', err);
     } finally {
-      clearAuthData();
+      user.value = null;
       loading.value = false;
+    }
+  }
+
+  async function checkAuth() {
+    try {
+      await getProfile();
+    } catch {
+      user.value = null;
     }
   }
 
@@ -195,7 +182,6 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     loading,
     error,
-    session,
     user,
     isAuthenticated,
     isLoading,
@@ -205,8 +191,8 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     logout,
     getProfile,
+    checkAuth,
     changePassword,
-    initializeAuth, // <-- EKLENDİ
-    handleUnauthorized, // <-- EKLENDİ
+    handleUnauthorized,
   };
 });

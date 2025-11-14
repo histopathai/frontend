@@ -96,37 +96,30 @@ const router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
-  if (authStore.session && !authStore.user) {
+  if (!authStore.user) {
     try {
-      await authStore.getProfile();
-    } catch (error) {
-      await authStore.logout();
-      return next({ name: 'Login' });
-    }
+      await authStore.checkAuth();
+    } catch {}
   }
   const isAuthenticated = authStore.isAuthenticated;
   const isActive = authStore.user?.status.isActive() ?? false;
+
   if (to.meta.requiresAuth) {
     if (!isAuthenticated) {
       return next({ name: 'Login' });
     }
-    if (!isActive) {
-      if (to.name !== 'AccountStatus') {
-        return next({ name: 'AccountStatus' });
-      }
+    if (!isActive && to.name !== 'AccountStatus') {
+      return next({ name: 'AccountStatus' });
     }
-    if (isActive) {
-      if (to.meta.requiresAdmin && !authStore.isAdmin) {
-        return next({ name: 'DashboardHome' }); // '/dashboard'
-      }
+    if (to.meta.requiresAdmin && !authStore.isAdmin) {
+      return next({ name: 'DashboardHome' });
     }
-
-    return next();
   }
 
   if (isAuthenticated && isActive && (to.name === 'Login' || to.name === 'Register')) {
-    return next({ name: 'DashboardHome' }); // '/dashboard'
+    return next({ name: 'DashboardHome' });
   }
+
   return next();
 });
 
