@@ -30,7 +30,7 @@ const app = createApp(App);
 
 app.use(pinia);
 
-// --- BAŞLANGIÇ: TEST İÇİN GEÇİCİ GİRİŞ KODU ---
+/* // --- BAŞLANGIÇ: TEST İÇİN GEÇİCİ GİRİŞ KODU ---
 // Bu blok, backend'i atlayarak sizi 'admin' olarak giriş yapmış sayar.
 // Testleriniz bittiğinde bu bloğu sildiğinizden emin olun!
 try {
@@ -65,7 +65,7 @@ try {
 } catch (e) {
   console.error('Manuel giriş mock hatası:', e);
 }
-// --- BİTİŞ: TEST İÇİN GEÇİCİ GİRİŞ KODU ---
+// --- BİTİŞ: TEST İÇİN GEÇİCİ GİRİŞ KODU --- */
 app.use(router);
 
 const toastOptions: PluginOptions = {
