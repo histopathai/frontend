@@ -32,11 +32,21 @@ export class AuthRepository implements IAuthRepository {
   }
 
   async login(token: string): Promise<Session> {
-    const response = await this.apiClient.post<BackendSessionResponse>('/api/v1/sessions', {
-      token,
-    });
-    console.log('AuthRepository login response:', response);
-    return Session.create(response.data.session);
+    try {
+      const response = await this.apiClient.post<BackendSessionResponse>('/api/v1/sessions', {
+        token,
+      });
+
+      console.log('AuthRepository login response:', response);
+      if (!response.data || !response.data.session) {
+        throw new Error('Invalid session response from backend');
+      }
+
+      return Session.create(response.data.session);
+    } catch (error) {
+      console.error('Login error in AuthRepository:', error);
+      throw error;
+    }
   }
 
   async logout(): Promise<void> {
