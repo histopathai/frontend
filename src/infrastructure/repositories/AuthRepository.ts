@@ -9,16 +9,12 @@ import { User } from '@/core/entities/User';
 import { Session } from '@/core/entities/Session';
 
 interface BackendUserResponse {
-  data: {
-    user?: any;
-    [key: string]: any;
-  };
+  user?: any;
+  [key: string]: any;
 }
 
 interface BackendSessionResponse {
-  data: {
-    session: any;
-  };
+  session: any;
 }
 
 interface BackendSessionListResponse {
@@ -26,10 +22,8 @@ interface BackendSessionListResponse {
 }
 
 interface VerifyTokenResponse {
-  data: {
-    valid: boolean;
-    user: any;
-  };
+  valid: boolean;
+  user: any;
 }
 
 export class AuthRepository implements IAuthRepository {
@@ -39,7 +33,7 @@ export class AuthRepository implements IAuthRepository {
 
   async register(data: RegisterRequest): Promise<User> {
     const response = await this.apiClient.post<BackendUserResponse>('/api/v1/auth/register', data);
-    return User.create(response.data.user);
+    return User.create(response.user);
   }
 
   async login(token: string): Promise<Session> {
@@ -48,34 +42,31 @@ export class AuthRepository implements IAuthRepository {
         token,
       });
 
-      if (!verifyResponse.data.valid) {
+      if (!verifyResponse.valid) {
         throw new Error('Invalid token');
       }
 
-      const sessionResponse = await this.apiClient.post<BackendSessionResponse>(
-        '/api/v1/sessions',
-        { token }
-      );
+      await this.apiClient.put('/api/v1/sessions', {
+        token,
+      });
+      const session = await this.checkSession();
 
-      if (!sessionResponse.data?.session) {
-        throw new Error('Failed to create session');
+      if (!session) {
+        throw new Error('Failed to retrieve session after cookie was set');
       }
-
-      const session = Session.create(sessionResponse.data.session);
-
-      console.log('Login successful, session created:', session.id);
       return session;
     } catch (error) {
       console.error('Login error:', error);
       throw error;
     }
   }
+
   async checkSession(): Promise<Session | null> {
     try {
       const response = await this.apiClient.get<BackendSessionResponse>('/api/v1/sessions/current');
-
-      if (response.data?.session) {
-        return Session.create(response.data.session);
+      console.log('Session check response:', response);
+      if (response?.session) {
+        return Session.create(response.session);
       }
 
       return null;
@@ -97,13 +88,15 @@ export class AuthRepository implements IAuthRepository {
 
   async getProfile(): Promise<User> {
     const response = await this.apiClient.get<BackendUserResponse>('/api/v1/user/profile');
-    return User.create(response.data.user);
+    console.log('Profile response:', response);
+    return User.create(response.user);
   }
 
   async listMySessions(): Promise<Session[]> {
     const response = await this.apiClient.get<BackendSessionListResponse>('/api/v1/sessions');
     return response.data.map((item: any) => Session.create(item));
   }
+
   async revokeSession(sessionId: string): Promise<void> {
     await this.apiClient.delete(`/api/v1/sessions/${sessionId}`);
   }
