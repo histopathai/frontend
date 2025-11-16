@@ -3,97 +3,107 @@ import { ref, computed } from 'vue';
 import { repositories } from '@/services';
 import type { Annotation } from '@/core/entities/Annotation';
 import type { AnnotationType } from '@/core/entities/AnnotationType';
-import type { CreateAnnotationRequest } from '@/core/repositories/IAnnotation';
-import type { Pagination } from '@/core/types/common';
+import type { CreateNewAnnotationRequest } from '@/core/repositories/IAnnotation';
+import { useToast } from 'vue-toastification';
 
 const annotationRepo = repositories.annotation;
 const annotationTypeRepo = repositories.annotationType;
 
 export const useAnnotationStore = defineStore('annotation', () => {
-  // === STATE ===
+  // --- STATE ---
   const annotationTypes = ref<AnnotationType[]>([]);
   const annotations = ref<Annotation[]>([]);
-  const imageId = ref<string | null>(null);
+  const currentImageId = ref<string | null>(null);
 
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  // === GETTERS ===
+  // --- DEPENDENCIES ---
+  const toast = useToast();
+
+  // --- GETTERS ---
   const isLoading = computed(() => loading.value);
-  const getAnnotationTypes = computed(() => annotationTypes.value);
-  const getAnnotations = computed(() => annotations.value);
 
-  // === ACTIONS ===
+  // --- ACTIONS ---
 
-  async function loadDataForImage(newImageId: string) {
-    if (imageId.value === newImageId && annotations.value.length > 0) {
-      // Zaten yüklü
-      return;
-    }
+  async function loadDataForImage(imageId: string) {
+    if (currentImageId.value === imageId) return; // Zaten yüklü
 
-    imageId.value = newImageId;
+    currentImageId.value = imageId;
     loading.value = true;
     error.value = null;
 
     try {
-      // Eşzamanlı olarak hem tipleri hem de annotasyonları çek
       const [typesResult, annotationsResult] = await Promise.all([
-        annotationTypeRepo.list(),
-        annotationRepo.getByImageId(newImageId, { limit: 1000, offset: 0 }), // Limit'i yüksek tut
+        annotationTypeRepo.list({ limit: 1000, offset: 0 }),
+        annotationRepo.getByImageId(imageId, { limit: 1000, offset: 0 }),
       ]);
 
-      annotationTypes.value = typesResult;
+      annotationTypes.value = typesResult.data;
       annotations.value = annotationsResult.data;
     } catch (err: any) {
-      error.value = err.response?.data?.message || 'Annotasyon verileri alınamadı.';
-      console.error(error.value);
-      throw err;
+      console.error('Load Annotation Data Error:', err);
+      error.value = err.response?.data?.message || 'Anotasyon verileri alınamadı.';
+      toast.error(error.value);
     } finally {
       loading.value = false;
     }
   }
 
-  async function createAnnotation(data: CreateAnnotationRequest): Promise<Annotation> {
+  async function createAnnotation(
+    data: Omit<CreateNewAnnotationRequest, 'imageId' | 'annotatorId'>
+  ) {
+    if (loading.value) return;
     loading.value = true;
     error.value = null;
 
-    if (!imageId.value) {
-      throw new Error('Annotasyon oluşturmak için imageId ayarlanmamış.');
+    if (!currentImageId.value) {
+      toast.error('Anotasyon kaydetmek için bir görüntü seçili olmalı.');
+      loading.value = false;
+      return;
     }
 
-    const payload = { ...data, imageId: imageId.value };
+    const payload: CreateNewAnnotationRequest = {
+      ...data,
+      imageId: currentImageId.value,
+      annotatorId: '',
+    };
 
     try {
       const newAnnotation = await annotationRepo.create(payload);
       annotations.value.push(newAnnotation);
-      return newAnnotation;
+      toast.success('Anotasyon kaydedildi.');
     } catch (err: any) {
-      error.value = err.response?.data?.message || 'Annotasyon oluşturulamadı.';
-      throw err;
+      console.error('Create Annotation Error:', err);
+      error.value = err.response?.data?.message || 'Anotasyon oluşturulamadı.';
+      toast.error(error.value);
     } finally {
       loading.value = false;
     }
   }
 
-  async function deleteAnnotation(id: string): Promise<void> {
+  async function deleteAnnotation(id: string) {
+    if (loading.value) return;
     loading.value = true;
     error.value = null;
 
     try {
       await annotationRepo.delete(id);
       annotations.value = annotations.value.filter((ann) => ann.id !== id);
+      toast.success('Anotasyon silindi.');
     } catch (err: any) {
-      error.value = err.response?.data?.message || 'Annotasyon silinemedi.';
-      throw err;
+      console.error('Delete Annotation Error:', err);
+      error.value = err.response?.data?.message || 'Anotasyon silinemedi.';
+      toast.error(error.value);
     } finally {
       loading.value = false;
     }
   }
 
-  function clearStore() {
+  function clearAnnotationData() {
     annotationTypes.value = [];
     annotations.value = [];
-    imageId.value = null;
+    currentImageId.value = null;
     loading.value = false;
     error.value = null;
   }
@@ -102,14 +112,15 @@ export const useAnnotationStore = defineStore('annotation', () => {
     // State
     loading,
     error,
+    annotationTypes,
+    annotations,
+    currentImageId,
     // Getters
     isLoading,
-    getAnnotationTypes,
-    getAnnotations,
     // Actions
     loadDataForImage,
     createAnnotation,
     deleteAnnotation,
-    clearStore,
+    clearAnnotationData,
   };
 });

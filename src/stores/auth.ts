@@ -1,9 +1,8 @@
-import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { repositories } from '@/services';
-import { Session } from '@/core/entities/Session';
+import { defineStore } from 'pinia';
 import { User } from '@/core/entities/User';
 import type { RegisterRequest, ChangePasswordRequest } from '@/core/repositories/IAuthRepository';
+import { repositories } from '@/services';
 import router from '@/router';
 import { useToast } from 'vue-toastification';
 import { i18n } from '@/i18n';
@@ -12,8 +11,6 @@ const t = i18n.global.t;
 const authRepo = repositories.auth;
 
 export const useAuthStore = defineStore('auth', () => {
-  const loading = ref(false);
-  const error = ref<string | null>(null);
   const user = ref<User | null>(null);
   const session = ref<Session | null>(null);
   const isInitialized = ref(false);
@@ -70,7 +67,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function register(payload: RegisterRequest): Promise<User> {
     loading.value = true;
-    error.value = null;
     try {
       const newUser = await authRepo.register(payload);
       toast.success(t('auth.register_success'));
@@ -87,7 +83,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(token: string): Promise<void> {
     loading.value = true;
-    error.value = null;
     try {
       const createdSession = await authRepo.login(token);
       session.value = createdSession;
@@ -176,7 +171,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function changePassword(newPassword: string): Promise<void> {
     loading.value = true;
-    error.value = null;
     try {
       const payload: ChangePasswordRequest = { new_password: newPassword };
       await authRepo.changePassword(payload);
@@ -248,6 +242,10 @@ export const useAuthStore = defineStore('auth', () => {
       toast.error(t('auth.session_expired'));
       router.push('/auth/login');
     }
+
+    user.value = null;
+    toast.error('Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.');
+    router.push({ name: 'Login' });
   }
 
   return {
@@ -260,7 +258,6 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Getters
     isAuthenticated,
-    isLoading,
     isAdmin,
     isApproved,
     userInitials,
