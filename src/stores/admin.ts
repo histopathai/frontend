@@ -15,7 +15,7 @@ export const useAdminStore = defineStore('admin', () => {
   // === ACTIONS ===
 
   function updateUserInState(updatedUser: User) {
-    const index = users.value.findIndex((u) => u.uid === updatedUser.uid);
+    const index = users.value.findIndex((u) => u.userId === updatedUser.userId);
     if (index !== -1) {
       users.value[index] = updatedUser;
     }
@@ -25,7 +25,13 @@ export const useAdminStore = defineStore('admin', () => {
     loading.value = true;
     error.value = null;
     try {
-      users.value = await adminRepo.getAllUsers();
+      const result = await adminRepo.getAllUsers({
+        limit: 10,
+        offset: 0,
+        sortBy: 'user_id',
+        sortOrder: 'asc',
+      });
+      users.value = result.data;
     } catch (err: any) {
       error.value = err.response?.data?.message || 'Kullanıcılar alınamadı.';
       throw err;
