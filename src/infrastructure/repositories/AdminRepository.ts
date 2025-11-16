@@ -26,19 +26,22 @@ export class AdminRepository implements IAdminRepository {
   }
 
   async approveUser(uid: string, data: ApproveUserRequest): Promise<User> {
-    const response = await this.apiClient.put<{ user: any }>(`/api/v1/admin/users/${uid}/approve`, {
-      role: data.role.toString(),
-    });
+    const response = await this.apiClient.post<{ user: any }>(
+      `/api/v1/admin/users/${uid}/approve`,
+      {
+        role: data.role.toString(),
+      }
+    );
     return User.create(response.user);
   }
 
   async suspendUser(uid: string): Promise<User> {
-    const response = await this.apiClient.put<{ user: any }>(`/api/v1/admin/users/${uid}/suspend`);
+    const response = await this.apiClient.post<{ user: any }>(`/api/v1/admin/users/${uid}/suspend`);
     return User.create(response.user);
   }
 
   async makeAdmin(uid: string): Promise<User> {
-    const response = await this.apiClient.put<{ user: any }>(`/api/v1/admin/users/${uid}/admin`);
+    const response = await this.apiClient.post<{ user: any }>(`/api/v1/admin/users/${uid}/admin`);
     return User.create(response.user);
   }
 }
