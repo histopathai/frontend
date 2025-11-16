@@ -6,31 +6,24 @@ import { User } from '@/core/entities/User';
 import type { RegisterRequest, ChangePasswordRequest } from '@/core/repositories/IAuthRepository';
 import router from '@/router';
 import { useToast } from 'vue-toastification';
+import { i18n } from '@/i18n';
 
+const t = i18n.global.t;
 const authRepo = repositories.auth;
-
-function getUserFromStorage(): User | null {
-  const stored = localStorage.getItem('auth_user');
-  if (!stored) return null;
-  try {
-    return User.create(JSON.parse(stored));
-  } catch {
-    localStorage.removeItem('auth_user');
-    return null;
-  }
-}
 
 export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false);
   const error = ref<string | null>(null);
   const user = ref<User | null>(null);
+  const session = ref<Session | null>(null);
+  const isInitialized = ref(false);
 
   const toast = useToast();
 
-  // === GETTERS ===
-  const isAuthenticated = computed(() => !!user.value);
+  const isAuthenticated = computed(() => !!user.value && !!session.value);
   const isLoading = computed(() => loading.value);
   const isAdmin = computed(() => user.value?.role.isAdmin() ?? false);
+  const isApproved = computed(() => user.value?.adminApproved ?? false);
 
   const userInitials = computed(() => {
     if (user.value?.displayName) {
@@ -42,74 +35,78 @@ export const useAuthStore = defineStore('auth', () => {
     return '?';
   });
 
-  // ---
-
-  // === ACTIONS ===
-
-  /**
-   * Oturum verilerini yerelden temizler.
-   */
   function clearAuthData() {
-    session.value = null;
     user.value = null;
-    localStorage.removeItem('auth_session');
-    localStorage.removeItem('auth_user');
+    session.value = null;
+    error.value = null;
   }
 
-  /**
-   * (YENİ) Uygulama başladığında veya sayfa yenilendiğinde
-   * localStorage'daki oturum bilgilerini yükler.
-   */
-  /* async function initializeAuth() {
+  async function initializeAuth(): Promise<void> {
+    if (isInitialized.value) return;
+
     loading.value = true;
     try {
-      const storedSession = getSessionFromStorage();
-      const storedUser = getUserFromStorage();
+      const currentSession = await authRepo.checkSession();
 
-      if (storedSession && storedUser) {
-        session.value = storedSession;
-        user.value = storedUser;
-        // İsteğe bağlı: Token'ı backend'de hızlıca doğrulayabilirsiniz
-        // await getProfile();
+      if (currentSession) {
+        session.value = currentSession;
+
+        const profile = await authRepo.getProfile();
+        user.value = profile;
+
+        console.log('Session restored successfully');
+      } else {
+        console.log('No active session found');
+        clearAuthData();
       }
     } catch (err: any) {
       console.error('Auth initialization error:', err);
       clearAuthData();
     } finally {
       loading.value = false;
+      isInitialized.value = true;
     }
-  } */
+  }
 
-  /**
-   * KAYIT: Firebase KULLANMAZ.
-   * Doğrudan backend'e e-posta/şifre yollar.
-   */
   async function register(payload: RegisterRequest): Promise<User> {
     loading.value = true;
     error.value = null;
     try {
       const newUser = await authRepo.register(payload);
+      toast.success(t('auth.register_success'));
       return newUser;
     } catch (err: any) {
-      error.value = err.response?.data?.message || err.message;
+      const errorMessage = err.response?.data?.message || err.message || t('auth.register_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
       throw err;
     } finally {
       loading.value = false;
     }
   }
 
-  /**
-   * GİRİŞ: Firebase token'ı alır, backend'e yollar.
-   * (useLoginForm'daki verifyToken'ın gerçek karşılığı)
-   */
   async function login(token: string): Promise<void> {
     loading.value = true;
     error.value = null;
     try {
-      await authRepo.login(token);
-      await getProfile();
+      const createdSession = await authRepo.login(token);
+      session.value = createdSession;
+
+      const profile = await authRepo.getProfile();
+      user.value = profile;
+
+      if (!profile.adminApproved) {
+        toast.warning(t('auth.login_not_approved'));
+      } else {
+        toast.success(t('auth.login_success'));
+      }
+
+      console.log('Login successful');
     } catch (err: any) {
-      error.value = err.response?.data?.message || err.message;
+      const errorMessage = err.response?.data?.message || err.message || t('auth.login_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
+      clearAuthData();
       throw err;
     } finally {
       loading.value = false;
@@ -118,37 +115,62 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function getProfile(): Promise<User> {
     loading.value = true;
+    error.value = null;
     try {
       const profile = await authRepo.getProfile();
       user.value = profile;
       return profile;
     } catch (err: any) {
-      error.value = err.response?.data?.message || err.message;
+      const errorMessage = err.response?.data?.message || err.message || t('auth.profile_failed');
+      error.value = errorMessage;
       throw err;
     } finally {
       loading.value = false;
     }
   }
 
-  async function logout() {
-    loading.value = true;
-    error.value = null;
+  async function refreshProfile(): Promise<void> {
+    if (!isAuthenticated.value) return;
+
     try {
-      // Backend'e logout isteği gönder (cookie'yi siler)
-      await authRepo.logout(); // yazılacak
+      const profile = await authRepo.getProfile();
+      user.value = profile;
     } catch (err: any) {
-      console.error('Logout error:', err);
-    } finally {
-      user.value = null;
-      loading.value = false;
+      console.error('Profile refresh failed:', err);
+      // Silent fail - UI'ı bozmayalım
     }
   }
 
-  async function checkAuth() {
+  async function logout(): Promise<void> {
+    loading.value = true;
+    error.value = null;
     try {
-      await getProfile();
-    } catch {
-      user.value = null;
+      await authRepo.logout();
+      toast.success(t('auth.logout_success'));
+    } catch (err: any) {
+      console.error('Logout error:', err);
+      toast.warning(t('auth.logout_failed'));
+    } finally {
+      clearAuthData();
+      loading.value = false;
+      router.push('/auth/login');
+    }
+  }
+
+  async function checkAuth(): Promise<boolean> {
+    try {
+      if (isInitialized.value && isAuthenticated.value) {
+        return true;
+      }
+
+      if (!isInitialized.value) {
+        await initializeAuth();
+      }
+
+      return isAuthenticated.value;
+    } catch (err) {
+      console.error('Auth check failed:', err);
+      return false;
     }
   }
 
@@ -158,41 +180,104 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const payload: ChangePasswordRequest = { new_password: newPassword };
       await authRepo.changePassword(payload);
+      toast.success(t('auth.change_password_success'));
     } catch (err: any) {
-      error.value = err.response?.data?.message || 'Şifre değiştirilemedi.';
+      const errorMessage = err.response?.data?.message || t('auth.change_password_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
       throw err;
     } finally {
       loading.value = false;
     }
   }
 
-  /**
-   * (YENİ) 401 - Yetkisiz hatası alındığında merkezi olarak çağrılır.
-   * Oturumu temizler ve kullanıcıyı girişe yönlendirir.
-   */
-  function handleUnauthorized() {
+  async function deleteAccount(): Promise<void> {
+    loading.value = true;
+    error.value = null;
+    try {
+      await authRepo.deleteAccount();
+      toast.success(t('auth.delete_account_success'));
+      clearAuthData();
+      router.push('/auth/login');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || t('auth.delete_account_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function listSessions(): Promise<Session[]> {
+    loading.value = true;
+    error.value = null;
+    try {
+      return await authRepo.listMySessions();
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || t('auth.list_sessions_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function revokeSession(sessionId: string): Promise<void> {
+    loading.value = true;
+    error.value = null;
+    try {
+      await authRepo.revokeSession(sessionId);
+      toast.success(t('auth.revoke_session_success'));
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || t('auth.revoke_session_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  function handleUnauthorized(): void {
+    console.warn('Unauthorized - clearing auth state');
+
     if (isAuthenticated.value) {
       clearAuthData();
-      toast.error('Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.');
+      toast.error(t('auth.session_expired'));
       router.push('/auth/login');
     }
   }
-  // ---
 
   return {
+    // State
     loading,
     error,
     user,
+    session,
+    isInitialized,
+
+    // Getters
     isAuthenticated,
     isLoading,
     isAdmin,
+    isApproved,
     userInitials,
+
+    // Actions
+    initializeAuth,
     register,
     login,
     logout,
     getProfile,
+    refreshProfile,
     checkAuth,
     changePassword,
+    deleteAccount,
+    listSessions,
+    revokeSession,
     handleUnauthorized,
+    clearAuthData,
   };
 });
