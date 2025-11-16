@@ -35,9 +35,9 @@ app.use(pinia);
 // --- BAŞLANGIÇ: TEST İÇİN GEÇİCİ GİRİŞ KODU ---
 // Bu blok, backend'i atlayarak sizi 'admin' olarak giriş yapmış sayar.
 // Testleriniz bittiğinde bu bloğu sildiğinizden emin olun!
-try {
-  const authStore = useAuthStore();
-
+//try {
+const authStore = useAuthStore();
+/*
   const mockUserData = {
     user_id: 'mock-admin-id-123',
     email: 'admin@test.com',
@@ -66,6 +66,7 @@ try {
   console.error('Manuel giriş mock hatası:', e);
 }
 // --- BİTİŞ: TEST İÇİN GEÇİCİ GİRİŞ KODU ---
+*/
 app.use(router);
 app.use(i18n);
 
