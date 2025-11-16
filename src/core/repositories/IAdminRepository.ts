@@ -1,4 +1,5 @@
 import type { User } from '../entities/User';
+import type { PaginatedResult, Pagination } from '../types/common';
 import type { UserRole } from '../value-objects/UserRole';
 
 export interface ApproveUserRequest {
@@ -6,7 +7,7 @@ export interface ApproveUserRequest {
 }
 
 export interface IAdminRepository {
-  getAllUsers(): Promise<User[]>;
+  getAllUsers(pagination: Pagination): Promise<PaginatedResult<User>>;
   getUser(uid: string): Promise<User>;
   approveUser(uid: string, data: ApproveUserRequest): Promise<User>;
   suspendUser(uid: string): Promise<User>;
