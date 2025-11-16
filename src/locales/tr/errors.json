@@ -1,0 +1,10 @@
+{
+  "401": "Oturum sonlandı veya yetkisiz.",
+  "403": "Bu işlem için yetkiniz yok.",
+  "404": "Kaynak bulunamadı.",
+  "409": "Çakışma hatası.",
+  "422": "Geçersiz veri.",
+  "500": "Sunucu hatası. Lütfen daha sonra tekrar deneyin.",
+  "timeout": "İstek zaman aşımına uğradı.",
+  "network": "Ağ bağlantısı hatası."
+}
