@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, shallowRef } from 'vue';
 import { repositories } from '@/services';
 import type { Workspace } from '@/core/entities/Workspace';
 import type { Patient } from '@/core/entities/Patient';
@@ -14,7 +14,7 @@ const imageRepo = repositories.image;
 
 export const useWorkspaceStore = defineStore('workspace', () => {
   // --- STATE ---
-  const workspaces = ref<Workspace[]>([]);
+  const workspaces = shallowRef<Workspace[]>([]);
   const patientsByWorkspace = ref<Map<string, Patient[]>>(new Map());
   const imagesByPatient = ref<Map<string, Image[]>>(new Map());
   const loading = ref(false);

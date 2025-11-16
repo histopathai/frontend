@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { ref, shallowRef } from 'vue';
 import { defineStore } from 'pinia';
 import { repositories } from '@/services';
 import type { User } from '@/core/entities/User';
@@ -7,7 +7,7 @@ import { useToast } from 'vue-toastification';
 
 export const useAdminStore = defineStore('admin', () => {
   // --- STATE ---
-  const users = ref<User[]>([]);
+  const users = shallowRef<User[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
@@ -20,7 +20,9 @@ export const useAdminStore = defineStore('admin', () => {
   function updateUserInState(updatedUser: User) {
     const index = users.value.findIndex((u) => u.userId === updatedUser.userId);
     if (index !== -1) {
-      users.value[index] = updatedUser;
+      const newUsers = [...users.value];
+      newUsers[index] = updatedUser;
+      users.value = newUsers;
     } else {
       users.value.push(updatedUser);
     }
@@ -78,6 +80,22 @@ export const useAdminStore = defineStore('admin', () => {
     }
   }
 
+  async function makeAdmin(uid: string) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const updatedUser = await adminRepo.makeAdmin(uid);
+      updateUserInState(updatedUser);
+      toast.success('Kullanıcıya admin rolü verildi.');
+    } catch (err: any) {
+      console.error('Make Admin Error:', err);
+      error.value = err.response?.data?.message || 'Kullanıcı admin yapılamadı.';
+      toast.error(error.value);
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     // State
     users,
@@ -87,5 +105,6 @@ export const useAdminStore = defineStore('admin', () => {
     fetchAllUsers,
     approveUser,
     suspendUser,
+    makeAdmin,
   };
 });
