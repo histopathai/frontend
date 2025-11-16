@@ -5,13 +5,22 @@ import type { RegisterRequest, ChangePasswordRequest } from '@/core/repositories
 import { repositories } from '@/services';
 import router from '@/router';
 import { useToast } from 'vue-toastification';
+import { i18n } from '@/i18n';
+
+const t = i18n.global.t;
+const authRepo = repositories.auth;
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
-  const loading = ref(false);
+  const session = ref<Session | null>(null);
+  const isInitialized = ref(false);
 
-  const isAuthenticated = computed(() => !!user.value);
-  const isAdmin = computed(() => user.value?.isAdmin() ?? false);
+  const toast = useToast();
+
+  const isAuthenticated = computed(() => !!user.value && !!session.value);
+  const isLoading = computed(() => loading.value);
+  const isAdmin = computed(() => user.value?.role.isAdmin() ?? false);
+  const isApproved = computed(() => user.value?.adminApproved ?? false);
 
   const userInitials = computed(() => {
     if (user.value?.displayName) {
@@ -23,36 +32,76 @@ export const useAuthStore = defineStore('auth', () => {
     return '?';
   });
 
-  const toast = useToast();
-  const authRepo = repositories.auth;
+  function clearAuthData() {
+    user.value = null;
+    session.value = null;
+    error.value = null;
+  }
+
+  async function initializeAuth(): Promise<void> {
+    if (isInitialized.value) return;
+
+    loading.value = true;
+    try {
+      const currentSession = await authRepo.checkSession();
+
+      if (currentSession) {
+        session.value = currentSession;
+
+        const profile = await authRepo.getProfile();
+        user.value = profile;
+
+        console.log('Session restored successfully');
+      } else {
+        console.log('No active session found');
+        clearAuthData();
+      }
+    } catch (err: any) {
+      console.error('Auth initialization error:', err);
+      clearAuthData();
+    } finally {
+      loading.value = false;
+      isInitialized.value = true;
+    }
+  }
 
   async function register(payload: RegisterRequest): Promise<User> {
     loading.value = true;
     try {
-      const response = await authRepo.register(payload);
-      toast.success('Kayıt başarılı! Hesabınız onay bekliyor.');
-      return response;
+      const newUser = await authRepo.register(payload);
+      toast.success(t('auth.register_success'));
+      return newUser;
     } catch (err: any) {
-      console.error('Register Error:', err);
-      toast.error(err.response?.data?.message || 'Kayıt sırasında bir hata oluştu.');
+      const errorMessage = err.response?.data?.message || err.message || t('auth.register_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
       throw err;
     } finally {
       loading.value = false;
     }
   }
 
-  async function login(token: string): Promise<User> {
+  async function login(token: string): Promise<void> {
     loading.value = true;
     try {
-      await authRepo.login(token);
-      const loggedInUser = await getProfile();
+      const createdSession = await authRepo.login(token);
+      session.value = createdSession;
 
-      toast.success(`Hoş geldiniz, ${loggedInUser.displayName}!`);
-      return loggedInUser;
+      const profile = await authRepo.getProfile();
+      user.value = profile;
+
+      if (!profile.adminApproved) {
+        toast.warning(t('auth.login_not_approved'));
+      } else {
+        toast.success(t('auth.login_success'));
+      }
+
+      console.log('Login successful');
     } catch (err: any) {
-      console.error('Login Error:', err);
-      toast.error(err.response?.data?.message || 'Giriş sırasında bir hata oluştu.');
-      user.value = null;
+      const errorMessage = err.response?.data?.message || err.message || t('auth.login_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
+      clearAuthData();
       throw err;
     } finally {
       loading.value = false;
@@ -60,16 +109,63 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function getProfile(): Promise<User> {
-    const profileData = await authRepo.getProfile();
-    user.value = profileData;
-    return profileData;
+    loading.value = true;
+    error.value = null;
+    try {
+      const profile = await authRepo.getProfile();
+      user.value = profile;
+      return profile;
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || t('auth.profile_failed');
+      error.value = errorMessage;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
   }
 
-  async function checkAuth() {
+  async function refreshProfile(): Promise<void> {
+    if (!isAuthenticated.value) return;
+
     try {
-      await getProfile();
+      const profile = await authRepo.getProfile();
+      user.value = profile;
+    } catch (err: any) {
+      console.error('Profile refresh failed:', err);
+      // Silent fail - UI'ı bozmayalım
+    }
+  }
+
+  async function logout(): Promise<void> {
+    loading.value = true;
+    error.value = null;
+    try {
+      await authRepo.logout();
+      toast.success(t('auth.logout_success'));
+    } catch (err: any) {
+      console.error('Logout error:', err);
+      toast.warning(t('auth.logout_failed'));
+    } finally {
+      clearAuthData();
+      loading.value = false;
+      router.push('/auth/login');
+    }
+  }
+
+  async function checkAuth(): Promise<boolean> {
+    try {
+      if (isInitialized.value && isAuthenticated.value) {
+        return true;
+      }
+
+      if (!isInitialized.value) {
+        await initializeAuth();
+      }
+
+      return isAuthenticated.value;
     } catch (err) {
-      user.value = null;
+      console.error('Auth check failed:', err);
+      return false;
     }
   }
 
@@ -78,33 +174,73 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const payload: ChangePasswordRequest = { new_password: newPassword };
       await authRepo.changePassword(payload);
-      toast.success('Şifreniz başarıyla değiştirildi.');
+      toast.success(t('auth.change_password_success'));
     } catch (err: any) {
-      console.error('Change Password Error:', err);
-      toast.error(err.response?.data?.message || 'Şifre değiştirilemedi.');
+      const errorMessage = err.response?.data?.message || t('auth.change_password_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
       throw err;
     } finally {
       loading.value = false;
     }
   }
 
-  async function logout() {
+  async function deleteAccount(): Promise<void> {
     loading.value = true;
+    error.value = null;
     try {
-      await authRepo.logout();
+      await authRepo.deleteAccount();
+      toast.success(t('auth.delete_account_success'));
+      clearAuthData();
+      router.push('/auth/login');
     } catch (err: any) {
-      console.error('Logout API Error:', err);
+      const errorMessage = err.response?.data?.message || t('auth.delete_account_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
+      throw err;
     } finally {
-      user.value = null;
       loading.value = false;
-      toast.info('Başarıyla çıkış yapıldı.');
-      router.push({ name: 'Login' });
     }
   }
 
-  function handleUnauthorized() {
-    if (!isAuthenticated.value) {
-      return;
+  async function listSessions(): Promise<Session[]> {
+    loading.value = true;
+    error.value = null;
+    try {
+      return await authRepo.listMySessions();
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || t('auth.list_sessions_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function revokeSession(sessionId: string): Promise<void> {
+    loading.value = true;
+    error.value = null;
+    try {
+      await authRepo.revokeSession(sessionId);
+      toast.success(t('auth.revoke_session_success'));
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || t('auth.revoke_session_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  function handleUnauthorized(): void {
+    console.warn('Unauthorized - clearing auth state');
+
+    if (isAuthenticated.value) {
+      clearAuthData();
+      toast.error(t('auth.session_expired'));
+      router.push('/auth/login');
     }
 
     user.value = null;
@@ -114,21 +250,31 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     // State
-    user,
     loading,
+    error,
+    user,
+    session,
+    isInitialized,
 
     // Getters
     isAuthenticated,
     isAdmin,
+    isApproved,
     userInitials,
 
     // Actions
+    initializeAuth,
     register,
     login,
     logout,
     getProfile,
+    refreshProfile,
     checkAuth,
     changePassword,
+    deleteAccount,
+    listSessions,
+    revokeSession,
     handleUnauthorized,
+    clearAuthData,
   };
 });

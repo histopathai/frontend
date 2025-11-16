@@ -1,61 +1,92 @@
-import { User } from '@/core/entities/User';
-import { Session } from '@/core/entities/Session';
 import type {
   RegisterRequest,
   IAuthRepository,
   ChangePasswordRequest,
 } from '@/core/repositories/IAuthRepository';
-import type { ApiClient } from '../api/ApiClient'; // Varsayılan
+import type { ApiClient } from '../api/ApiClient';
 
-// Backend DTO'larını modellemek için
+import { User } from '@/core/entities/User';
+import { Session } from '@/core/entities/Session';
+
 interface BackendUserResponse {
-  data: any;
+  user?: any;
   [key: string]: any;
 }
 
 interface BackendSessionResponse {
-  data: any;
-  [key: string]: any;
+  session: any;
 }
 
 interface BackendSessionListResponse {
   data: any[];
-  [key: string]: any;
+}
+
+interface VerifyTokenResponse {
+  valid: boolean;
+  user: any;
 }
 
 export class AuthRepository implements IAuthRepository {
+  private readonly SESSION_COOKIE_NAME = 'session_id';
+
   constructor(private apiClient: ApiClient) {}
 
   async register(data: RegisterRequest): Promise<User> {
     const response = await this.apiClient.post<BackendUserResponse>('/api/v1/auth/register', data);
-    return User.create(response.data.user);
+    return User.create(response.user);
   }
 
   async login(token: string): Promise<Session> {
     try {
-      const response = await this.apiClient.post<BackendSessionResponse>('/api/v1/sessions', {
+      const verifyResponse = await this.apiClient.post<VerifyTokenResponse>('/api/v1/auth/verify', {
         token,
       });
 
-      console.log('AuthRepository login response:', response);
-      if (!response.data || !response.data.session) {
-        throw new Error('Invalid session response from backend');
+      if (!verifyResponse.valid) {
+        throw new Error('Invalid token');
       }
 
-      return Session.create(response.data.session);
+      await this.apiClient.put('/api/v1/sessions', {
+        token,
+      });
+      const session = await this.checkSession();
+
+      if (!session) {
+        throw new Error('Failed to retrieve session after cookie was set');
+      }
+      return session;
     } catch (error) {
-      console.error('Login error in AuthRepository:', error);
+      console.error('Login error:', error);
       throw error;
     }
   }
 
+  async checkSession(): Promise<Session | null> {
+    try {
+      const response = await this.apiClient.get<BackendSessionResponse>('/api/v1/sessions/current');
+      if (response?.session) {
+        return Session.create(response.session);
+      }
+
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
   async logout(): Promise<void> {
-    await this.apiClient.post('/api/v1/sessions/revoke');
+    try {
+      await this.apiClient.delete('/api/v1/sessions/current');
+      console.log('Logout successful');
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw error;
+    }
   }
 
   async getProfile(): Promise<User> {
     const response = await this.apiClient.get<BackendUserResponse>('/api/v1/user/profile');
-    return User.create(response.data);
+    return User.create(response.user);
   }
 
   async listMySessions(): Promise<Session[]> {
@@ -68,6 +99,9 @@ export class AuthRepository implements IAuthRepository {
   }
 
   async changePassword(payload: ChangePasswordRequest): Promise<void> {
-    await this.apiClient.put<void>('/api/v1/user/password', payload);
+    await this.apiClient.put<void>('/api/v1/auth/password', payload);
+  }
+  async deleteAccount(): Promise<void> {
+    await this.apiClient.delete('/api/v1/user/account');
   }
 }

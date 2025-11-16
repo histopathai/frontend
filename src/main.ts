@@ -10,6 +10,8 @@ import { useAuthStore } from '@/stores/auth';
 import { User } from '@/core/entities/User';
 import { Session } from '@/core/entities/Session';
 
+import { i18n } from './i18n';
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -65,6 +67,7 @@ try {
 }
 // --- BİTİŞ: TEST İÇİN GEÇİCİ GİRİŞ KODU ---
 app.use(router);
+app.use(i18n);
 
 const toastOptions: PluginOptions = {
   timeout: 3000,

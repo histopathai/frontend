@@ -30,7 +30,13 @@ export const useAdminStore = defineStore('admin', () => {
     loading.value = true;
     error.value = null;
     try {
-      users.value = await adminRepo.getAllUsers();
+      const result = await adminRepo.getAllUsers({
+        limit: 10,
+        offset: 0,
+        sortBy: 'user_id',
+        sortOrder: 'asc',
+      });
+      users.value = result.data;
     } catch (err: any) {
       console.error('Fetch Users Error:', err);
       error.value = err.response?.data?.message || 'Kullanıcılar alınamadı.';

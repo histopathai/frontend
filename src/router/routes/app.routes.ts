@@ -1,7 +1,6 @@
 import { type RouteRecordRaw } from 'vue-router';
 
 const appRoutes: RouteRecordRaw = {
-  // Giriş yapıldıktan sonra kullanıcıyı bu layout karşılayacak
   path: '/',
   component: () => import('@/presentation/layouts/AppLayout.vue'),
   meta: { requiresAuth: true },
