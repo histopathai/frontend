@@ -64,21 +64,19 @@ export class AuthRepository implements IAuthRepository {
   async checkSession(): Promise<Session | null> {
     try {
       const response = await this.apiClient.get<BackendSessionResponse>('/api/v1/sessions/current');
-      console.log('Session check response:', response);
       if (response?.session) {
         return Session.create(response.session);
       }
 
       return null;
     } catch (error) {
-      console.log('No active session');
       return null;
     }
   }
 
   async logout(): Promise<void> {
     try {
-      await this.apiClient.post('/api/v1/sessions/revoke');
+      await this.apiClient.delete('/api/v1/sessions/current');
       console.log('Logout successful');
     } catch (error) {
       console.error('Logout error:', error);
@@ -88,7 +86,6 @@ export class AuthRepository implements IAuthRepository {
 
   async getProfile(): Promise<User> {
     const response = await this.apiClient.get<BackendUserResponse>('/api/v1/user/profile');
-    console.log('Profile response:', response);
     return User.create(response.user);
   }
 
