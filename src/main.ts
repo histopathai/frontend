@@ -32,12 +32,12 @@ const app = createApp(App);
 
 app.use(pinia);
 
-/* // --- BAŞLANGIÇ: TEST İÇİN GEÇİCİ GİRİŞ KODU ---
+// --- BAŞLANGIÇ: TEST İÇİN GEÇİCİ GİRİŞ KODU ---
 // Bu blok, backend'i atlayarak sizi 'admin' olarak giriş yapmış sayar.
 // Testleriniz bittiğinde bu bloğu sildiğinizden emin olun!
-try {
-  const authStore = useAuthStore();
-
+//try {
+const authStore = useAuthStore();
+/*
   const mockUserData = {
     user_id: 'mock-admin-id-123',
     email: 'admin@test.com',
@@ -59,15 +59,14 @@ try {
 
   // Store'daki 'user' ve 'session' state'lerini manuel olarak doldur
   authStore.user = User.create(mockUserData);
-  authStore.session = Session.create(mockSessionData);
-
   console.warn(
     '!!! UYARI: Backend login atlandı. "Test Admin" olarak manuel giriş yapıldı. (src/main.ts) !!!'
   );
 } catch (e) {
   console.error('Manuel giriş mock hatası:', e);
 }
-// --- BİTİŞ: TEST İÇİN GEÇİCİ GİRİŞ KODU --- */
+// --- BİTİŞ: TEST İÇİN GEÇİCİ GİRİŞ KODU ---
+*/
 app.use(router);
 app.use(i18n);
 

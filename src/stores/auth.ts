@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { repositories } from '@/services';
 import { Session } from '@/core/entities/Session';
 import { User } from '@/core/entities/User';
-import type { RegisterRequest, ChangePasswordRequest } from '@/core/repositories/IAuthRepository';
+import type { BackendRegisterRequest } from '@/core/repositories/IAuthRepository';
 import router from '@/router';
 import { useToast } from 'vue-toastification';
 import { i18n } from '@/i18n';
@@ -68,7 +68,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function register(payload: RegisterRequest): Promise<User> {
+  async function register(payload: BackendRegisterRequest): Promise<User> {
     loading.value = true;
     error.value = null;
     try {
@@ -174,23 +174,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function changePassword(newPassword: string): Promise<void> {
-    loading.value = true;
-    error.value = null;
-    try {
-      const payload: ChangePasswordRequest = { new_password: newPassword };
-      await authRepo.changePassword(payload);
-      toast.success(t('auth.change_password_success'));
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || t('auth.change_password_failed');
-      error.value = errorMessage;
-      toast.error(errorMessage);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
   async function deleteAccount(): Promise<void> {
     loading.value = true;
     error.value = null;
@@ -240,16 +223,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function handleUnauthorized(): void {
-    console.warn('Unauthorized - clearing auth state');
-
-    if (isAuthenticated.value) {
-      clearAuthData();
-      toast.error(t('auth.session_expired'));
-      router.push('/auth/login');
-    }
-  }
-
   return {
     // State
     loading,
@@ -273,11 +246,9 @@ export const useAuthStore = defineStore('auth', () => {
     getProfile,
     refreshProfile,
     checkAuth,
-    changePassword,
     deleteAccount,
     listSessions,
     revokeSession,
-    handleUnauthorized,
     clearAuthData,
   };
 });

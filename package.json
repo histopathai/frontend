@@ -20,9 +20,11 @@
   "dependencies": {
     "@headlessui/vue": "^1.7.23",
     "@heroicons/vue": "^2.2.0",
+    "@recogito/annotorious-openseadragon": "^2.7.19",
+    "@types/openseadragon": "^5.0.1",
     "axios": "^1.13.2",
     "firebase": "^12.5.0",
-    "openseadragon-annotations": "^1.0.5",
+    "openseadragon": "^4.1.1",
     "pinia": "^3.0.4",
     "vue": "^3.5.22",
     "vue-i18n": "^9.14.5",
