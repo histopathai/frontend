@@ -1,37 +1,24 @@
 import type {
-  RegisterRequest,
   IAuthRepository,
   ChangePasswordRequest,
+  BackendUserResponse,
+  BackendSessionResponse,
+  BackendSessionListResponse,
+  BackendRegisterRequest,
+  VerifyTokenResponse,
 } from '@/core/repositories/IAuthRepository';
 import type { ApiClient } from '../api/ApiClient';
 
 import { User } from '@/core/entities/User';
 import { Session } from '@/core/entities/Session';
 
-interface BackendUserResponse {
-  user?: any;
-  [key: string]: any;
-}
-
-interface BackendSessionResponse {
-  session: any;
-}
-
-interface BackendSessionListResponse {
-  data: any[];
-}
-
-interface VerifyTokenResponse {
-  valid: boolean;
-  user: any;
-}
-
 export class AuthRepository implements IAuthRepository {
   private readonly SESSION_COOKIE_NAME = 'session_id';
 
   constructor(private apiClient: ApiClient) {}
 
-  async register(data: RegisterRequest): Promise<User> {
+  async register(data: BackendRegisterRequest): Promise<User> {
+    console.log('Registering user with data:', data);
     const response = await this.apiClient.post<BackendUserResponse>('/api/v1/auth/register', data);
     return User.create(response.user);
   }
