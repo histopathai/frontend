@@ -13,9 +13,6 @@ export function usePasswordReset() {
   // --- Bağımlılıklar ---
   const toast = useToast();
 
-  /**
-   * Firebase'e şifre sıfırlama e-postası gönderme talebi yollar.
-   */
   async function handlePasswordReset() {
     loading.value = true;
     error.value = null;
