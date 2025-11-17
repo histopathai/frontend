@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, shallowRef } from 'vue';
+import { ref, computed, shallowRef } from 'vue';
 import { repositories } from '@/services';
 import type { Workspace } from '@/core/entities/Workspace';
 import type { Patient } from '@/core/entities/Patient';
@@ -15,10 +15,18 @@ const imageRepo = repositories.image;
 export const useWorkspaceStore = defineStore('workspace', () => {
   // --- STATE ---
   const workspaces = shallowRef<Workspace[]>([]);
-  const patientsByWorkspace = ref<Map<string, Patient[]>>(new Map());
-  const imagesByPatient = ref<Map<string, Image[]>>(new Map());
+  const patientsByWorkspace = shallowRef<Map<string, Patient[]>>(new Map());
+  const imagesByPatient = shallowRef<Map<string, Image[]>>(new Map());
   const loading = ref(false);
   const toast = useToast();
+
+  // --- GETTERS ---
+  const getPatientsForWorkspace = (workspaceId: string) => {
+    return computed(() => patientsByWorkspace.value.get(workspaceId) || []);
+  };
+  const getImagesForPatient = (patientId: string) => {
+    return computed(() => imagesByPatient.value.get(patientId) || []);
+  };
 
   // --- ACTIONS ---
 
@@ -41,7 +49,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     loading.value = true;
     try {
       const result = await patientRepo.getByWorkspaceId(workspaceId, pagination);
-      patientsByWorkspace.value.set(workspaceId, result.data);
+      const newMap = new Map(patientsByWorkspace.value);
+      newMap.set(workspaceId, result.data);
+      patientsByWorkspace.value = newMap;
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Hastalar alınamadı.');
     } finally {
@@ -56,7 +66,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     loading.value = true;
     try {
       const result = await imageRepo.getByPatientId(patientId, pagination);
-      imagesByPatient.value.set(patientId, result.data);
+      const newMap = new Map(imagesByPatient.value);
+      newMap.set(patientId, result.data);
+      imagesByPatient.value = newMap;
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Görüntüler alınamadı.');
     } finally {
@@ -71,12 +83,15 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       const updatedPatient = await patientRepo.getById(id);
 
       if (updatedPatient) {
-        const patients = patientsByWorkspace.value.get(updatedPatient.workspaceId);
+        const newMap = new Map(patientsByWorkspace.value);
+        const patients = newMap.get(updatedPatient.workspaceId);
         if (patients) {
           const index = patients.findIndex((p) => p.id === id);
           if (index !== -1) {
-            patients[index] = updatedPatient;
-            patientsByWorkspace.value.set(updatedPatient.workspaceId, [...patients]);
+            const newPatients = [...patients];
+            newPatients[index] = updatedPatient;
+            newMap.set(updatedPatient.workspaceId, newPatients);
+            patientsByWorkspace.value = newMap;
           }
         }
       }
@@ -96,6 +111,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     patientsByWorkspace,
     imagesByPatient,
     loading,
+    // Getters
+    getPatientsForWorkspace,
+    getImagesForPatient,
     // Actions
     fetchWorkspaces,
     fetchPatients,

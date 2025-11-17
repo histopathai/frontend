@@ -32,7 +32,7 @@ export function useRegistration() {
       await authStore.register({
         email: email.value,
         password: password.value,
-        displayName: displayName.value,
+        display_name: displayName.value,
       });
 
       successMessage.value =

@@ -9,13 +9,11 @@ export function useAnnotatorNavigation() {
   const workspaceStore = useWorkspaceStore();
   const { workspaces, patientsByWorkspace, imagesByPatient } = storeToRefs(workspaceStore);
 
-  // --- State ---
   const loading = computed(() => workspaceStore.loading);
-  const selectedWorkspaceId = ref<string | null>(null);
-  const selectedPatientId = ref<string | null>(null);
-  const selectedImageId = ref<string | null>(null);
+  const selectedWorkspaceId = ref<string | undefined>(undefined);
+  const selectedPatientId = ref<string | undefined>(undefined);
+  const selectedImageId = ref<string | undefined>(undefined);
 
-  // --- Computed Properties ---
   const currentPatients = computed((): Patient[] => {
     return selectedWorkspaceId.value
       ? patientsByWorkspace.value.get(selectedWorkspaceId.value) || []
@@ -38,13 +36,12 @@ export function useAnnotatorNavigation() {
     return currentImages.value.findIndex((img) => img.id === selectedImageId.value);
   });
 
-  // --- Methods ---
   function selectWorkspace(workspace: Workspace) {
     if (selectedWorkspaceId.value === workspace.id) return;
 
     selectedWorkspaceId.value = workspace.id;
-    selectedPatientId.value = null;
-    selectedImageId.value = null;
+    selectedPatientId.value = undefined;
+    selectedImageId.value = undefined;
     workspaceStore.fetchPatients(workspace.id);
   }
 
@@ -52,7 +49,7 @@ export function useAnnotatorNavigation() {
     if (selectedPatientId.value === patient.id) return;
 
     selectedPatientId.value = patient.id;
-    selectedImageId.value = null;
+    selectedImageId.value = undefined;
     workspaceStore.fetchImages(patient.id);
   }
 
@@ -74,10 +71,10 @@ export function useAnnotatorNavigation() {
     }
   }
 
-  // --- Watchers ---
   watch(currentImages, (newImages) => {
-    if (newImages.length > 0 && !selectedImageId.value) {
-      selectImage(newImages[0]);
+    const firstImage = newImages[0];
+    if (firstImage && !selectedImageId.value) {
+      selectImage(firstImage);
     }
   });
 
@@ -85,17 +82,17 @@ export function useAnnotatorNavigation() {
 
   return {
     loading,
-    // Veri
+
     workspaces,
     currentPatients,
     currentImages,
-    // Seçili Durum
+
     selectedWorkspaceId,
     selectedPatientId,
     selectedImageId,
     selectedPatient,
     selectedImage,
-    // Eylemler
+
     selectWorkspace,
     selectPatient,
     selectImage,

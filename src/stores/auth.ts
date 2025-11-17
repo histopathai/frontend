@@ -137,7 +137,6 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = profile;
     } catch (err: any) {
       console.error('Profile refresh failed:', err);
-      // Silent fail - UI'ı bozmayalım
     }
   }
 
