@@ -1,12 +1,9 @@
 import { createI18n } from 'vue-i18n';
 
-const messages: {
-  en: Record<string, any>;
-  tr: Record<string, any>;
-} = {
+const messages = {
   en: {},
   tr: {},
-};
+} as const;
 
 function extractFileName(path: string) {
   return path.split('/').pop()!.replace('.json', '');
@@ -19,7 +16,7 @@ const enModules = import.meta.glob('@/locales/en/*.json', { eager: true }) as Re
 >;
 for (const path in enModules) {
   const fileName = extractFileName(path);
-  messages.en[fileName] = enModules[path]?.default ?? {};
+  (messages.en as any)[fileName] = enModules[path]?.default ?? {};
 }
 
 // TR files
@@ -29,7 +26,7 @@ const trModules = import.meta.glob('@/locales/tr/*.json', { eager: true }) as Re
 >;
 for (const path in trModules) {
   const fileName = extractFileName(path);
-  messages.tr[fileName] = trModules[path]?.default ?? {};
+  (messages.tr as any)[fileName] = trModules[path]?.default ?? {};
 }
 
 export const i18n = createI18n({
@@ -37,4 +34,8 @@ export const i18n = createI18n({
   locale: 'tr',
   fallbackLocale: 'en',
   messages,
+  globalInjection: true,
 });
+
+// Export a typed version of the global t function
+export type MessageSchema = typeof messages;
