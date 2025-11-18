@@ -1,8 +1,15 @@
-import { ref, computed } from 'vue';
+import { ref, computed, watch, type Ref } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
-import type { CreateNewWorkspaceRequest } from '@/core/repositories/IWorkspaceRepository';
+import type {
+  CreateNewWorkspaceRequest,
+  UpdateWorkspaceRequest,
+} from '@/core/repositories/IWorkspaceRepository';
+import type { Workspace } from '@/core/entities/Workspace';
 
-export function useWorkspaceForm(emit: (event: 'close') => void) {
+export function useWorkspaceForm(
+  emit: (event: 'close') => void,
+  workspaceToEdit: Ref<Workspace | null>
+) {
   const store = useWorkspaceStore();
   const loading = computed(() => store.loading);
 
@@ -14,13 +21,41 @@ export function useWorkspaceForm(emit: (event: 'close') => void) {
   const license = ref('Özel');
   const resourceURL = ref('');
   const releaseYear = ref<number | null>(null);
+  const isEditMode = computed(() => !!workspaceToEdit.value);
+  watch(
+    workspaceToEdit,
+    (newVal) => {
+      if (newVal) {
+        name.value = newVal.name;
+        organType.value = newVal.organType;
+        organization.value = newVal.organization;
+        description.value = newVal.description;
+        license.value = newVal.license;
+        resourceURL.value = newVal.resourceURL || '';
+        releaseYear.value = newVal.releaseYear || null;
+      } else {
+        resetForm();
+      }
+    },
+    { immediate: true }
+  );
+
+  function resetForm() {
+    name.value = '';
+    organType.value = '';
+    organization.value = '';
+    description.value = '';
+    license.value = 'Özel';
+    resourceURL.value = '';
+    releaseYear.value = null;
+  }
 
   const isPublicDataset = computed(() => {
     return license.value === 'CC-BY' || license.value === 'CC-BY-NC';
   });
 
   async function saveWorkspace() {
-    const payload: CreateNewWorkspaceRequest = {
+    const commonData = {
       name: name.value,
       organ_type: organType.value,
       organization: organization.value,
@@ -30,9 +65,18 @@ export function useWorkspaceForm(emit: (event: 'close') => void) {
       release_year: releaseYear.value || undefined,
     };
 
-    const newWorkspace = await store.createWorkspace(payload);
+    let success = false;
 
-    if (newWorkspace) {
+    if (isEditMode.value && workspaceToEdit.value) {
+      const updatePayload: UpdateWorkspaceRequest = { ...commonData };
+      success = await store.updateWorkspace(workspaceToEdit.value.id, updatePayload);
+    } else {
+      const createPayload: CreateNewWorkspaceRequest = { ...commonData };
+      const result = await store.createWorkspace(createPayload);
+      success = !!result;
+    }
+
+    if (success) {
       emit('close');
     }
   }
@@ -49,6 +93,7 @@ export function useWorkspaceForm(emit: (event: 'close') => void) {
     // Computed
     loading,
     isPublicDataset,
+    isEditMode,
     // Actions
     saveWorkspace,
   };

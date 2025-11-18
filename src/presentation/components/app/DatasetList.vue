@@ -58,7 +58,7 @@
                     viewBox="0 0 24 24"
                     stroke-width="1.5"
                     stroke="currentColor"
-                    class="size-6"
+                    class="w-6 h-6"
                   >
                     <path
                       stroke-linecap="round"
@@ -90,7 +90,12 @@
               {{ ws.releaseYear || '-' }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-              <button class="text-indigo-600 hover:text-indigo-900">Düzenle</button>
+              <button
+                @click="$emit('edit', ws)"
+                class="text-indigo-600 hover:text-indigo-900 font-medium transition-colors"
+              >
+                Düzenle
+              </button>
             </td>
           </tr>
         </tbody>
@@ -184,5 +189,5 @@ defineProps({
   },
 });
 
-defineEmits(['page-change']);
+defineEmits(['page-change', 'edit']);
 </script>

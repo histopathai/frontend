@@ -7,7 +7,7 @@
           Mevcut veri setlerini yönetin, düzenleyin veya yeni kayıt ekleyin.
         </p>
       </div>
-      <button @click="isModalOpen = true" class="btn btn-primary">
+      <button @click="openCreateModal" class="btn btn-primary">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
@@ -35,20 +35,26 @@
       :current-page="currentPage"
       :has-more="store.paginationMeta.hasMore"
       @page-change="handlePageChange"
+      @edit="openEditModal"
     />
-
-    <CreateWorkspaceModal v-if="isModalOpen" @close="handleModalClose" />
+    <CreateWorkspaceModal
+      v-if="isModalOpen"
+      :workspace-to-edit="selectedWorkspace"
+      @close="handleModalClose"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, shallowRef } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
+import type { Workspace } from '@/core/entities/Workspace';
 import WorkspaceList from '@/presentation/components/app/DatasetList.vue';
 import CreateWorkspaceModal from '@/presentation/components/app/CreateDatasetModal.vue';
 
 const store = useWorkspaceStore();
 const isModalOpen = ref(false);
+const selectedWorkspace = shallowRef<Workspace | null>(null);
 
 // Pagination State
 const limit = 10;
@@ -71,11 +77,22 @@ async function loadData(page: number) {
 }
 function handleModalClose() {
   isModalOpen.value = false;
-  loadData(1);
+  selectedWorkspace.value = null;
+  loadData(currentPage.value);
 }
 
 function handlePageChange(newPage: number) {
   if (newPage < 1) return;
   loadData(newPage);
+}
+
+function openEditModal(workspace: Workspace) {
+  selectedWorkspace.value = workspace;
+  isModalOpen.value = true;
+}
+
+function openCreateModal() {
+  selectedWorkspace.value = null;
+  isModalOpen.value = true;
 }
 </script>
