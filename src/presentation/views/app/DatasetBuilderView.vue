@@ -36,11 +36,19 @@
       :has-more="store.paginationMeta.hasMore"
       @page-change="handlePageChange"
       @edit="openEditModal"
+      @delete="openDeleteModal"
     />
     <CreateWorkspaceModal
       v-if="isModalOpen"
       :workspace-to-edit="selectedWorkspace"
       @close="handleModalClose"
+    />
+    <DeleteConfirmationModal
+      v-if="isDeleteModalOpen"
+      :workspace-name="workspaceToDelete?.name || ''"
+      :loading="store.loading"
+      @close="closeDeleteModal"
+      @confirm="handleDeleteConfirm"
     />
   </div>
 </template>
@@ -55,6 +63,8 @@ import CreateWorkspaceModal from '@/presentation/components/app/CreateDatasetMod
 const store = useWorkspaceStore();
 const isModalOpen = ref(false);
 const selectedWorkspace = shallowRef<Workspace | null>(null);
+const isDeleteModalOpen = ref(false);
+const workspaceToDelete = shallowRef<Workspace | null>(null);
 
 // Pagination State
 const limit = 10;
@@ -94,5 +104,27 @@ function openEditModal(workspace: Workspace) {
 function openCreateModal() {
   selectedWorkspace.value = null;
   isModalOpen.value = true;
+}
+
+function openDeleteModal(workspace: Workspace) {
+  workspaceToDelete.value = workspace;
+  isDeleteModalOpen.value = true;
+}
+
+function closeDeleteModal() {
+  isDeleteModalOpen.value = false;
+  workspaceToDelete.value = null;
+}
+
+async function handleDeleteConfirm() {
+  if (!workspaceToDelete.value) return;
+
+  const success = await store.deleteWorkspace(workspaceToDelete.value.id);
+  if (success) {
+    closeDeleteModal();
+    if (store.workspaces.length === 0 && currentPage.value > 1) {
+      loadData(currentPage.value - 1);
+    }
+  }
 }
 </script>

@@ -96,6 +96,12 @@
               >
                 Düzenle
               </button>
+              <button
+                @click="$emit('delete', ws)"
+                class="text-red-600 hover:text-red-900 font-medium transition-colors"
+              >
+                Sil
+              </button>
             </td>
           </tr>
         </tbody>
@@ -189,5 +195,5 @@ defineProps({
   },
 });
 
-defineEmits(['page-change', 'edit']);
+defineEmits(['page-change', 'edit', 'delete']);
 </script>

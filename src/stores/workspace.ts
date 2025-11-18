@@ -74,6 +74,28 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   }
 
+  async function deleteWorkspace(id: string): Promise<boolean> {
+    loading.value = true;
+    try {
+      await repositories.workspace.delete(id);
+
+      toast.success('Veri seti silindi.');
+      await fetchWorkspaces({
+        limit: paginationMeta.value.limit,
+        offset: paginationMeta.value.offset,
+        sortBy: paginationMeta.value.sortBy,
+        sortOrder: paginationMeta.value.sortOrder,
+      });
+
+      return true;
+    } catch (err: any) {
+      toast.error(err.message || 'Silme işlemi başarısız.');
+      return false;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     // State
     workspaces,
@@ -83,5 +105,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     fetchWorkspaces,
     createWorkspace,
     updateWorkspace,
+    deleteWorkspace,
   };
 });
