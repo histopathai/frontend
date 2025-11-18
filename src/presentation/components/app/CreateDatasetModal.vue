@@ -38,14 +38,12 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label for="ws-organ" class="form-label">Organ Tipi (*)</label>
-              <input
-                id="ws-organ"
-                type="text"
-                v-model="organType"
-                class="form-input"
-                required
-                placeholder="örn: Prostat"
-              />
+              <select id="ws-organ" v-model="organType" class="form-input" required>
+                <option value="" disabled>Bir organ seçiniz</option>
+                <option v-for="organ in organOptions" :key="organ.value" :value="organ.value">
+                  {{ organ.label }}
+                </option>
+              </select>
             </div>
             <div>
               <label for="ws-year" class="form-label">Yıl</label>
@@ -121,4 +119,36 @@ const {
   isPublicDataset,
   saveWorkspace,
 } = useWorkspaceForm(emit);
+
+const organOptions = [
+  { value: 'brain', label: 'Beyin' },
+  { value: 'breast', label: 'Meme' },
+  { value: 'lung', label: 'Akciğer' },
+  { value: 'liver', label: 'Karaciğer' },
+  { value: 'kidney', label: 'Böbrek' },
+  { value: 'heart', label: 'Kalp' },
+  { value: 'stomach', label: 'Mide' },
+  { value: 'small_intestine', label: 'İnce Bağırsak' },
+  { value: 'large_intestine', label: 'Kalın Bağırsak' },
+  { value: 'pancreas', label: 'Pankreas' },
+  { value: 'spleen', label: 'Dalak' },
+  { value: 'bladder', label: 'Mesane' },
+  { value: 'prostate', label: 'Prostat' },
+  { value: 'testis', label: 'Testis' },
+  { value: 'ovary', label: 'Yumurtalık (Over)' },
+  { value: 'uterus', label: 'Rahim (Uterus)' },
+  { value: 'skin', label: 'Deri (Cilt)' },
+  { value: 'bone', label: 'Kemik' },
+  { value: 'bone_marrow', label: 'Kemik İliği' },
+  { value: 'thyroid', label: 'Tiroid' },
+  { value: 'lymph_node', label: 'Lenf Düğümü' },
+  { value: 'esophagus', label: 'Yemek Borusu' },
+  { value: 'gallbladder', label: 'Safra Kesesi' },
+  { value: 'salivary_gland', label: 'Tükürük Bezi' },
+  { value: 'adrenal_gland', label: 'Böbrek Üstü Bezi' },
+  { value: 'placenta', label: 'Plasenta' },
+  { value: 'eye', label: 'Göz' },
+  { value: 'tongue', label: 'Dil' },
+  { value: 'unknown', label: 'Bilinmiyor / Diğer' },
+].sort((a, b) => a.label.localeCompare(b.label, 'tr'));
 </script>

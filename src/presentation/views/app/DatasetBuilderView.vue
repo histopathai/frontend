@@ -37,7 +37,7 @@
       @page-change="handlePageChange"
     />
 
-    <CreateWorkspaceModal v-if="isModalOpen" @close="isModalOpen = false" />
+    <CreateWorkspaceModal v-if="isModalOpen" @close="handleModalClose" />
   </div>
 </template>
 
@@ -68,6 +68,10 @@ async function loadData(page: number) {
     sortBy: 'created_at',
     sortOrder: 'desc',
   });
+}
+function handleModalClose() {
+  isModalOpen.value = false;
+  loadData(1);
 }
 
 function handlePageChange(newPage: number) {
