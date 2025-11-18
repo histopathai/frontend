@@ -35,8 +35,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
     try {
       const [typesResult, annotationsResult] = await Promise.all([
-        annotationTypeRepo.list({ limit: 1000, offset: 0 }),
-        annotationRepo.getByImageId(imageId, { limit: 1000, offset: 0 }),
+        annotationTypeRepo.list({ limit: 100, offset: 0 }),
+        annotationRepo.getByImageId(imageId, { limit: 100, offset: 0 }),
       ]);
 
       annotationTypes.value = typesResult.data;

@@ -17,11 +17,11 @@ export function useAdminDashboard() {
 
   onMounted(() => {
     if (!users.value || users.value.length === 0) {
-      adminStore.fetchAllUsers({ limit: 1000, offset: 0 });
+      adminStore.fetchAllUsers({ limit: 100, offset: 0 });
     }
 
     if (!workspaces.value || workspaces.value.length === 0) {
-      workspaceStore.fetchWorkspaces({ limit: 1000, offset: 0 });
+      workspaceStore.fetchWorkspaces({ limit: 100, offset: 0 });
     }
   });
 
