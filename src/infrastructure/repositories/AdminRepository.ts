@@ -3,7 +3,7 @@ import type { IAdminRepository, ApproveUserRequest } from '@/core/repositories/I
 import type { PaginatedResult, Pagination } from '@/core/types/common';
 
 import { User } from '@/core/entities/User';
-import type { Pagination } from '@/core/types/common';
+import type { deleteUser } from 'firebase/auth';
 
 export class AdminRepository implements IAdminRepository {
   constructor(private apiClient: ApiClient) {}
@@ -15,6 +15,7 @@ export class AdminRepository implements IAdminRepository {
       sortBy: pagination.sortBy,
       sortOrder: pagination.sortOrder,
     });
+    console.log('API Response for getAllUsers:', response);
     return {
       data: response.data.map((item: any) => User.create(item)),
       pagination: response.pagination,
@@ -42,7 +43,13 @@ export class AdminRepository implements IAdminRepository {
   }
 
   async makeAdmin(uid: string): Promise<User> {
-    const response = await this.apiClient.post<{ user: any }>(`/api/v1/admin/users/${uid}/admin`);
+    const response = await this.apiClient.post<{ user: any }>(
+      `/api/v1/admin/users/${uid}/make-admin`
+    );
     return User.create(response.user);
+  }
+
+  async deleteUser(uid: string): Promise<void> {
+    await this.apiClient.delete<void>(`/api/v1/admin/users/${uid}`);
   }
 }
