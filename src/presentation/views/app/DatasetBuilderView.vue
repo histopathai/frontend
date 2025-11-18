@@ -3,9 +3,7 @@
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">Veri Seti Oluşturucu</h1>
-        <p class="mt-1 text-gray-600">
-          Mevcut veri setlerini (workspace) yönetin veya yenisini oluşturun.
-        </p>
+        <p class="mt-1 text-gray-600">Mevcut veri setlerini yönetin veya yenisini oluşturun.</p>
       </div>
       <button @click="isModalOpen = true" class="btn btn-primary">+ Yeni Veri Seti</button>
     </div>
@@ -23,8 +21,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
-import WorkspaceList from '@/presentation/components/app/WorkspaceList.vue';
-import CreateWorkspaceModal from '@/presentation/components/app/CreateWorkspaceModal.vue';
+import WorkspaceList from '@/presentation/components/app/DatasetList.vue';
+import CreateWorkspaceModal from '@/presentation/components/app/CreateDatasetModal.vue';
 
 const store = useWorkspaceStore();
 const isModalOpen = ref(false);
