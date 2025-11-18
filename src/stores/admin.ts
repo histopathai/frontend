@@ -16,8 +16,6 @@ export const useAdminStore = defineStore('admin', () => {
   const adminRepo = repositories.admin;
   const toast = useToast();
 
-  // --- ACTIONS ---
-
   function updateUserInState(updatedUser: User) {
     const index = users.value.findIndex((u) => u.userId === updatedUser.userId);
     if (index !== -1) {
@@ -34,6 +32,8 @@ export const useAdminStore = defineStore('admin', () => {
     error.value = null;
     try {
       const result = await adminRepo.getAllUsers(pagination);
+      console.log('API Response for getAllUsers:', result);
+
       users.value = result.data;
     } catch (err: any) {
       console.error('Fetch Users Error:', err);
@@ -86,6 +86,22 @@ export const useAdminStore = defineStore('admin', () => {
     } catch (err: any) {
       console.error('Make Admin Error:', err);
       error.value = err.response?.data?.message || 'Kullanıcı admin yapılamadı.';
+      toast.error(error.value);
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function deleteUser(uid: string) {
+    loading.value = true;
+    error.value = null;
+    try {
+      await adminRepo.deleteUser(uid);
+      users.value = users.value.filter((user) => user.userId !== uid);
+      toast.success('Kullanıcı silindi.');
+    } catch (err: any) {
+      console.error('Delete User Error:', err);
+      error.value = err.response?.data?.message || 'Kullanıcı silinemedi.';
       toast.error(error.value);
     } finally {
       loading.value = false;
