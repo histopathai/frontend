@@ -3,24 +3,24 @@ import type { PaginatedResult, Pagination } from '../types/common';
 
 export interface CreateNewWorkspaceRequest {
   name: string;
-  organType: string;
+  organ_type: string;
   organization: string;
   description: string;
   license: string;
-  resourceURL?: string;
-  releaseYear?: number;
-  annotationTypeId?: string;
+  resource_url?: string;
+  release_year?: number;
+  annotation_type_id?: string;
 }
 
 export interface UpdateWorkspaceRequest {
   name?: string;
-  organType?: string;
+  organ_type?: string;
   organization?: string;
   description?: string;
   license?: string;
-  resourceURL?: string | null;
-  releaseYear?: number | null;
-  annotationTypeId?: string | null;
+  resource_url?: string | null;
+  release_year?: number | null;
+  annotation_type_id?: string | null;
 }
 
 export interface IWorkspaceRepository {
