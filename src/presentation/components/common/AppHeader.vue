@@ -77,7 +77,7 @@ const isAdmin = computed(() => authStore.isAdmin);
 
 const navigation = [
   { name: 'Veri Etiketleyici', routeName: 'Annotator' },
-  { name: 'Veri Seti Oluşturucu', routeName: 'DatasetBuilder' },
+  { name: 'Veri Seti Oluşturucu', routeName: 'WorkspaceList' },
 ];
 
 async function handleLogout() {

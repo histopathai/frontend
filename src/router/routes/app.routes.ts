@@ -9,17 +9,23 @@ const appRoutes: RouteRecordRaw = {
     {
       path: 'home',
       name: 'Home',
-      component: () => import('@/presentation/views/app/HomeView.vue'),
+      component: () => import('@/presentation/views/home/HomeView.vue'),
     },
     {
       path: 'annotator',
       name: 'Annotator',
-      component: () => import('@/presentation/views/app/AnnotatorView.vue'),
+      component: () => import('@/presentation/views/annotator/AnnotatorView.vue'),
     },
     {
-      path: 'dataset-builder',
-      name: 'DatasetBuilder',
-      component: () => import('@/presentation/views/app/DatasetBuilderView.vue'),
+      path: 'workspaces',
+      name: 'WorkspaceList',
+      component: () => import('@/presentation/views/workspace/WorkspaceListView.vue'),
+    },
+    {
+      path: 'workspaces/:workspaceId',
+      name: 'WorkspaceDetail',
+      component: () => import('@/presentation/views/workspace/WorkspaceDetailView.vue'),
+      props: true,
     },
   ],
 };

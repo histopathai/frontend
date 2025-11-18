@@ -75,7 +75,7 @@
           </div>
 
           <RouterLink
-            :to="{ name: 'DatasetBuilder' }"
+            :to="{ name: 'WorkspaceList' }"
             class="card overflow-hidden shadow-lg rounded-xl transition-all hover:shadow-xl"
           >
             <div class="card-body p-5">
