@@ -12,4 +12,5 @@ export interface IAdminRepository {
   approveUser(uid: string, data: ApproveUserRequest): Promise<User>;
   suspendUser(uid: string): Promise<User>;
   makeAdmin(uid: string): Promise<User>;
+  deleteUser(uid: string): Promise<void>;
 }
