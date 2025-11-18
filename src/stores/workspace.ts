@@ -13,10 +13,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const toast = useToast();
 
   // --- ACTIONS ---
-
-  /**
-   * Tüm workspace'leri (datasetleri) çeker.
-   */
   async function fetchWorkspaces(pagination: Pagination = { limit: 100, offset: 0 }) {
     loading.value = true;
     try {
@@ -29,9 +25,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   }
 
-  /**
-   * Yeni bir workspace (dataset) oluşturur.
-   */
   async function createWorkspace(data: CreateNewWorkspaceRequest): Promise<Workspace | null> {
     loading.value = true;
     try {

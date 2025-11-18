@@ -4,6 +4,7 @@ import { repositories } from '@/services';
 import type { User } from '@/core/entities/User';
 import { UserRole } from '@/core/value-objects/UserRole';
 import { useToast } from 'vue-toastification';
+import type { Pagination } from '@/core/types/common';
 
 export const useAdminStore = defineStore('admin', () => {
   // --- STATE ---
@@ -24,20 +25,15 @@ export const useAdminStore = defineStore('admin', () => {
       newUsers[index] = updatedUser;
       users.value = newUsers;
     } else {
-      users.value.push(updatedUser);
+      users.value = [updatedUser, ...users.value];
     }
   }
 
-  async function fetchAllUsers() {
+  async function fetchAllUsers(pagination: Pagination = { limit: 100, offset: 0 }) {
     loading.value = true;
     error.value = null;
     try {
-      const result = await adminRepo.getAllUsers({
-        limit: 10,
-        offset: 0,
-        sortBy: 'user_id',
-        sortOrder: 'asc',
-      });
+      const result = await adminRepo.getAllUsers(pagination);
       users.value = result.data;
     } catch (err: any) {
       console.error('Fetch Users Error:', err);
