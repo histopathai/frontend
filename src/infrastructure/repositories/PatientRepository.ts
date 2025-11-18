@@ -48,8 +48,6 @@ export class PatientRepository implements IPatientRepository {
   }
 
   async transfer(id: string, newWorkspaceId: string): Promise<void> {
-    await this.apiClient.post(`/api/v1/proxy/patients/${id}/transfer`, {
-      newWorkspaceId,
-    });
+    await this.apiClient.post(`/api/v1/proxy/patients/${id}/transfer/${newWorkspaceId}`);
   }
 }
