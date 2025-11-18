@@ -22,12 +22,12 @@ export function useWorkspaceForm(emit: (event: 'close') => void) {
   async function saveWorkspace() {
     const payload: CreateNewWorkspaceRequest = {
       name: name.value,
-      organType: organType.value,
+      organ_type: organType.value,
       organization: organization.value,
       description: description.value,
       license: license.value,
-      resourceURL: isPublicDataset.value ? resourceURL.value : undefined,
-      releaseYear: releaseYear.value || undefined,
+      resource_url: isPublicDataset.value ? resourceURL.value : undefined,
+      release_year: releaseYear.value || undefined,
     };
 
     const newWorkspace = await store.createWorkspace(payload);
