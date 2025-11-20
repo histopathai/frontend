@@ -3,8 +3,8 @@ import type { PaginatedResult, Pagination } from '../types/common';
 import { Point } from '../value-objects/Point';
 
 export interface CreateNewAnnotationRequest {
-  imageId: string;
-  annotatorId: string;
+  image_id: string;
+  annotator_id: string;
   polygon: Point[];
   score?: number;
   class?: string;
