@@ -2,7 +2,7 @@ import { Patient } from '../entities/Patient';
 import type { PaginatedResult, Pagination } from '../types/common';
 
 export interface CreateNewPatientRequest {
-  workspaceId: string;
+  workspace_id: string;
   name: string;
   age?: number;
   gender?: string;
