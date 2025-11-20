@@ -2,15 +2,15 @@ import { AnnotationType } from '../entities/AnnotationType';
 import type { PaginatedResult, Pagination } from '../types/common';
 
 export interface CreateNewAnnotationTypeRequest {
-  creatorId: string;
+  creator_id: string;
   name: string;
   description?: string;
-  scoreEnabled: boolean;
-  classificationEnabled: boolean;
-  scorename?: string;
-  scoremin?: number;
-  scoremax?: number;
-  classList?: string[];
+  score_enabled: boolean;
+  classification_enabled: boolean;
+  score_name?: string;
+  score_min?: number;
+  score_max?: number;
+  class_list?: string[];
 }
 
 export interface IAnnotationType {
