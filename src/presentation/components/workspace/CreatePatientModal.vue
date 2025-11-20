@@ -171,7 +171,7 @@ const form = reactive({
 
 async function handleSubmit() {
   const payload: CreateNewPatientRequest = {
-    workspaceId: props.workspaceId,
+    workspace_id: props.workspaceId,
     name: form.name,
     age: form.age || undefined,
     gender: form.gender || undefined,
