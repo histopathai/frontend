@@ -1,0 +1,11 @@
+{
+  "users_fetch_failed": "Failed to fetch users.",
+  "user_approved": "User approved successfully.",
+  "user_approval_failed": "Failed to approve user.",
+  "user_suspended": "User suspended successfully.",
+  "user_suspend_failed": "Failed to suspend user.",
+  "user_made_admin": "User granted admin role successfully.",
+  "user_make_admin_failed": "Failed to grant admin role.",
+  "user_deleted": "User deleted successfully.",
+  "user_delete_failed": "Failed to delete user."
+}
