@@ -2,13 +2,13 @@ import { Image } from '../entities/Image';
 import type { PaginatedResult, Pagination } from '../types/common';
 
 export interface ImageUploadPayload {
-  uploadUrl: string;
+  upload_url: string;
   headers: Record<string, string>;
 }
 
 export interface CreateNewImageRequest {
-  patientId: string;
-  contentType: string;
+  patient_id: string;
+  content_type: string;
   name: string;
   format: string;
   width?: number;
