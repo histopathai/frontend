@@ -124,8 +124,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       await repositories.patient.create(data);
       toast.success('Hasta başarıyla oluşturuldu.');
 
-      if (patientsByWorkspace.value.has(data.workspaceId)) {
-        await fetchPatientsForWorkspace(data.workspaceId);
+      if (patientsByWorkspace.value.has(data.workspace_id)) {
+        await fetchPatientsForWorkspace(data.workspace_id);
       }
 
       return true;
