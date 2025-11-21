@@ -13,7 +13,6 @@ export function useWorkspaceForm(
   const store = useWorkspaceStore();
   const loading = computed(() => store.loading);
 
-  // Form State
   const name = ref('');
   const organType = ref('');
   const organization = ref('');
@@ -21,7 +20,12 @@ export function useWorkspaceForm(
   const license = ref('Özel');
   const resourceURL = ref('');
   const releaseYear = ref<number | null>(null);
+
   const isEditMode = computed(() => !!workspaceToEdit.value);
+  const isPublicDataset = computed(() => {
+    return license.value === 'CC-BY' || license.value === 'CC-BY-NC';
+  });
+
   watch(
     workspaceToEdit,
     (newVal) => {
@@ -50,10 +54,6 @@ export function useWorkspaceForm(
     releaseYear.value = null;
   }
 
-  const isPublicDataset = computed(() => {
-    return license.value === 'CC-BY' || license.value === 'CC-BY-NC';
-  });
-
   async function saveWorkspace() {
     const commonData = {
       name: name.value,
@@ -68,11 +68,9 @@ export function useWorkspaceForm(
     let success = false;
 
     if (isEditMode.value && workspaceToEdit.value) {
-      const updatePayload: UpdateWorkspaceRequest = { ...commonData };
-      success = await store.updateWorkspace(workspaceToEdit.value.id, updatePayload);
+      success = await store.updateWorkspace(workspaceToEdit.value.id, commonData);
     } else {
-      const createPayload: CreateNewWorkspaceRequest = { ...commonData };
-      const result = await store.createWorkspace(createPayload);
+      const result = await store.createWorkspace(commonData);
       success = !!result;
     }
 
@@ -82,7 +80,6 @@ export function useWorkspaceForm(
   }
 
   return {
-    // State
     name,
     organType,
     organization,
@@ -90,11 +87,9 @@ export function useWorkspaceForm(
     license,
     resourceURL,
     releaseYear,
-    // Computed
     loading,
     isPublicDataset,
     isEditMode,
-    // Actions
     saveWorkspace,
   };
 }
