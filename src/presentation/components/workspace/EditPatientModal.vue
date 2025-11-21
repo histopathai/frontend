@@ -40,10 +40,26 @@
               <label class="form-label">Teşhis</label>
               <input type="text" v-model="form.disease" class="form-input" />
             </div>
+
             <div>
               <label class="form-label">Alt Tip</label>
-              <input type="text" v-model="form.subtype" class="form-input" />
+
+              <select v-if="subtypeOptions.length > 0" v-model="form.subtype" class="form-input">
+                <option value="">Seçiniz</option>
+                <option v-for="opt in subtypeOptions" :key="opt" :value="opt">
+                  {{ opt }}
+                </option>
+              </select>
+
+              <input
+                v-else
+                type="text"
+                v-model="form.subtype"
+                class="form-input"
+                :placeholder="loadingSubtypes ? 'Yükleniyor...' : ''"
+              />
             </div>
+
             <div>
               <label class="form-label">Grade</label>
               <input type="number" v-model.number="form.grade" class="form-input" />
@@ -70,17 +86,23 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, onMounted, type PropType } from 'vue';
+import { reactive, computed, onMounted, ref, type PropType } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
+import { repositories } from '@/services';
 import type { Patient } from '@/core/entities/Patient';
+import type { Workspace } from '@/core/entities/Workspace';
 
 const props = defineProps({
+  workspaceId: { type: String, required: true },
   patient: { type: Object as PropType<Patient>, required: true },
 });
 
 const emit = defineEmits(['close', 'updated']);
 const store = useWorkspaceStore();
 const loading = computed(() => store.loading);
+
+const subtypeOptions = ref<string[]>([]);
+const loadingSubtypes = ref(false);
 
 const form = reactive({
   name: '',
@@ -93,7 +115,7 @@ const form = reactive({
   history: '',
 });
 
-onMounted(() => {
+onMounted(async () => {
   form.name = props.patient.name;
   form.age = props.patient.age;
   form.gender = props.patient.gender || '';
@@ -101,13 +123,38 @@ onMounted(() => {
   form.disease = props.patient.disease || '';
   form.subtype = props.patient.subtype || '';
   form.grade =
-    typeof props.patient.grade === 'string' ? parseInt(props.patient.grade) : props.patient.grade; // Grade tip dönüşümü
+    typeof props.patient.grade === 'string' ? parseInt(props.patient.grade) : props.patient.grade;
   form.history = props.patient.history || '';
+
+  await fetchSubtypeOptions();
 });
+
+async function fetchSubtypeOptions() {
+  loadingSubtypes.value = true;
+  try {
+    let workspace: Workspace | null | undefined = store.workspaces.find(
+      (w) => w.id === props.workspaceId
+    );
+    if (!workspace || !workspace.annotationTypeId) {
+      workspace = await repositories.workspace.getById(props.workspaceId);
+    }
+    if (workspace && workspace.annotationTypeId) {
+      const annotationType = await repositories.annotationType.getById(workspace.annotationTypeId);
+
+      if (annotationType && annotationType.classList && annotationType.classList.length > 0) {
+        subtypeOptions.value = annotationType.classList;
+      }
+    }
+  } catch (error) {
+    console.error('HATA: Alt tip seçenekleri yüklenirken hata oluştu:', error);
+  } finally {
+    loadingSubtypes.value = false;
+  }
+}
 
 async function handleSubmit() {
   const payload = {
-    workspaceId: props.patient.workspaceId,
+    workspaceId: props.workspaceId,
     name: form.name,
     age: form.age || undefined,
     gender: form.gender || undefined,
