@@ -63,7 +63,7 @@
           class="btn btn-danger bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
         >
           <span v-if="loading" class="mr-2">Siliniyor...</span>
-          <span v-else>Siliyorum</span>
+          <span v-else>Sil</span>
         </button>
       </div>
     </div>
