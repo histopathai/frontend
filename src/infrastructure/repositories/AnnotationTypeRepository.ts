@@ -25,12 +25,12 @@ export class AnnotationTypeRepository implements IAnnotationType {
 
   async getById(id: string): Promise<AnnotationType> {
     const response = await this.apiClient.get<any>(`/api/v1/proxy/annotation-types/${id}`);
-    return AnnotationType.create(response);
+    return AnnotationType.create(response.data);
   }
 
   async create(data: CreateNewAnnotationTypeRequest): Promise<AnnotationType> {
     const response = await this.apiClient.post<any>('/api/v1/proxy/annotation-types', data);
-    return AnnotationType.create(response);
+    return AnnotationType.create(response.data);
   }
 
   async update(id: string, data: Partial<CreateNewAnnotationTypeRequest>): Promise<void> {
