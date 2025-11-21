@@ -50,19 +50,47 @@
           </span>
         </p>
       </div>
-      <button class="btn btn-primary" @click="openCreatePatientModal">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke-width="1.5"
-          stroke="currentColor"
-          class="w-5 h-5 mr-2"
+      <div class="flex gap-3">
+        <button
+          class="btn btn-outline bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+          @click="openAnnotationSettings"
         >
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-        Yeni Hasta Ekle
-      </button>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+            class="w-5 h-5 mr-2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 0 1 0 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281Z"
+            />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+            />
+          </svg>
+          Anotasyon Ayarları
+        </button>
+
+        <button class="btn btn-primary" @click="handleCreatePatientClick">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+            class="w-5 h-5 mr-2"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Yeni Hasta Ekle
+        </button>
+      </div>
     </div>
 
     <div class="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-200">
@@ -297,6 +325,15 @@
       </div>
     </div>
 
+    <AnnotationSettingsModal
+      v-if="isAnnotationSettingsModalOpen"
+      :workspace-id="workspaceId"
+      :workspace-name="workspace?.name"
+      :current-annotation-type-id="workspace?.annotationTypeId || undefined"
+      @close="isAnnotationSettingsModalOpen = false"
+      @saved="onAnnotationSettingsSaved"
+    />
+
     <CreatePatientModal
       v-if="isCreatePatientModalOpen"
       :workspace-id="workspaceId"
@@ -306,6 +343,7 @@
     <EditPatientModal
       v-if="isEditModalOpen && selectedPatient"
       :patient="selectedPatient"
+      :workspace-id="workspaceId"
       @close="closeEditModal"
       @updated="loadPatients"
     />
@@ -336,21 +374,22 @@ import { onMounted, ref, computed, shallowRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { repositories } from '@/services';
+import { useToast } from 'vue-toastification';
 import type { Workspace } from '@/core/entities/Workspace';
 import type { Patient } from '@/core/entities/Patient';
 
-// Bileşenleri Import Et
 import CreatePatientModal from '@/presentation/components/workspace/CreatePatientModal.vue';
 import EditPatientModal from '@/presentation/components/workspace/EditPatientModal.vue';
 import TransferPatientModal from '@/presentation/components/workspace/TransferPatientModal.vue';
 import DeleteConfirmationModal from '@/presentation/components/workspace/DeleteConfirmationModal.vue';
+import AnnotationSettingsModal from '@/presentation/components/workspace/AnnotationSettingsModal.vue';
 
 const route = useRoute();
 const router = useRouter();
 const workspaceStore = useWorkspaceStore();
+const toast = useToast();
 
 const workspaceId = route.params.workspaceId as string;
-
 const workspace = ref<Workspace | null>(null);
 const patients = shallowRef<Patient[]>([]);
 const loading = ref(false);
@@ -366,10 +405,32 @@ const isEditModalOpen = ref(false);
 const isTransferModalOpen = ref(false);
 const isDeleteModalOpen = ref(false);
 const selectedPatient = shallowRef<Patient | null>(null);
+const isAnnotationSettingsModalOpen = ref(false);
 
 onMounted(async () => {
   await loadData();
 });
+
+function openAnnotationSettings() {
+  isAnnotationSettingsModalOpen.value = true;
+}
+
+async function handleCreatePatientClick() {
+  if (!workspace.value) return;
+
+  if (!workspace.value.annotationTypeId) {
+    toast.warning('Hasta eklemeden önce anotasyon (etiketleme) ayarlarını yapmalısınız.');
+    isAnnotationSettingsModalOpen.value = true;
+  } else {
+    isCreatePatientModalOpen.value = true;
+  }
+}
+
+async function onAnnotationSettingsSaved() {
+  isAnnotationSettingsModalOpen.value = false;
+  workspace.value = await repositories.workspace.getById(workspaceId);
+  isCreatePatientModalOpen.value = true;
+}
 
 async function loadData() {
   loading.value = true;
@@ -412,9 +473,6 @@ function goToPatientDetail(patientId: string) {
   alert(`Hasta detayına (${patientId}) gidilecek (Görüntüler burada listelenecek).`);
 }
 
-function openCreatePatientModal() {
-  isCreatePatientModalOpen.value = true;
-}
 function closeCreatePatientModal() {
   isCreatePatientModalOpen.value = false;
   loadPatients();
