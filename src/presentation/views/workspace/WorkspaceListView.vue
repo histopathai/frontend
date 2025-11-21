@@ -47,7 +47,9 @@
 
     <DeleteConfirmationModal
       v-if="isDeleteModalOpen"
-      :workspace-name="workspaceToDelete?.name || ''"
+      :title="'Veri Setini Sil'"
+      :item-name="workspaceToDelete?.name || ''"
+      :warning-text="deleteWarningText"
       :loading="store.loading"
       @close="closeDeleteModal"
       @confirm="handleDeleteConfirm"
@@ -58,6 +60,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, shallowRef } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
+import { repositories } from '@/services';
 import type { Workspace } from '@/core/entities/Workspace';
 
 // Bileşen Importları
@@ -74,6 +77,7 @@ const selectedWorkspace = shallowRef<Workspace | null>(null);
 // Silme işlemi için State
 const isDeleteModalOpen = ref(false);
 const workspaceToDelete = shallowRef<Workspace | null>(null);
+const deleteWarningText = ref('');
 
 // Pagination State
 const limit = 10;
@@ -118,35 +122,51 @@ function openEditModal(workspace: Workspace) {
 function handleModalClose() {
   isModalOpen.value = false;
   selectedWorkspace.value = null;
-  // Listeyi tazeleyelim
   loadData(currentPage.value);
 }
 
 // --- Silme İşlemleri ---
 
-function openDeleteModal(workspace: Workspace) {
+async function openDeleteModal(workspace: Workspace) {
   workspaceToDelete.value = workspace;
+  deleteWarningText.value = 'Bu işlem geri alınamaz.';
+
+  // Kullanıcıyı bilgilendirmek için içerik kontrolü
+  try {
+    // En az 1 hasta var mı diye bakıyoruz
+    const result = await repositories.patient.getByWorkspaceId(workspace.id, {
+      limit: 1,
+      offset: 0,
+    });
+    if (result.data.length > 0) {
+      deleteWarningText.value = `DİKKAT: Bu veri setine bağlı hastalar ve görüntüler bulunmaktadır. Silme işlemi tüm bu verileri kalıcı olarak silecektir.`;
+    } else {
+      deleteWarningText.value = 'Bu veri seti boş görünüyor, silinecek.';
+    }
+  } catch (error) {
+    console.error('Hasta kontrolü yapılamadı:', error);
+    deleteWarningText.value = 'Bu işlem geri alınamaz. Varsa bağlı tüm veriler silinecektir.';
+  }
+
   isDeleteModalOpen.value = true;
 }
 
 function closeDeleteModal() {
   isDeleteModalOpen.value = false;
   workspaceToDelete.value = null;
+  deleteWarningText.value = '';
 }
 
 async function handleDeleteConfirm() {
   if (!workspaceToDelete.value) return;
 
-  // Store üzerinden silme işlemini tetikle
   const success = await store.deleteWorkspace(workspaceToDelete.value.id);
 
   if (success) {
     closeDeleteModal();
-    // Eğer sayfadaki son kaydı sildiysek ve 1. sayfada değilsek bir geri git
     if (store.workspaces.length === 0 && currentPage.value > 1) {
       loadData(currentPage.value - 1);
     } else {
-      // Değilse mevcut sayfayı yenile (deleteWorkspace içinde zaten yapılıyor ama garanti olsun)
       loadData(currentPage.value);
     }
   }
