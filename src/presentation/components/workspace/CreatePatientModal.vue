@@ -61,7 +61,7 @@
                 type="text"
                 v-model="form.race"
                 class="form-input w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                placeholder="örn: Caucasian"
+                placeholder="örn: Türk"
               />
             </div>
           </div>
@@ -76,21 +76,37 @@
                 type="text"
                 v-model="form.disease"
                 class="form-input w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                placeholder="örn: Glioblastoma"
+                placeholder="örn: Karsinom"
               />
             </div>
+
             <div>
               <label for="p-subtype" class="form-label block text-sm font-medium text-gray-700 mb-1"
                 >Alt Tip (Subtype)</label
               >
+
+              <select
+                v-if="subtypeOptions.length > 0"
+                id="p-subtype"
+                v-model="form.subtype"
+                class="form-input w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              >
+                <option value="">Seçiniz</option>
+                <option v-for="opt in subtypeOptions" :key="opt" :value="opt">
+                  {{ opt }}
+                </option>
+              </select>
+
               <input
+                v-else
                 id="p-subtype"
                 type="text"
                 v-model="form.subtype"
+                :placeholder="loadingSubtypes ? 'Seçenekler yükleniyor...' : 'örn: İnvaziv Duktal'"
                 class="form-input w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                placeholder="örn: IDH-wildtype"
               />
             </div>
+
             <div>
               <label for="p-grade" class="form-label block text-sm font-medium text-gray-700 mb-1"
                 >Derece (Grade)</label
@@ -143,9 +159,11 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed } from 'vue';
+import { reactive, computed, onMounted, ref } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
+import { repositories } from '@/services';
 import type { CreateNewPatientRequest } from '@/core/repositories/IPatientRepository';
+import type { Workspace } from '@/core/entities/Workspace';
 
 const props = defineProps({
   workspaceId: {
@@ -158,6 +176,9 @@ const emit = defineEmits(['close']);
 const store = useWorkspaceStore();
 const loading = computed(() => store.loading);
 
+const subtypeOptions = ref<string[]>([]);
+const loadingSubtypes = ref(false);
+
 const form = reactive({
   name: '',
   age: null as number | null,
@@ -168,6 +189,39 @@ const form = reactive({
   grade: null as number | null,
   history: '',
 });
+
+onMounted(async () => {
+  await fetchSubtypeOptions();
+});
+
+async function fetchSubtypeOptions() {
+  loadingSubtypes.value = true;
+  try {
+    let workspace: Workspace | null | undefined = store.workspaces.find(
+      (w) => w.id === props.workspaceId
+    );
+    if (!workspace || !workspace.annotationTypeId) {
+      workspace = await repositories.workspace.getById(props.workspaceId);
+    }
+    if (workspace && workspace.annotationTypeId) {
+      const annotationType = await repositories.annotationType.getById(workspace.annotationTypeId);
+
+      if (annotationType && annotationType.classList && annotationType.classList.length > 0) {
+        subtypeOptions.value = annotationType.classList;
+      } else {
+        console.warn("UYARI: Anotasyon tipinin sınıf listesi boş! Mod 'Derecelendirme' olabilir.");
+      }
+    } else {
+      console.warn(
+        'UYARI: Bu Workspace bir Anotasyon Tipine bağlı değil (ID null). Eski kayıt olabilir.'
+      );
+    }
+  } catch (error) {
+    console.error('HATA: Alt tip seçenekleri yüklenirken hata oluştu:', error);
+  } finally {
+    loadingSubtypes.value = false;
+  }
+}
 
 async function handleSubmit() {
   const payload: CreateNewPatientRequest = {
