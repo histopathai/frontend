@@ -26,12 +26,12 @@ export class WorkspaceRepository implements IWorkspaceRepository {
 
   async getById(id: string): Promise<Workspace | null> {
     const response = await this.apiClient.get<any>(`/api/v1/proxy/workspaces/${id}`);
-    return response ? Workspace.create(response) : null;
+    return response ? Workspace.create(response.data) : null;
   }
 
   async create(data: CreateNewWorkspaceRequest): Promise<Workspace> {
     const response = await this.apiClient.post<any>('/api/v1/proxy/workspaces', data);
-    return Workspace.create(response);
+    return Workspace.create(response.data);
   }
 
   async update(id: string, data: UpdateWorkspaceRequest): Promise<void> {
