@@ -41,4 +41,14 @@ export class AnnotationTypeRepository implements IAnnotationType {
   async delete(id: string): Promise<void> {
     await this.apiClient.delete(`/api/v1/proxy/annotation-types/${id}`);
   }
+  async batchDelete(ids: string[]): Promise<void> {
+    await this.apiClient.post(`/api/v1/proxy/annotation-types/batch-delete`, { ids });
+  }
+
+  async count(): Promise<number> {
+    const response = await this.apiClient.get<{ count: number }>(
+      `/api/v1/proxy/annotation-types/count-v1`
+    );
+    return response.count;
+  }
 }
