@@ -43,7 +43,7 @@
       </RouterLink>
 
       <RouterLink
-        :to="{ name: 'DatasetBuilder' }"
+        :to="{ name: 'WorkspaceList' }"
         class="card shadow-lg rounded-xl transition-all duration-200 hover:shadow-xl hover:border-indigo-500 border-2 border-transparent w-full sm:w-96"
       >
         <div class="card-body p-6 flex items-center space-x-5">
