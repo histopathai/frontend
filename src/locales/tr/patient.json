@@ -3,7 +3,8 @@
     "title": "Hastalar",
     "empty": "Henüz hasta bulunmuyor",
     "loading": "Hastalar yükleniyor...",
-    "search_placeholder": "Hasta ara..."
+    "search_placeholder": "Hasta ara...",
+    "selected_count": "{count} hasta seçildi"
   },
   "detail": {
     "title": "Hasta Detayı",
@@ -30,13 +31,16 @@
     "grade": "Derece",
     "grade_placeholder": "Derece girin",
     "history": "Geçmiş",
-    "history_placeholder": "Hasta geçmişini girin"
+    "history_placeholder": "Hasta geçmişini girin",
+    "target_workspace": "Hedef Çalışma Alanı"
   },
   "actions": {
     "create": "Oluştur",
     "edit": "Düzenle",
     "delete": "Sil",
-    "transfer": "Transfer Et",
+    "delete_selected": "Seçilenleri Sil",
+    "transfer": "Taşı",
+    "transfer_selected": "Seçilenleri Taşı",
     "cancel": "İptal",
     "save": "Kaydet",
     "view": "Görüntüle",
@@ -53,11 +57,14 @@
     "transfer_error": "Hasta transfer edilemedi",
     "fetch_error": "Hastalar yüklenemedi",
     "delete_confirm": "Bu hastayı silmek istediğinizden emin misiniz?",
+    "batch_delete_confirm": "{count} adet hastayı silmek istediğinizden emin misiniz?",
     "cascade_delete_warning": "Bu işlem tüm görüntüleri ve anotasyonları da silecektir!",
     "batch_delete_success": "Hastalar başarıyla silindi",
     "batch_delete_error": "Hastalar silinemedi",
     "batch_transfer_success": "Hastalar başarıyla transfer edildi",
-    "batch_transfer_error": "Hastalar transfer edilemedi"
+    "batch_transfer_error": "Hastalar transfer edilemedi",
+    "transfer_confirm": "<strong>{name}</strong> adlı hastayı taşımak istediğiniz hedef çalışma alanını seçin.",
+    "batch_transfer_confirm": "Seçili <strong>{count}</strong> hastayı taşımak istediğiniz hedef çalışma alanını seçin."
   },
   "validation": {
     "name_required": "Hasta adı zorunludur",
