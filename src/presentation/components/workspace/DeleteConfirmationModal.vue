@@ -26,14 +26,16 @@
 
       <div class="card-body p-6 space-y-4">
         <p class="text-gray-600 text-sm leading-relaxed">
-          Bu işlem <strong>geri alınamaz.</strong> <br />
-          <strong>'{{ itemName }}'</strong> silinecek.
-          <span v-if="warningText" class="block mt-2">{{ warningText }}</span>
+          <span v-html="message"></span>
+          <br />
+          <span v-if="warningText" class="block mt-2 font-medium text-red-600">{{
+            warningText
+          }}</span>
         </p>
 
-        <div class="mt-4">
+        <div v-if="requireConfirmation" class="mt-4">
           <label class="block text-sm text-gray-700 mb-1">
-            Onaylamak için lütfen <strong>{{ itemName }}</strong> yazın:
+            {{ t('common.type_to_confirm', { name: itemName }) }}:
           </label>
           <input
             type="text"
@@ -53,7 +55,7 @@
           @click="$emit('close')"
           class="btn btn-outline bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md text-sm font-medium"
         >
-          İptal
+          {{ t('workspace.actions.cancel') }}
         </button>
 
         <button
@@ -62,8 +64,8 @@
           :disabled="!isConfirmed || loading"
           class="btn btn-danger bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
         >
-          <span v-if="loading" class="mr-2">Siliniyor...</span>
-          <span v-else>Sil</span>
+          <span v-if="loading" class="mr-2 animate-spin">⚪</span>
+          <span>{{ t('workspace.actions.delete') }}</span>
         </button>
       </div>
     </div>
@@ -72,15 +74,20 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
   title: {
     type: String,
-    default: 'Silme İşlemi',
+    default: '',
   },
   itemName: {
     type: String,
-    required: true,
+    default: '',
+  },
+  message: {
+    type: String,
+    default: '',
   },
   warningText: {
     type: String,
@@ -90,12 +97,19 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  requireConfirmation: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 defineEmits(['close', 'confirm']);
 
+const { t } = useI18n();
 const confirmationInput = ref('');
+
 const isConfirmed = computed(() => {
+  if (!props.requireConfirmation) return true;
   return confirmationInput.value === props.itemName;
 });
 </script>
