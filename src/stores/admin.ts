@@ -5,6 +5,11 @@ import type { User } from '@/core/entities/User';
 import { UserRole } from '@/core/value-objects/UserRole';
 import { useToast } from 'vue-toastification';
 import type { Pagination } from '@/core/types/common';
+import { i18n } from '@/i18n';
+
+// i18n global t fonksiyonunu alıyoruz
+const t = i18n.global.t;
+const adminRepo = repositories.admin;
 
 export const useAdminStore = defineStore('admin', () => {
   // --- STATE ---
@@ -13,9 +18,9 @@ export const useAdminStore = defineStore('admin', () => {
   const error = ref<string | null>(null);
 
   // --- DEPENDENCIES ---
-  const adminRepo = repositories.admin;
   const toast = useToast();
 
+  // Helper: State güncelleme
   function updateUserInState(updatedUser: User) {
     const index = users.value.findIndex((u) => u.userId === updatedUser.userId);
     if (index !== -1) {
@@ -27,6 +32,8 @@ export const useAdminStore = defineStore('admin', () => {
     }
   }
 
+  // --- ACTIONS ---
+
   async function fetchAllUsers(pagination: Pagination = { limit: 100, offset: 0 }) {
     loading.value = true;
     error.value = null;
@@ -37,8 +44,9 @@ export const useAdminStore = defineStore('admin', () => {
       users.value = result.data;
     } catch (err: any) {
       console.error('Fetch Users Error:', err);
-      error.value = err.response?.data?.message || 'Kullanıcılar alınamadı.';
-      toast.error(error.value);
+      const errorMessage = err.response?.data?.message || t('admin.users_fetch_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
     } finally {
       loading.value = false;
     }
@@ -50,11 +58,12 @@ export const useAdminStore = defineStore('admin', () => {
     try {
       const updatedUser = await adminRepo.approveUser(uid, { role: UserRole.user() });
       updateUserInState(updatedUser);
-      toast.success('Kullanıcı onaylandı.');
+      toast.success(t('admin.user_approved'));
     } catch (err: any) {
       console.error('Approve User Error:', err);
-      error.value = err.response?.data?.message || 'Kullanıcı onaylanamadı.';
-      toast.error(error.value);
+      const errorMessage = err.response?.data?.message || t('admin.user_approval_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
     } finally {
       loading.value = false;
     }
@@ -66,11 +75,12 @@ export const useAdminStore = defineStore('admin', () => {
     try {
       const updatedUser = await adminRepo.suspendUser(uid);
       updateUserInState(updatedUser);
-      toast.success('Kullanıcı askıya alındı.');
+      toast.success(t('admin.user_suspended'));
     } catch (err: any) {
       console.error('Suspend User Error:', err);
-      error.value = err.response?.data?.message || 'Kullanıcı askıya alınamadı.';
-      toast.error(error.value);
+      const errorMessage = err.response?.data?.message || t('admin.user_suspend_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
     } finally {
       loading.value = false;
     }
@@ -82,11 +92,12 @@ export const useAdminStore = defineStore('admin', () => {
     try {
       const updatedUser = await adminRepo.makeAdmin(uid);
       updateUserInState(updatedUser);
-      toast.success('Kullanıcıya admin rolü verildi.');
+      toast.success(t('admin.user_made_admin'));
     } catch (err: any) {
       console.error('Make Admin Error:', err);
-      error.value = err.response?.data?.message || 'Kullanıcı admin yapılamadı.';
-      toast.error(error.value);
+      const errorMessage = err.response?.data?.message || t('admin.user_make_admin_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
     } finally {
       loading.value = false;
     }
@@ -98,11 +109,12 @@ export const useAdminStore = defineStore('admin', () => {
     try {
       await adminRepo.deleteUser(uid);
       users.value = users.value.filter((user) => user.userId !== uid);
-      toast.success('Kullanıcı silindi.');
+      toast.success(t('admin.user_deleted'));
     } catch (err: any) {
       console.error('Delete User Error:', err);
-      error.value = err.response?.data?.message || 'Kullanıcı silinemedi.';
-      toast.error(error.value);
+      const errorMessage = err.response?.data?.message || t('admin.user_delete_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
     } finally {
       loading.value = false;
     }
@@ -118,5 +130,6 @@ export const useAdminStore = defineStore('admin', () => {
     approveUser,
     suspendUser,
     makeAdmin,
+    deleteUser,
   };
 });

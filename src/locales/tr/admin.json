@@ -1,0 +1,11 @@
+{
+  "users_fetch_failed": "Kullanıcılar alınamadı.",
+  "user_approved": "Kullanıcı onaylandı.",
+  "user_approval_failed": "Kullanıcı onaylanamadı.",
+  "user_suspended": "Kullanıcı askıya alındı.",
+  "user_suspend_failed": "Kullanıcı askıya alınamadı.",
+  "user_made_admin": "Kullanıcıya admin rolü verildi.",
+  "user_make_admin_failed": "Kullanıcı admin yapılamadı.",
+  "user_deleted": "Kullanıcı silindi.",
+  "user_delete_failed": "Kullanıcı silinemedi."
+}

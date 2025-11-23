@@ -344,6 +344,119 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   // Return
   // ===========================
 
+  async function updateWorkspace(id: string, data: UpdateWorkspaceRequest): Promise<boolean> {
+    loading.value = true;
+    try {
+      await repositories.workspace.update(id, data);
+      await fetchWorkspaces({
+        limit: paginationMeta.value.limit,
+        offset: paginationMeta.value.offset,
+        sortBy: paginationMeta.value.sortBy,
+        sortOrder: paginationMeta.value.sortOrder,
+      });
+
+      toast.success('Veri seti başarıyla güncellendi.');
+      return true;
+    } catch (err: any) {
+      toast.error(err.message || 'Veri seti güncellenemedi.');
+      return false;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function deleteWorkspace(id: string): Promise<boolean> {
+    loading.value = true;
+    try {
+      await repositories.workspace.delete(id);
+
+      toast.success('Veri seti silindi.');
+      await fetchWorkspaces({
+        limit: paginationMeta.value.limit,
+        offset: paginationMeta.value.offset,
+        sortBy: paginationMeta.value.sortBy,
+        sortOrder: paginationMeta.value.sortOrder,
+      });
+
+      return true;
+    } catch (err: any) {
+      toast.error(err.message || 'Silme işlemi başarısız.');
+      return false;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function createPatient(data: CreateNewPatientRequest): Promise<boolean> {
+    loading.value = true;
+    try {
+      await repositories.patient.create(data);
+      toast.success('Hasta başarıyla oluşturuldu.');
+
+      if (patientsByWorkspace.value.has(data.workspace_id)) {
+        await fetchPatientsForWorkspace(data.workspace_id);
+      }
+
+      return true;
+    } catch (err: any) {
+      toast.error(err.message || 'Hasta oluşturulamadı.');
+      return false;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function updatePatient(
+    id: string,
+    data: Partial<CreateNewPatientRequest>
+  ): Promise<boolean> {
+    loading.value = true;
+    try {
+      await repositories.patient.update(id, data);
+      toast.success('Hasta bilgileri güncellendi.');
+      return true;
+    } catch (err: any) {
+      toast.error(err.message || 'Güncelleme başarısız.');
+      return false;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function deletePatient(id: string, workspaceId: string): Promise<boolean> {
+    loading.value = true;
+    try {
+      await repositories.patient.delete(id);
+      toast.success('Hasta silindi.');
+      await fetchPatientsForWorkspace(workspaceId);
+      return true;
+    } catch (err: any) {
+      toast.error(err.message || 'Silme işlemi başarısız.');
+      return false;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function transferPatient(
+    id: string,
+    currentWorkspaceId: string,
+    targetWorkspaceId: string
+  ): Promise<boolean> {
+    loading.value = true;
+    try {
+      await repositories.patient.transfer(id, targetWorkspaceId);
+      toast.success('Hasta başarıyla transfer edildi.');
+      await fetchPatientsForWorkspace(currentWorkspaceId);
+      return true;
+    } catch (err: any) {
+      toast.error(err.message || 'Transfer işlemi başarısız.');
+      return false;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     // State
     workspaces,

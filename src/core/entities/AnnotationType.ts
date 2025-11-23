@@ -45,12 +45,6 @@ export class AnnotationType {
       );
     }
 
-    if (props.scoreEnabled && props.classificationEnabled) {
-      throw new Error(
-        'Invalid AnnotationType: Both score and classification cannot be enabled simultaneously.'
-      );
-    }
-
     return new AnnotationType(props);
   }
 
