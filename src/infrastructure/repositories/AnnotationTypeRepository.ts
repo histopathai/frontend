@@ -1,6 +1,7 @@
 import type {
   CreateNewAnnotationTypeRequest,
   IAnnotationType,
+  UpdateAnnotationTypeRequest,
 } from '@/core/repositories/IAnnotationType';
 import type { PaginatedResult, Pagination } from '@/core/types/common';
 
@@ -33,7 +34,7 @@ export class AnnotationTypeRepository implements IAnnotationType {
     return AnnotationType.create(response.data);
   }
 
-  async update(id: string, data: Partial<CreateNewAnnotationTypeRequest>): Promise<void> {
+  async update(id: string, data: UpdateAnnotationTypeRequest): Promise<void> {
     await this.apiClient.put(`/api/v1/proxy/annotation-types/${id}`, data);
   }
 
