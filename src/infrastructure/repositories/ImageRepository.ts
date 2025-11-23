@@ -10,6 +10,7 @@ import type { PaginatedResult, Pagination } from '@/core/types/common';
 import { ApiClient } from '../api/ApiClient';
 import { Image } from '@/core/entities/Image';
 import axios, { type AxiosProgressEvent } from 'axios';
+import type { BatchTransfer } from '@/core/repositories/common';
 
 // BackendUploadResponse -> { "data": ImageUploadPayload, ... }
 interface BackendUploadResponse {
@@ -41,7 +42,7 @@ export class ImageRepository implements IImageRepository {
   async upload(params: UploadImageParams): Promise<void> {
     const { payload, file, onUploadProgress } = params;
 
-    await axios.put(payload.uploadUrl, file, {
+    await axios.put(payload.upload_url, file, {
       headers: {
         ...payload.headers,
         'Content-Type': file.type,
@@ -83,6 +84,19 @@ export class ImageRepository implements IImageRepository {
   }
 
   async transfer(imageId: string, newPatientId: string): Promise<void> {
-    await this.apiClient.post(`/api/v1/proxy/images/${imageId}/transfer/${newPatientId}`, {});
+    await this.apiClient.put(`/api/v1/proxy/images/${imageId}/transfer/${newPatientId}`, {});
+  }
+
+  async batchTransfer(data: BatchTransfer): Promise<void> {
+    await this.apiClient.put(`/api/v1/proxy/images/batch-transfer`, data);
+  }
+
+  async count(): Promise<number> {
+    const response = await this.apiClient.get<{ count: number }>(`/api/v1/proxy/images/count-v1`);
+    return response.count;
+  }
+
+  async batchDelete(ids: string[]): Promise<void> {
+    await this.apiClient.post(`/api/v1/proxy/images/batch-delete`, { ids });
   }
 }

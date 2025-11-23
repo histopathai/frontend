@@ -4,16 +4,6 @@ import { repositories } from '@/services';
 import { useToast } from 'vue-toastification';
 import { useI18n } from 'vue-i18n';
 import type { Workspace } from '@/core/entities/Workspace';
-<<<<<<< Updated upstream
-import type { CreateNewWorkspaceRequest } from '@/core/repositories/IWorkspaceRepository';
-import type { Pagination } from '@/core/types/common';
-import { useToast } from 'vue-toastification';
-
-export const useWorkspaceStore = defineStore('workspace', () => {
-  // --- STATE ---
-  const workspaces = shallowRef<Workspace[]>([]);
-  const loading = ref(false);
-=======
 import type {
   CreateNewWorkspaceRequest,
   UpdateWorkspaceRequest,
@@ -43,7 +33,6 @@ interface FetchOptions {
 
 export const useWorkspaceStore = defineStore('workspace', () => {
   const { t } = useI18n();
->>>>>>> Stashed changes
   const toast = useToast();
   const workspaceRepo = repositories.workspace;
 
@@ -135,14 +124,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     // Don't fetch if already loading
     if (loading.value && !refresh) return;
 
-<<<<<<< Updated upstream
-  // --- ACTIONS ---
-  async function fetchWorkspaces(pagination: Pagination = { limit: 100, offset: 0 }) {
-    loading.value = true;
-    try {
-      const result = await repositories.workspace.list(pagination);
-      workspaces.value = result.data;
-=======
     loading.value = true;
     resetError();
 
@@ -162,16 +143,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         ...result.pagination,
         hasMore: result.pagination?.hasMore ?? result.data.length === paginationParams.limit,
       };
->>>>>>> Stashed changes
     } catch (err: any) {
       handleError(err, t('workspace.messages.fetch_error'), showErrorToast);
       throw err;
     } finally {
       loading.value = false;
     }
-<<<<<<< Updated upstream
-  }
-=======
   };
 
   const fetchWorkspaceById = async (
@@ -179,16 +156,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     options: FetchOptions = {}
   ): Promise<Workspace | null> => {
     const { showToast: showErrorToast = true } = options;
->>>>>>> Stashed changes
 
     loading.value = true;
-<<<<<<< Updated upstream
-    try {
-      const newWorkspace = await repositories.workspace.create(data);
-      workspaces.value = [...workspaces.value, newWorkspace];
-=======
     resetError();
->>>>>>> Stashed changes
 
     try {
       const workspace = await workspaceRepo.getById(workspaceId);
@@ -223,15 +193,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     actionLoading.value = true;
     resetError();
 
-<<<<<<< Updated upstream
-  return {
-    // State
-    workspaces,
-    loading,
-    // Actions
-    fetchWorkspaces,
-    createWorkspace,
-=======
     try {
       const newWorkspace = await workspaceRepo.create(data);
 
@@ -424,6 +385,5 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     refreshWorkspace,
     getWorkspaceCount,
     resetError,
->>>>>>> Stashed changes
   };
 });

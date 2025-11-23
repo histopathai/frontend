@@ -1,14 +1,15 @@
 import { Image } from '../entities/Image';
 import type { PaginatedResult, Pagination } from '../types/common';
+import type { BatchTransfer } from './common';
 
 export interface ImageUploadPayload {
-  uploadUrl: string;
+  upload_url: string;
   headers: Record<string, string>;
 }
 
 export interface CreateNewImageRequest {
-  patientId: string;
-  contentType: string;
+  patient_id: string;
+  content_type: string;
   name: string;
   format: string;
   width?: number;
@@ -30,4 +31,7 @@ export interface IImageRepository {
   delete(imageId: string): Promise<void>;
   getByPatientId(patientId: string, pagination: Pagination): Promise<PaginatedResult<Image>>;
   transfer(imageId: string, newPatientId: string): Promise<void>;
+  batchTransfer(data: BatchTransfer): Promise<void>;
+  count(): Promise<number>;
+  batchDelete(ids: string[]): Promise<void>;
 }

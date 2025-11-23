@@ -9,7 +9,7 @@ export interface CreateNewWorkspaceRequest {
   license: string;
   resource_url?: string;
   release_year?: number;
-  annotation_type_id?: string;
+  annotation_type_id?: string | null;
 }
 
 export interface UpdateWorkspaceRequest {
@@ -29,4 +29,7 @@ export interface IWorkspaceRepository {
   create(data: CreateNewWorkspaceRequest): Promise<Workspace>;
   update(id: string, data: UpdateWorkspaceRequest): Promise<void>;
   delete(id: string): Promise<void>;
+  count(): Promise<number>;
+  batchDelete(ids: string[]): Promise<void>;
+  cascadeDelete(id: string): Promise<void>;
 }

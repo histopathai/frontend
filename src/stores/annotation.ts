@@ -180,14 +180,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
     resetError();
 
     try {
-<<<<<<< Updated upstream
-      const [typesResult, annotationsResult] = await Promise.all([
-        annotationTypeRepo.list({ limit: 1000, offset: 0 }),
-        annotationRepo.getByImageId(imageId, { limit: 1000, offset: 0 }),
-      ]);
-=======
       const annotation = await annotationRepo.getById(annotationId);
->>>>>>> Stashed changes
 
       if (annotation) {
         currentAnnotation.value = annotation;
@@ -213,23 +206,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
     if (loading.value && !refresh) return;
 
     loading.value = true;
-<<<<<<< Updated upstream
-    error.value = null;
-
-    if (!currentImageId.value) {
-      toast.error('Anotasyon kaydetmek için bir görüntü seçili olmalı.');
-      loading.value = false;
-      return;
-    }
-
-    const payload: CreateNewAnnotationRequest = {
-      ...data,
-      imageId: currentImageId.value,
-      annotatorId: '',
-    };
-=======
     resetError();
->>>>>>> Stashed changes
 
     try {
       const paginationParams: Pagination = {
