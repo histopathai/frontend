@@ -29,4 +29,7 @@ export interface IWorkspaceRepository {
   create(data: CreateNewWorkspaceRequest): Promise<Workspace>;
   update(id: string, data: UpdateWorkspaceRequest): Promise<void>;
   delete(id: string): Promise<void>;
+  count(): Promise<number>;
+  batchDelete(ids: string[]): Promise<void>;
+  cascadeDelete(id: string): Promise<void>;
 }
