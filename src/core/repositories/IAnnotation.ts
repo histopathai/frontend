@@ -17,4 +17,6 @@ export interface IAnnotationRepository {
   getById(id: string): Promise<Annotation>;
   update(id: string, data: Partial<CreateNewAnnotationRequest>): Promise<void>;
   delete(id: string): Promise<void>;
+  count(): Promise<number>;
+  batchDelete(ids: string[]): Promise<void>;
 }
