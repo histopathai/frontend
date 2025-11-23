@@ -1,0 +1,63 @@
+{
+  "list": {
+    "title": "Workspaces",
+    "empty": "No workspaces yet",
+    "loading": "Loading workspaces...",
+    "search_placeholder": "Search workspace..."
+  },
+  "detail": {
+    "title": "Workspace Detail",
+    "info": "Information",
+    "patients": "Patients",
+    "statistics": "Statistics"
+  },
+  "form": {
+    "create_title": "Create New Workspace",
+    "edit_title": "Edit Workspace",
+    "name": "Workspace Name",
+    "name_placeholder": "Enter workspace name",
+    "organ_type": "Organ Type",
+    "organ_type_placeholder": "Select organ type",
+    "organization": "Organization",
+    "organization_placeholder": "Enter organization name",
+    "description": "Description",
+    "description_placeholder": "Enter workspace description",
+    "license": "License",
+    "license_placeholder": "Enter license information",
+    "resource_url": "Resource URL",
+    "resource_url_placeholder": "Enter resource URL",
+    "release_year": "Release Year",
+    "release_year_placeholder": "Enter release year",
+    "annotation_type": "Annotation Type",
+    "annotation_type_placeholder": "Select annotation type"
+  },
+  "actions": {
+    "create": "Create",
+    "edit": "Edit",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save",
+    "view": "View"
+  },
+  "messages": {
+    "create_success": "Workspace created successfully",
+    "create_error": "Failed to create workspace",
+    "update_success": "Workspace updated successfully",
+    "update_error": "Failed to update workspace",
+    "delete_success": "Workspace deleted successfully",
+    "delete_error": "Failed to delete workspace",
+    "fetch_error": "Failed to load workspaces",
+    "delete_confirm": "Are you sure you want to delete this workspace?",
+    "cascade_delete_warning": "This will also delete all patients and images!"
+  },
+  "validation": {
+    "name_required": "Workspace name is required",
+    "name_min": "Workspace name must be at least 3 characters",
+    "organ_type_required": "Organ type is required",
+    "organization_required": "Organization is required",
+    "description_required": "Description is required",
+    "license_required": "License is required",
+    "release_year_invalid": "Please enter a valid year",
+    "resource_url_invalid": "Please enter a valid URL"
+  }
+}

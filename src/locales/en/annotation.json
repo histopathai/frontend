@@ -1,0 +1,73 @@
+{
+  "list": {
+    "title": "Annotations",
+    "empty": "No annotations available yet",
+    "loading": "Loading annotations...",
+    "search_placeholder": "Search annotation..."
+  },
+  "detail": {
+    "title": "Annotation Detail",
+    "info": "Information",
+    "polygon": "Polygon",
+    "score": "Score",
+    "class": "Class",
+    "description": "Description"
+  },
+  "editor": {
+    "title": "Annotation Editor",
+    "tools": "Tools",
+    "draw": "Draw",
+    "select": "Select",
+    "delete": "Delete",
+    "clear": "Clear",
+    "zoom_in": "Zoom In",
+    "zoom_out": "Zoom Out",
+    "fit": "Fit to Screen",
+    "save": "Save"
+  },
+  "form": {
+    "create_title": "Create New Annotation",
+    "edit_title": "Edit Annotation",
+    "polygon": "Polygon",
+    "score": "Score",
+    "score_placeholder": "Enter score",
+    "class": "Class",
+    "class_placeholder": "Select class",
+    "description": "Description",
+    "description_placeholder": "Enter description"
+  },
+  "actions": {
+    "create": "Create",
+    "edit": "Edit",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save",
+    "view": "View",
+    "export": "Export"
+  },
+  "messages": {
+    "create_success": "Annotation created successfully",
+    "create_error": "Failed to create annotation",
+    "update_success": "Annotation updated successfully",
+    "update_error": "Failed to update annotation",
+    "delete_success": "Annotation deleted successfully",
+    "delete_error": "Failed to delete annotation",
+    "fetch_error": "Failed to load annotations",
+    "delete_confirm": "Are you sure you want to delete this annotation?",
+    "batch_delete_success": "Annotations deleted successfully",
+    "batch_delete_error": "Failed to delete annotations",
+    "export_success": "Annotations exported successfully",
+    "export_error": "Failed to export annotations",
+    "image_required": "An image must be selected to save an annotation",
+    "polygon_required": "A polygon must be drawn",
+    "score_out_of_range": "Score must be between {min} and {max}"
+  },
+  "validation": {
+    "polygon_required": "Polygon is required",
+    "polygon_min_points": "Polygon must contain at least 3 points",
+    "score_required": "Score is required",
+    "score_invalid": "Invalid score value",
+    "class_required": "Class is required",
+    "image_required": "Image must be selected"
+  }
+}

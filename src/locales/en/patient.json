@@ -1,0 +1,74 @@
+{
+  "list": {
+    "title": "Patients",
+    "empty": "No patients available yet",
+    "loading": "Loading patients...",
+    "search_placeholder": "Search patient..."
+  },
+  "detail": {
+    "title": "Patient Detail",
+    "info": "Information",
+    "images": "Images",
+    "demographics": "Demographics",
+    "medical_info": "Medical Information"
+  },
+  "form": {
+    "create_title": "Create New Patient",
+    "edit_title": "Edit Patient",
+    "name": "Patient Name",
+    "name_placeholder": "Enter patient name",
+    "age": "Age",
+    "age_placeholder": "Enter age",
+    "gender": "Gender",
+    "gender_placeholder": "Select gender",
+    "race": "Race",
+    "race_placeholder": "Enter race",
+    "disease": "Disease",
+    "disease_placeholder": "Enter disease",
+    "subtype": "Subtype",
+    "subtype_placeholder": "Enter subtype",
+    "grade": "Grade",
+    "grade_placeholder": "Enter grade",
+    "history": "History",
+    "history_placeholder": "Enter patient history"
+  },
+  "actions": {
+    "create": "Create",
+    "edit": "Edit",
+    "delete": "Delete",
+    "transfer": "Transfer",
+    "cancel": "Cancel",
+    "save": "Save",
+    "view": "View",
+    "upload_image": "Upload Image"
+  },
+  "messages": {
+    "create_success": "Patient created successfully",
+    "create_error": "Failed to create patient",
+    "update_success": "Patient updated successfully",
+    "update_error": "Failed to update patient",
+    "delete_success": "Patient deleted successfully",
+    "delete_error": "Failed to delete patient",
+    "transfer_success": "Patient transferred successfully",
+    "transfer_error": "Failed to transfer patient",
+    "fetch_error": "Failed to load patients",
+    "delete_confirm": "Are you sure you want to delete this patient?",
+    "cascade_delete_warning": "This action will also delete all images and annotations!",
+    "batch_delete_success": "Patients deleted successfully",
+    "batch_delete_error": "Failed to delete patients",
+    "batch_transfer_success": "Patients transferred successfully",
+    "batch_transfer_error": "Failed to transfer patients"
+  },
+  "validation": {
+    "name_required": "Patient name is required",
+    "name_min": "Patient name must be at least 2 characters",
+    "age_min": "Age must be greater than 0",
+    "age_max": "Age must be less than 150",
+    "workspace_required": "Workspace selection is required"
+  },
+  "genders": {
+    "male": "Male",
+    "female": "Female",
+    "other": "Other"
+  }
+}

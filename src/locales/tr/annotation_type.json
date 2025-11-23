@@ -1,0 +1,72 @@
+{
+  "list": {
+    "title": "Anotasyon Tipleri",
+    "empty": "Henüz anotasyon tipi bulunmuyor",
+    "loading": "Anotasyon tipleri yükleniyor...",
+    "search_placeholder": "Anotasyon tipi ara..."
+  },
+  "detail": {
+    "title": "Anotasyon Tipi Detayı",
+    "info": "Bilgiler",
+    "score_config": "Skor Ayarları",
+    "classification_config": "Sınıflandırma Ayarları"
+  },
+  "form": {
+    "create_title": "Yeni Anotasyon Tipi Oluştur",
+    "edit_title": "Anotasyon Tipi Düzenle",
+    "name": "Tip Adı",
+    "name_placeholder": "Anotasyon tipi adını girin",
+    "description": "Açıklama",
+    "description_placeholder": "Açıklama girin",
+    "score_enabled": "Skorlama Aktif",
+    "classification_enabled": "Sınıflandırma Aktif",
+    "score_name": "Skor Adı",
+    "score_name_placeholder": "Skor adını girin (örn: Gleason Skoru)",
+    "score_min": "Minimum Skor",
+    "score_min_placeholder": "Minimum değer girin",
+    "score_max": "Maksimum Skor",
+    "score_max_placeholder": "Maksimum değer girin",
+    "class_list": "Sınıf Listesi",
+    "class_list_placeholder": "Sınıfları virgülle ayırarak girin",
+    "add_class": "Sınıf Ekle",
+    "remove_class": "Kaldır"
+  },
+  "actions": {
+    "create": "Oluştur",
+    "edit": "Düzenle",
+    "delete": "Sil",
+    "cancel": "İptal",
+    "save": "Kaydet",
+    "view": "Görüntüle"
+  },
+  "messages": {
+    "create_success": "Anotasyon tipi başarıyla oluşturuldu",
+    "create_error": "Anotasyon tipi oluşturulamadı",
+    "update_success": "Anotasyon tipi başarıyla güncellendi",
+    "update_error": "Anotasyon tipi güncellenemedi",
+    "delete_success": "Anotasyon tipi başarıyla silindi",
+    "delete_error": "Anotasyon tipi silinemedi",
+    "fetch_error": "Anotasyon tipleri yüklenemedi",
+    "delete_confirm": "Bu anotasyon tipini silmek istediğinizden emin misiniz?",
+    "used_by_workspaces": "Bu tip {count} veri seti tarafından kullanılıyor",
+    "batch_delete_success": "Anotasyon tipleri başarıyla silindi",
+    "batch_delete_error": "Anotasyon tipleri silinemedi"
+  },
+  "validation": {
+    "name_required": "Tip adı zorunludur",
+    "name_min": "Tip adı en az 3 karakter olmalıdır",
+    "score_name_required": "Skorlama aktifse skor adı zorunludur",
+    "score_min_required": "Skorlama aktifse minimum değer zorunludur",
+    "score_max_required": "Skorlama aktifse maksimum değer zorunludur",
+    "score_range_invalid": "Maksimum değer minimum değerden büyük olmalıdır",
+    "class_list_required": "Sınıflandırma aktifse en az bir sınıf eklenmelidir",
+    "class_list_empty": "Sınıf listesi boş olamaz",
+    "class_duplicate": "Bu sınıf zaten eklenmiş"
+  },
+  "features": {
+    "scoring": "Skorlama",
+    "classification": "Sınıflandırma",
+    "enabled": "Aktif",
+    "disabled": "Pasif"
+  }
+}

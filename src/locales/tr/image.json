@@ -1,0 +1,69 @@
+{
+  "list": {
+    "title": "Görüntüler",
+    "empty": "Henüz görüntü bulunmuyor",
+    "loading": "Görüntüler yükleniyor...",
+    "search_placeholder": "Görüntü ara..."
+  },
+  "detail": {
+    "title": "Görüntü Detayı",
+    "info": "Bilgiler",
+    "annotations": "Anotasyonlar",
+    "preview": "Önizleme"
+  },
+  "upload": {
+    "title": "Görüntü Yükle",
+    "drag_drop": "Dosyaları buraya sürükleyin veya tıklayın",
+    "file_types": "Desteklenen formatlar: JPG, PNG, TIFF",
+    "max_size": "Maksimum dosya boyutu: 50MB",
+    "uploading": "Yükleniyor...",
+    "progress": "İlerleme"
+  },
+  "status": {
+    "uploaded": "Yüklendi",
+    "processing": "İşleniyor",
+    "processed": "İşlendi",
+    "failed": "Başarısız"
+  },
+  "form": {
+    "name": "Görüntü Adı",
+    "name_placeholder": "Görüntü adını girin",
+    "format": "Format",
+    "width": "Genişlik",
+    "height": "Yükseklik",
+    "size": "Boyut"
+  },
+  "actions": {
+    "upload": "Yükle",
+    "delete": "Sil",
+    "transfer": "Transfer Et",
+    "download": "İndir",
+    "view": "Görüntüle",
+    "annotate": "Anotasyonla",
+    "cancel": "İptal",
+    "retry": "Tekrar Dene"
+  },
+  "messages": {
+    "upload_success": "Görüntü başarıyla yüklendi",
+    "upload_error": "Görüntü yüklenemedi",
+    "delete_success": "Görüntü başarıyla silindi",
+    "delete_error": "Görüntü silinemedi",
+    "transfer_success": "Görüntü başarıyla transfer edildi",
+    "transfer_error": "Görüntü transfer edilemedi",
+    "fetch_error": "Görüntüler yüklenemedi",
+    "delete_confirm": "Bu görüntüyü silmek istediğinizden emin misiniz?",
+    "cascade_delete_warning": "Bu işlem tüm anotasyonları da silecektir!",
+    "batch_delete_success": "Görüntüler başarıyla silindi",
+    "batch_delete_error": "Görüntüler silinemedi",
+    "batch_transfer_success": "Görüntüler başarıyla transfer edildi",
+    "batch_transfer_error": "Görüntüler transfer edilemedi",
+    "processing_info": "Görüntü işleniyor, lütfen bekleyin...",
+    "failed_retry": "İşlem başarısız oldu, tekrar denemek ister misiniz?"
+  },
+  "validation": {
+    "file_required": "Dosya seçilmelidir",
+    "file_type_invalid": "Geçersiz dosya türü",
+    "file_size_exceeded": "Dosya boyutu çok büyük",
+    "patient_required": "Hasta seçilmelidir"
+  }
+}
