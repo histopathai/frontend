@@ -65,8 +65,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
     const payload: CreateNewAnnotationRequest = {
       ...data,
-      imageId: currentImageId.value,
-      annotatorId: '',
+      image_id: currentImageId.value,
+      annotator_id: '',
     };
 
     try {
