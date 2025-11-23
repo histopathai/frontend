@@ -41,4 +41,17 @@ export class WorkspaceRepository implements IWorkspaceRepository {
   async delete(id: string): Promise<void> {
     await this.apiClient.delete(`/api/v1/proxy/workspaces/${id}`);
   }
+
+  async count(): Promise<number> {
+    const response = await this.apiClient.get<{ count: number }>('/api/v1/proxy/workspaces/count');
+    return response.count;
+  }
+
+  async batchDelete(ids: string[]): Promise<void> {
+    await this.apiClient.post('/api/v1/proxy/workspaces/batch-delete', { ids });
+  }
+
+  async cascadeDelete(id: string): Promise<void> {
+    await this.apiClient.delete(`/api/v1/proxy/workspaces/${id}/cascade`);
+  }
 }
