@@ -1,0 +1,72 @@
+{
+  "list": {
+    "title": "Annotation Types",
+    "empty": "No annotation types available yet",
+    "loading": "Loading annotation types...",
+    "search_placeholder": "Search annotation type..."
+  },
+  "detail": {
+    "title": "Annotation Type Detail",
+    "info": "Information",
+    "score_config": "Score Settings",
+    "classification_config": "Classification Settings"
+  },
+  "form": {
+    "create_title": "Create New Annotation Type",
+    "edit_title": "Edit Annotation Type",
+    "name": "Type Name",
+    "name_placeholder": "Enter annotation type name",
+    "description": "Description",
+    "description_placeholder": "Enter description",
+    "score_enabled": "Scoring Enabled",
+    "classification_enabled": "Classification Enabled",
+    "score_name": "Score Name",
+    "score_name_placeholder": "Enter score name (e.g., Gleason Score)",
+    "score_min": "Minimum Score",
+    "score_min_placeholder": "Enter minimum value",
+    "score_max": "Maximum Score",
+    "score_max_placeholder": "Enter maximum value",
+    "class_list": "Class List",
+    "class_list_placeholder": "Enter classes separated by commas",
+    "add_class": "Add Class",
+    "remove_class": "Remove"
+  },
+  "actions": {
+    "create": "Create",
+    "edit": "Edit",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save",
+    "view": "View"
+  },
+  "messages": {
+    "create_success": "Annotation type created successfully",
+    "create_error": "Failed to create annotation type",
+    "update_success": "Annotation type updated successfully",
+    "update_error": "Failed to update annotation type",
+    "delete_success": "Annotation type deleted successfully",
+    "delete_error": "Failed to delete annotation type",
+    "fetch_error": "Failed to load annotation types",
+    "delete_confirm": "Are you sure you want to delete this annotation type?",
+    "used_by_workspaces": "This type is used by {count} workspace(s)",
+    "batch_delete_success": "Annotation types deleted successfully",
+    "batch_delete_error": "Failed to delete annotation types"
+  },
+  "validation": {
+    "name_required": "Type name is required",
+    "name_min": "Type name must be at least 3 characters",
+    "score_name_required": "Score name is required if scoring is enabled",
+    "score_min_required": "Minimum value is required if scoring is enabled",
+    "score_max_required": "Maximum value is required if scoring is enabled",
+    "score_range_invalid": "Maximum value must be greater than the minimum value",
+    "class_list_required": "At least one class is required if classification is enabled",
+    "class_list_empty": "Class list cannot be empty",
+    "class_duplicate": "This class is already added"
+  },
+  "features": {
+    "scoring": "Scoring",
+    "classification": "Classification",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
+  }
+}

@@ -2,9 +2,9 @@
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Veri Seti Oluşturucu</h1>
+        <h1 class="text-2xl font-bold text-gray-900">{{ t('workspace.list.title') }}</h1>
         <p class="mt-1 text-gray-600">
-          Mevcut veri setlerini yönetin, düzenleyin veya yeni kayıt ekleyin.
+          {{ t('workspace.list.search_placeholder') }}
         </p>
       </div>
       <button @click="openCreateModal" class="btn btn-primary">
@@ -18,28 +18,29 @@
         >
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
         </svg>
-        Yeni Veri Seti Oluştur
+        {{ t('workspace.actions.create') }}
       </button>
     </div>
 
-    <div v-if="store.loading && store.workspaces.length === 0" class="text-center py-10">
+    <div v-if="store.isLoading && !store.hasWorkspaces" class="text-center py-10">
       <div
         class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"
       ></div>
-      <p class="mt-2 text-gray-500">Veri setleri yükleniyor...</p>
+      <p class="mt-2 text-gray-500">{{ t('workspace.list.loading') }}</p>
     </div>
 
     <WorkspaceList
       v-else
       :workspaces="store.workspaces"
       :current-page="currentPage"
-      :has-more="store.paginationMeta.hasMore"
+      :has-more="store.hasMore"
       @page-change="handlePageChange"
       @edit="openEditModal"
       @delete="openDeleteModal"
+      @delete-selected="openBatchDeleteModal"
     />
 
-    <CreateWorkspaceModal
+    <WorkspaceFormModal
       v-if="isModalOpen"
       :workspace-to-edit="selectedWorkspace as any"
       @close="handleModalClose"
@@ -47,10 +48,12 @@
 
     <DeleteConfirmationModal
       v-if="isDeleteModalOpen"
-      :title="'Veri Setini Sil'"
-      :item-name="workspaceToDelete?.name || ''"
+      :title="deleteModalTitle"
+      :item-name="deleteItemName"
+      :message="deleteModalMessage"
       :warning-text="deleteWarningText"
-      :loading="store.loading"
+      :loading="store.isActionLoading"
+      :require-confirmation="isSingleDelete"
       @close="closeDeleteModal"
       @confirm="handleDeleteConfirm"
     />
@@ -62,35 +65,55 @@ import { ref, onMounted, computed, shallowRef } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { repositories } from '@/services';
 import type { Workspace } from '@/core/entities/Workspace';
+import { useI18n } from 'vue-i18n';
 
-// Bileşen Importları
+// Components
 import WorkspaceList from '@/presentation/components/workspace/WorkspaceList.vue';
-import CreateWorkspaceModal from '@/presentation/components/workspace/WorkspaceFormModal.vue';
+import WorkspaceFormModal from '@/presentation/components/workspace/WorkspaceFormModal.vue';
 import DeleteConfirmationModal from '@/presentation/components/workspace/DeleteConfirmationModal.vue';
 
 const store = useWorkspaceStore();
+const { t } = useI18n();
 
-// --- State Tanımları ---
+// --- State ---
 const isModalOpen = ref(false);
 const selectedWorkspace = shallowRef<Workspace | null>(null);
 
-// Silme işlemi için State
+// Delete State
 const isDeleteModalOpen = ref(false);
 const workspaceToDelete = shallowRef<Workspace | null>(null);
+const idsToDelete = ref<string[]>([]);
+const isSingleDelete = ref(true);
 const deleteWarningText = ref('');
 
 // Pagination State
 const limit = 10;
 const currentPage = computed(() => {
-  return Math.floor(store.paginationMeta.offset / limit) + 1;
+  return Math.floor(store.pagination.offset / limit) + 1;
 });
 
-// Sayfa Yüklendiğinde
+const deleteModalTitle = computed(
+  () => (isSingleDelete.value ? t('workspace.actions.delete') : 'Toplu Silme İşlemi') // i18n anahtarı eklenebilir
+);
+
+const deleteItemName = computed(() =>
+  workspaceToDelete.value ? workspaceToDelete.value.name : ''
+);
+
+const deleteModalMessage = computed(() => {
+  if (isSingleDelete.value) {
+    return t('workspace.messages.delete_confirm');
+  }
+  return `${idsToDelete.value.length} adet veri seti silinecek.`;
+});
+
+// --- Lifecycle ---
 onMounted(() => {
   loadData(1);
 });
 
-// Veri Çekme Fonksiyonu
+// --- Methods ---
+
 async function loadData(page: number) {
   const offset = (page - 1) * limit;
   await store.fetchWorkspaces({
@@ -101,13 +124,12 @@ async function loadData(page: number) {
   });
 }
 
-// Sayfa Değişimi
 function handlePageChange(newPage: number) {
   if (newPage < 1) return;
   loadData(newPage);
 }
 
-// --- Modal İşlemleri (Ekle/Düzenle) ---
+// --- Create / Edit ---
 
 function openCreateModal() {
   selectedWorkspace.value = null;
@@ -122,52 +144,69 @@ function openEditModal(workspace: Workspace) {
 function handleModalClose() {
   isModalOpen.value = false;
   selectedWorkspace.value = null;
-  loadData(currentPage.value);
+  // Liste güncellenmiş olabilir, tekrar çekmeye gerek yok store güncelliyor
+  // Ancak pagination resetlenebilir duruma göre
 }
 
-// --- Silme İşlemleri ---
+// --- Delete Operations ---
 
 async function openDeleteModal(workspace: Workspace) {
   workspaceToDelete.value = workspace;
-  deleteWarningText.value = 'Bu işlem geri alınamaz.';
+  idsToDelete.value = [];
+  isSingleDelete.value = true;
+  deleteWarningText.value = t('workspace.messages.cascade_delete_warning');
 
-  // Kullanıcıyı bilgilendirmek için içerik kontrolü
+  // İçerik kontrolü (İsteğe bağlı)
   try {
-    // En az 1 hasta var mı diye bakıyoruz
     const result = await repositories.patient.getByWorkspaceId(workspace.id, {
       limit: 1,
       offset: 0,
     });
     if (result.data.length > 0) {
-      deleteWarningText.value = `DİKKAT: Bu veri setine bağlı hastalar ve görüntüler bulunmaktadır. Silme işlemi tüm bu verileri kalıcı olarak silecektir.`;
-    } else {
-      deleteWarningText.value = 'Bu veri seti boş görünüyor, silinecek.';
+      // deleteWarningText.value zaten set edildi, burada ekstra bir şey yapılabilir
     }
   } catch (error) {
-    console.error('Hasta kontrolü yapılamadı:', error);
-    deleteWarningText.value = 'Bu işlem geri alınamaz. Varsa bağlı tüm veriler silinecektir.';
+    console.error('Patient check failed', error);
   }
 
+  isDeleteModalOpen.value = true;
+}
+
+function openBatchDeleteModal(ids: string[]) {
+  if (ids.length === 0) return;
+  workspaceToDelete.value = null;
+  idsToDelete.value = ids;
+  isSingleDelete.value = false;
+  deleteWarningText.value = t('workspace.messages.cascade_delete_warning');
   isDeleteModalOpen.value = true;
 }
 
 function closeDeleteModal() {
   isDeleteModalOpen.value = false;
   workspaceToDelete.value = null;
+  idsToDelete.value = [];
   deleteWarningText.value = '';
 }
 
 async function handleDeleteConfirm() {
-  if (!workspaceToDelete.value) return;
+  let success = false;
 
-  const success = await store.deleteWorkspace(workspaceToDelete.value.id);
+  if (isSingleDelete.value && workspaceToDelete.value) {
+    // Cascade delete kullanıyoruz (Store'da var)
+    success = await store.cascadeDeleteWorkspace(workspaceToDelete.value.id);
+  } else if (!isSingleDelete.value && idsToDelete.value.length > 0) {
+    // Batch delete
+    success = await store.batchDeleteWorkspaces(idsToDelete.value);
+  }
 
   if (success) {
     closeDeleteModal();
+    // Eğer son sayfadaki her şeyi sildiysek bir önceki sayfaya git
     if (store.workspaces.length === 0 && currentPage.value > 1) {
       loadData(currentPage.value - 1);
     } else {
-      loadData(currentPage.value);
+      // Mevcut sayfayı yenile (Store'dan silindiği için UI güncel ama count değişebilir)
+      // İsteğe bağlı: loadData(currentPage.value);
     }
   }
 }

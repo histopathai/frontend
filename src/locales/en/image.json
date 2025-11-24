@@ -1,0 +1,69 @@
+{
+  "list": {
+    "title": "Images",
+    "empty": "No images available yet",
+    "loading": "Loading images...",
+    "search_placeholder": "Search image..."
+  },
+  "detail": {
+    "title": "Image Detail",
+    "info": "Information",
+    "annotations": "Annotations",
+    "preview": "Preview"
+  },
+  "upload": {
+    "title": "Upload Image",
+    "drag_drop": "Drag and drop files here or click to upload",
+    "file_types": "Supported formats: JPG, PNG, TIFF",
+    "max_size": "Maximum file size: 50MB",
+    "uploading": "Uploading...",
+    "progress": "Progress"
+  },
+  "status": {
+    "uploaded": "Uploaded",
+    "processing": "Processing",
+    "processed": "Processed",
+    "failed": "Failed"
+  },
+  "form": {
+    "name": "Image Name",
+    "name_placeholder": "Enter image name",
+    "format": "Format",
+    "width": "Width",
+    "height": "Height",
+    "size": "Size"
+  },
+  "actions": {
+    "upload": "Upload",
+    "delete": "Delete",
+    "transfer": "Transfer",
+    "download": "Download",
+    "view": "View",
+    "annotate": "Annotate",
+    "cancel": "Cancel",
+    "retry": "Retry"
+  },
+  "messages": {
+    "upload_success": "Image uploaded successfully",
+    "upload_error": "Image could not be uploaded",
+    "delete_success": "Image deleted successfully",
+    "delete_error": "Image could not be deleted",
+    "transfer_success": "Image transferred successfully",
+    "transfer_error": "Image could not be transferred",
+    "fetch_error": "Images could not be loaded",
+    "delete_confirm": "Are you sure you want to delete this image?",
+    "cascade_delete_warning": "This action will also delete all annotations!",
+    "batch_delete_success": "Images deleted successfully",
+    "batch_delete_error": "Images could not be deleted",
+    "batch_transfer_success": "Images transferred successfully",
+    "batch_transfer_error": "Images could not be transferred",
+    "processing_info": "Image is being processed, please wait...",
+    "failed_retry": "The operation failed, would you like to try again?"
+  },
+  "validation": {
+    "file_required": "A file must be selected",
+    "file_type_invalid": "Invalid file type",
+    "file_size_exceeded": "File size is too large",
+    "patient_required": "Patient selection is required"
+  }
+}

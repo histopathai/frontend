@@ -1,38 +1,60 @@
 <template>
   <div class="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-200">
+    <div
+      v-if="selectedIds.length > 0"
+      class="bg-indigo-50 px-6 py-3 flex items-center justify-between border-b border-indigo-100"
+    >
+      <div class="text-sm font-medium text-indigo-700">{{ selectedIds.length }} öğe seçildi</div>
+      <button
+        @click="$emit('delete-selected', selectedIds)"
+        class="btn btn-sm btn-danger bg-white border border-red-200 text-red-600 hover:bg-red-50"
+      >
+        Seçilenleri Sil
+      </button>
+    </div>
+
     <div class="overflow-x-auto">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Veri Seti Adı
+            <th scope="col" class="px-6 py-3 w-10">
+              <input
+                type="checkbox"
+                class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                :checked="isAllSelected"
+                :indeterminate="isIndeterminate"
+                @change="toggleSelectAll"
+              />
             </th>
             <th
               scope="col"
               class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
-              Kurum
+              {{ t('workspace.form.name') }}
             </th>
             <th
               scope="col"
               class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
-              Organ / Tip
+              {{ t('workspace.form.organization') }}
             </th>
             <th
               scope="col"
               class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
-              Lisans
+              {{ t('workspace.form.organ_type') }}
             </th>
             <th
               scope="col"
               class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
-              Yıl
+              {{ t('workspace.form.license') }}
+            </th>
+            <th
+              scope="col"
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              {{ t('workspace.form.release_year') }}
             </th>
             <th scope="col" class="relative px-6 py-3">
               <span class="sr-only">İşlemler</span>
@@ -41,8 +63,8 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           <tr v-if="workspaces.length === 0">
-            <td colspan="6" class="px-6 py-10 text-center text-gray-500">
-              Henüz bir veri seti oluşturulmamış.
+            <td colspan="7" class="px-6 py-10 text-center text-gray-500">
+              {{ t('workspace.list.empty') }}
             </td>
           </tr>
 
@@ -51,7 +73,16 @@
             :key="ws.id"
             @click="goToDetail(ws.id)"
             class="hover:bg-indigo-50 transition-colors cursor-pointer group"
+            :class="{ 'bg-indigo-50/50': selectedIds.includes(ws.id) }"
           >
+            <td class="px-6 py-4 whitespace-nowrap" @click.stop>
+              <input
+                type="checkbox"
+                class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                :value="ws.id"
+                v-model="selectedIds"
+              />
+            </td>
             <td class="px-6 py-4 whitespace-nowrap">
               <div class="flex items-center">
                 <div
@@ -74,7 +105,9 @@
                 </div>
                 <div class="ml-4">
                   <div class="text-sm font-medium text-gray-900">{{ ws.name }}</div>
-                  <div class="text-xs text-gray-500 max-w-xs truncate">{{ ws.description }}</div>
+                  <div class="text-xs text-gray-500 max-w-xs truncate">
+                    {{ ws.description }}
+                  </div>
                 </div>
               </div>
             </td>
@@ -101,14 +134,14 @@
                   @click="$emit('edit', ws)"
                   class="text-indigo-600 hover:text-indigo-900 font-medium transition-colors"
                 >
-                  Düzenle
+                  {{ t('workspace.actions.edit') }}
                 </button>
 
                 <button
                   @click="$emit('delete', ws)"
                   class="text-red-600 hover:text-red-900 font-medium transition-colors"
                 >
-                  Sil
+                  {{ t('workspace.actions.delete') }}
                 </button>
               </div>
             </td>
@@ -118,65 +151,35 @@
     </div>
 
     <div
+      v-if="workspaces.length > 0"
       class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6"
     >
       <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
         <div>
           <p class="text-sm text-gray-700">
-            Sayfa <span class="font-medium">{{ currentPage }}</span>
+            {{ t('common.page') }} <span class="font-medium">{{ currentPage }}</span>
           </p>
         </div>
         <div>
-          <nav
-            class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
-            aria-label="Pagination"
-          >
+          <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
             <button
               @click="$emit('page-change', currentPage - 1)"
               :disabled="currentPage === 1"
-              class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
             >
-              <span class="sr-only">Önceki</span>
-              <svg
-                class="h-5 w-5"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  fill-rule="evenodd"
-                  d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-                  clip-rule="evenodd"
-                />
-              </svg>
+              &lt;
             </button>
-
             <span
               class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
             >
               {{ currentPage }}
             </span>
-
             <button
               @click="$emit('page-change', currentPage + 1)"
               :disabled="!hasMore"
-              class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
             >
-              <span class="sr-only">Sonraki</span>
-              <svg
-                class="h-5 w-5"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  fill-rule="evenodd"
-                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                  clip-rule="evenodd"
-                />
-              </svg>
+              &gt;
             </button>
           </nav>
         </div>
@@ -186,11 +189,13 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import type { PropType } from 'vue';
 import type { Workspace } from '@/core/entities/Workspace';
 
-defineProps({
+const props = defineProps({
   workspaces: {
     type: Array as PropType<Workspace[]>,
     default: () => [],
@@ -205,9 +210,29 @@ defineProps({
   },
 });
 
-defineEmits(['page-change', 'edit', 'delete']);
+const emit = defineEmits(['page-change', 'edit', 'delete', 'delete-selected']);
 
 const router = useRouter();
+const { t } = useI18n();
+
+// Local state for selection
+const selectedIds = ref<string[]>([]);
+
+const isAllSelected = computed(() => {
+  return props.workspaces.length > 0 && selectedIds.value.length === props.workspaces.length;
+});
+
+const isIndeterminate = computed(() => {
+  return selectedIds.value.length > 0 && selectedIds.value.length < props.workspaces.length;
+});
+
+function toggleSelectAll() {
+  if (isAllSelected.value) {
+    selectedIds.value = [];
+  } else {
+    selectedIds.value = props.workspaces.map((w) => w.id);
+  }
+}
 
 function goToDetail(workspaceId: string) {
   router.push({ name: 'WorkspaceDetail', params: { workspaceId } });

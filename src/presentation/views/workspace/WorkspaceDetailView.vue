@@ -19,7 +19,7 @@
                 clip-rule="evenodd"
               />
             </svg>
-            Veri Setleri
+            {{ t('workspace.list.title') }}
           </RouterLink>
         </li>
         <li>
@@ -33,14 +33,14 @@
         </li>
         <li>
           <span class="text-gray-900 font-medium" v-if="workspace">{{ workspace.name }}</span>
-          <span class="text-gray-400" v-else>Yükleniyor...</span>
+          <span class="text-gray-400" v-else>...</span>
         </li>
       </ol>
     </nav>
 
     <div class="flex justify-between items-center">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Hasta Listesi</h1>
+        <h1 class="text-2xl font-bold text-gray-900">{{ t('patient.list.title') }}</h1>
         <p class="text-sm text-gray-500 mt-1" v-if="workspace">
           {{ workspace.organization }} <span class="mx-2">•</span>
           <span
@@ -88,40 +88,72 @@
           >
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
-          Yeni Hasta Ekle
+          {{ t('patient.actions.create') }}
         </button>
       </div>
     </div>
 
     <div class="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-200">
+      <div
+        v-if="selectedIds.length > 0"
+        class="bg-indigo-50 px-6 py-3 flex items-center justify-between border-b border-indigo-100 transition-all"
+      >
+        <div class="text-sm font-medium text-indigo-700">
+          {{ t('patient.list.selected_count', { count: selectedIds.length }) }}
+        </div>
+        <div class="flex space-x-2">
+          <button
+            @click="openBatchTransferModal"
+            class="btn btn-sm btn-outline bg-white text-indigo-600 hover:bg-indigo-50 border-indigo-200"
+          >
+            {{ t('patient.actions.transfer_selected') }}
+          </button>
+          <button
+            @click="openBatchDeleteModal"
+            class="btn btn-sm btn-danger bg-white border border-red-200 text-red-600 hover:bg-red-50"
+          >
+            {{ t('patient.actions.delete_selected') }}
+          </button>
+        </div>
+      </div>
+
       <div v-if="loading" class="p-10 text-center">
         <div
           class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"
         ></div>
-        <p class="mt-2 text-gray-500">Veriler yükleniyor...</p>
+        <p class="mt-2 text-gray-500">{{ t('patient.list.loading') }}</p>
       </div>
 
       <div v-else class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <th
-                scope="col"
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Hasta ID / Adı
+              <th scope="col" class="px-6 py-3 w-10">
+                <input
+                  type="checkbox"
+                  class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  :checked="isAllSelected"
+                  :indeterminate="isIndeterminate"
+                  @change="toggleSelectAll"
+                />
               </th>
               <th
                 scope="col"
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Yaş / Cinsiyet
+                {{ t('patient.form.name') }}
               </th>
               <th
                 scope="col"
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Teşhis
+                {{ t('patient.form.age') }} / {{ t('patient.form.gender') }}
+              </th>
+              <th
+                scope="col"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                {{ t('patient.form.disease') }}
               </th>
               <th
                 scope="col"
@@ -134,7 +166,7 @@
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
             <tr v-if="patients.length === 0">
-              <td colspan="5" class="px-6 py-12 text-center">
+              <td colspan="6" class="px-6 py-12 text-center">
                 <div class="text-gray-400 mb-2">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -151,10 +183,7 @@
                     />
                   </svg>
                 </div>
-                <p class="text-gray-500 font-medium">
-                  Bu veri setinde henüz kayıtlı hasta bulunmamaktadır.
-                </p>
-                <p class="text-gray-400 text-sm mt-1">Yeni bir hasta ekleyerek başlayın.</p>
+                <p class="text-gray-500 font-medium">{{ t('patient.list.empty') }}</p>
               </td>
             </tr>
 
@@ -162,8 +191,17 @@
               v-for="patient in patients"
               :key="patient.id"
               class="hover:bg-indigo-50 cursor-pointer transition-colors group"
+              :class="{ 'bg-indigo-50/50': selectedIds.includes(patient.id) }"
               @click="goToPatientDetail(patient.id)"
             >
+              <td class="px-6 py-4 whitespace-nowrap" @click.stop>
+                <input
+                  type="checkbox"
+                  class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  :value="patient.id"
+                  v-model="selectedIds"
+                />
+              </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="font-medium text-gray-900">{{ patient.name }}</div>
               </td>
@@ -192,7 +230,7 @@
                   <button
                     @click="openTransferModal(patient)"
                     class="text-blue-600 hover:text-blue-900 flex items-center gap-1"
-                    title="Başka veri setine taşı"
+                    :title="t('patient.actions.transfer')"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -208,7 +246,7 @@
                         d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"
                       />
                     </svg>
-                    Taşı
+                    {{ t('patient.actions.transfer') }}
                   </button>
                   <button
                     @click="openEditModal(patient)"
@@ -228,7 +266,7 @@
                         d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
                       />
                     </svg>
-                    Düzenle
+                    {{ t('patient.actions.edit') }}
                   </button>
                   <button
                     @click="openDeleteModal(patient)"
@@ -248,7 +286,7 @@
                         d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
                       />
                     </svg>
-                    Sil
+                    {{ t('patient.actions.delete') }}
                   </button>
                 </div>
               </td>
@@ -264,60 +302,29 @@
         <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
           <div>
             <p class="text-sm text-gray-700">
-              Sayfa <span class="font-medium">{{ currentPage }}</span>
+              {{ t('common.page') }} <span class="font-medium">{{ currentPage }}</span>
             </p>
           </div>
           <div>
-            <nav
-              class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
-              aria-label="Pagination"
-            >
+            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
               <button
                 @click="changePage(currentPage - 1)"
                 :disabled="currentPage === 1"
-                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
               >
-                <span class="sr-only">Önceki</span>
-                <svg
-                  class="h-5 w-5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
+                &lt;
               </button>
-
               <span
                 class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
               >
                 {{ currentPage }}
               </span>
-
               <button
                 @click="changePage(currentPage + 1)"
                 :disabled="!hasMore"
-                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
               >
-                <span class="sr-only">Sonraki</span>
-                <svg
-                  class="h-5 w-5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
+                &gt;
               </button>
             </nav>
           </div>
@@ -349,20 +356,23 @@
     />
 
     <TransferPatientModal
-      v-if="isTransferModalOpen && selectedPatient"
-      :patient-id="selectedPatient.id"
-      :patient-name="selectedPatient.name"
+      v-if="isTransferModalOpen"
+      :patient-id="selectedPatient?.id"
+      :patient-name="selectedPatient?.name"
+      :patient-ids="selectedIdsForTransfer"
       :current-workspace-id="workspaceId"
       @close="closeTransferModal"
-      @transferred="loadPatients"
+      @transferred="handleTransferSuccess"
     />
 
     <DeleteConfirmationModal
-      v-if="isDeleteModalOpen && selectedPatient"
-      title="Hastayı Sil"
-      :item-name="selectedPatient.name"
-      warning-text="Bu hastaya ait tüm görüntüler ve etiketlemeler kalıcı olarak silinecektir."
+      v-if="isDeleteModalOpen"
+      :title="deleteModalTitle"
+      :item-name="deleteItemName"
+      :message="deleteModalMessage"
+      :warning-text="deleteWarningText"
       :loading="loadingAction"
+      :require-confirmation="isSingleDelete"
       @close="closeDeleteModal"
       @confirm="handleDeleteConfirm"
     />
@@ -373,8 +383,10 @@
 import { onMounted, ref, computed, shallowRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useWorkspaceStore } from '@/stores/workspace';
+import { usePatientStore } from '@/stores/patient';
 import { repositories } from '@/services';
 import { useToast } from 'vue-toastification';
+import { useI18n } from 'vue-i18n';
 import type { Workspace } from '@/core/entities/Workspace';
 import type { Patient } from '@/core/entities/Patient';
 
@@ -387,7 +399,9 @@ import AnnotationSettingsModal from '@/presentation/components/workspace/Annotat
 const route = useRoute();
 const router = useRouter();
 const workspaceStore = useWorkspaceStore();
+const patientStore = usePatientStore();
 const toast = useToast();
+const { t } = useI18n();
 
 const workspaceId = route.params.workspaceId as string;
 const workspace = ref<Workspace | null>(null);
@@ -395,42 +409,62 @@ const patients = shallowRef<Patient[]>([]);
 const loading = ref(false);
 const loadingAction = ref(false);
 
+// Pagination
 const limit = 20;
 const offset = ref(0);
 const hasMore = ref(false);
 const currentPage = computed(() => Math.floor(offset.value / limit) + 1);
 
+// Modals
 const isCreatePatientModalOpen = ref(false);
 const isEditModalOpen = ref(false);
 const isTransferModalOpen = ref(false);
 const isDeleteModalOpen = ref(false);
-const selectedPatient = shallowRef<Patient | null>(null);
 const isAnnotationSettingsModalOpen = ref(false);
 
-onMounted(async () => {
-  await loadData();
+// Selection & Actions
+const selectedPatient = shallowRef<Patient | null>(null);
+const selectedIds = ref<string[]>([]);
+const selectedIdsForTransfer = ref<string[]>([]); // For passing to modal
+const idsToDelete = ref<string[]>([]);
+const isSingleDelete = ref(true);
+const deleteWarningText = ref('');
+
+// --- Selection Logic ---
+const isAllSelected = computed(() => {
+  return patients.value.length > 0 && selectedIds.value.length === patients.value.length;
 });
 
-function openAnnotationSettings() {
-  isAnnotationSettingsModalOpen.value = true;
-}
+const isIndeterminate = computed(() => {
+  return selectedIds.value.length > 0 && selectedIds.value.length < patients.value.length;
+});
 
-async function handleCreatePatientClick() {
-  if (!workspace.value) return;
-
-  if (!workspace.value.annotationTypeId) {
-    toast.warning('Hasta eklemeden önce etiketleme ayarlarını yapmalısınız.');
-    isAnnotationSettingsModalOpen.value = true;
+function toggleSelectAll() {
+  if (isAllSelected.value) {
+    selectedIds.value = [];
   } else {
-    isCreatePatientModalOpen.value = true;
+    selectedIds.value = patients.value.map((p) => p.id);
   }
 }
 
-async function onAnnotationSettingsSaved() {
-  isAnnotationSettingsModalOpen.value = false;
-  workspace.value = await repositories.workspace.getById(workspaceId);
-  isCreatePatientModalOpen.value = true;
-}
+// --- Delete Modal Logic ---
+const deleteModalTitle = computed(() =>
+  isSingleDelete.value ? t('patient.actions.delete') : t('patient.actions.delete_selected')
+);
+
+const deleteItemName = computed(() => (selectedPatient.value ? selectedPatient.value.name : ''));
+
+const deleteModalMessage = computed(() => {
+  if (isSingleDelete.value) {
+    return t('patient.messages.delete_confirm');
+  }
+  return t('patient.messages.batch_delete_confirm', { count: idsToDelete.value.length });
+});
+
+// --- Lifecycle ---
+onMounted(async () => {
+  await loadData();
+});
 
 async function loadData() {
   loading.value = true;
@@ -438,7 +472,6 @@ async function loadData() {
     if (!workspace.value) {
       workspace.value = await repositories.workspace.getById(workspaceId);
     }
-
     await loadPatients();
   } catch (e) {
     console.error('Veri yüklenirken hata:', e);
@@ -457,6 +490,8 @@ async function loadPatients() {
     });
     patients.value = result.data;
     hasMore.value = result.pagination.hasMore ?? result.data.length === limit;
+    // Reset selection on reload
+    selectedIds.value = [];
   } catch (e) {
     console.error('Hasta listesi yüklenirken hata:', e);
   }
@@ -469,8 +504,26 @@ function changePage(newPage: number) {
   loadPatients().finally(() => (loading.value = false));
 }
 
-function goToPatientDetail(patientId: string) {
-  alert(`Hasta detayına (${patientId}) gidilecek (Görüntüler burada listelenecek).`);
+// --- Actions ---
+
+function openAnnotationSettings() {
+  isAnnotationSettingsModalOpen.value = true;
+}
+
+async function onAnnotationSettingsSaved() {
+  isAnnotationSettingsModalOpen.value = false;
+  workspace.value = await repositories.workspace.getById(workspaceId);
+  isCreatePatientModalOpen.value = true;
+}
+
+async function handleCreatePatientClick() {
+  if (!workspace.value) return;
+  if (!workspace.value.annotationTypeId) {
+    toast.warning('Hasta eklemeden önce anotasyon ayarlarını yapmalısınız.');
+    isAnnotationSettingsModalOpen.value = true;
+  } else {
+    isCreatePatientModalOpen.value = true;
+  }
 }
 
 function closeCreatePatientModal() {
@@ -487,34 +540,78 @@ function closeEditModal() {
   selectedPatient.value = null;
 }
 
+// Transfer
 function openTransferModal(patient: Patient) {
   selectedPatient.value = patient;
+  selectedIdsForTransfer.value = []; // Tekil mod
   isTransferModalOpen.value = true;
 }
+
+function openBatchTransferModal() {
+  if (selectedIds.value.length === 0) return;
+  selectedPatient.value = null;
+  selectedIdsForTransfer.value = selectedIds.value; // Çoklu mod
+  isTransferModalOpen.value = true;
+}
+
 function closeTransferModal() {
   isTransferModalOpen.value = false;
   selectedPatient.value = null;
+  selectedIdsForTransfer.value = [];
 }
 
+function handleTransferSuccess() {
+  loadPatients();
+  selectedIds.value = [];
+}
+
+// Delete
 function openDeleteModal(patient: Patient) {
   selectedPatient.value = patient;
+  idsToDelete.value = [];
+  isSingleDelete.value = true;
+  deleteWarningText.value = t('patient.messages.cascade_delete_warning');
   isDeleteModalOpen.value = true;
 }
+
+function openBatchDeleteModal() {
+  if (selectedIds.value.length === 0) return;
+  selectedPatient.value = null;
+  idsToDelete.value = selectedIds.value;
+  isSingleDelete.value = false;
+  deleteWarningText.value = t('patient.messages.cascade_delete_warning');
+  isDeleteModalOpen.value = true;
+}
+
 function closeDeleteModal() {
   isDeleteModalOpen.value = false;
   selectedPatient.value = null;
+  idsToDelete.value = [];
+  deleteWarningText.value = '';
 }
 
 async function handleDeleteConfirm() {
-  if (!selectedPatient.value) return;
-
   loadingAction.value = true;
-  const success = await workspaceStore.deletePatient(selectedPatient.value.id, workspaceId);
+  let success = false;
+
+  if (isSingleDelete.value && selectedPatient.value) {
+    // Cascade delete kullanıyoruz
+    success = await patientStore.cascadeDeletePatient(selectedPatient.value.id, workspaceId);
+  } else if (!isSingleDelete.value && idsToDelete.value.length > 0) {
+    success = await patientStore.batchDeletePatients(idsToDelete.value, workspaceId);
+  }
+
   loadingAction.value = false;
 
   if (success) {
     closeDeleteModal();
     loadPatients();
   }
+}
+
+function goToPatientDetail(patientId: string) {
+  // TODO: Implement patient detail view navigation
+  // router.push({ name: 'PatientDetail', params: { workspaceId, patientId } });
+  console.log('Go to patient detail:', patientId);
 }
 </script>

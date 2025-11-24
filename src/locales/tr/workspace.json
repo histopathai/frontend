@@ -1,0 +1,63 @@
+{
+  "list": {
+    "title": "Veri Setleri",
+    "empty": "Henüz veri seti bulunmuyor",
+    "loading": "Veri setleri yükleniyor...",
+    "search_placeholder": "Veri seti ara..."
+  },
+  "detail": {
+    "title": "Veri Seti Detayı",
+    "info": "Bilgiler",
+    "patients": "Hastalar",
+    "statistics": "İstatistikler"
+  },
+  "form": {
+    "create_title": "Yeni Veri Seti Oluştur",
+    "edit_title": "Veri Seti Düzenle",
+    "name": "Veri Seti Adı",
+    "name_placeholder": "Veri seti adını girin",
+    "organ_type": "Organ Tipi",
+    "organ_type_placeholder": "Organ tipini seçin",
+    "organization": "Organizasyon",
+    "organization_placeholder": "Organizasyon adını girin",
+    "description": "Açıklama",
+    "description_placeholder": "Veri seti açıklamasını girin",
+    "license": "Lisans",
+    "license_placeholder": "Lisans bilgisini girin",
+    "resource_url": "Kaynak URL",
+    "resource_url_placeholder": "Kaynak URL'sini girin",
+    "release_year": "Yayın Yılı",
+    "release_year_placeholder": "Yayın yılını girin",
+    "annotation_type": "Anotasyon Tipi",
+    "annotation_type_placeholder": "Anotasyon tipi seçin"
+  },
+  "actions": {
+    "create": "Oluştur",
+    "edit": "Düzenle",
+    "delete": "Sil",
+    "cancel": "İptal",
+    "save": "Kaydet",
+    "view": "Görüntüle"
+  },
+  "messages": {
+    "create_success": "Veri seti başarıyla oluşturuldu",
+    "create_error": "Veri seti oluşturulamadı",
+    "update_success": "Veri seti başarıyla güncellendi",
+    "update_error": "Veri seti güncellenemedi",
+    "delete_success": "Veri seti başarıyla silindi",
+    "delete_error": "Veri seti silinemedi",
+    "fetch_error": "Veri setleri yüklenemedi",
+    "delete_confirm": "Bu veri setini silmek istediğinizden emin misiniz?",
+    "cascade_delete_warning": "Bu işlem tüm hastaları ve görüntüleri de silecektir!"
+  },
+  "validation": {
+    "name_required": "Veri seti adı zorunludur",
+    "name_min": "Veri seti adı en az 3 karakter olmalıdır",
+    "organ_type_required": "Organ tipi zorunludur",
+    "organization_required": "Organizasyon zorunludur",
+    "description_required": "Açıklama zorunludur",
+    "license_required": "Lisans zorunludur",
+    "release_year_invalid": "Geçerli bir yıl girin",
+    "resource_url_invalid": "Geçerli bir URL girin"
+  }
+}
