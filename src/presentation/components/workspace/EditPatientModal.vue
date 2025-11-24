@@ -38,7 +38,11 @@
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label class="form-label">Teşhis</label>
-              <input type="text" v-model="form.disease" class="form-input" />
+              <select v-model="form.disease" class="form-input">
+                <option value="">Seçiniz</option>
+                <option value="Karsinom">Karsinom</option>
+                <option value="Normal">Normal</option>
+              </select>
             </div>
 
             <div>

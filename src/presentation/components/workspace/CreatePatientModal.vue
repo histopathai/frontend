@@ -68,23 +68,27 @@
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label for="p-disease" class="form-label block text-sm font-medium text-gray-700 mb-1"
-                >Teşhis (Disease)</label
+              <label
+                for="p-disease"
+                class="form-label block text-sm font-medium text-gray-700 mb-1"
               >
-              <input
+                Teşhis (Disease)
+              </label>
+              <select
                 id="p-disease"
-                type="text"
                 v-model="form.disease"
                 class="form-input w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                placeholder="örn: Karsinom"
-              />
+              >
+                <option value="">Seçiniz</option>
+                <option value="Karsinom">Karsinom</option>
+                <option value="Normal">Normal</option>
+              </select>
             </div>
 
             <div>
               <label for="p-subtype" class="form-label block text-sm font-medium text-gray-700 mb-1"
                 >Alt Tip (Subtype)</label
               >
-
               <select
                 v-if="subtypeOptions.length > 0"
                 id="p-subtype"

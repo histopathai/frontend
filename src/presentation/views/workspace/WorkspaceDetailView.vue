@@ -74,7 +74,7 @@
               d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
             />
           </svg>
-          Anotasyon Ayarları
+          Etiketleme Ayarları
         </button>
 
         <button class="btn btn-primary" @click="handleCreatePatientClick">
@@ -419,7 +419,7 @@ async function handleCreatePatientClick() {
   if (!workspace.value) return;
 
   if (!workspace.value.annotationTypeId) {
-    toast.warning('Hasta eklemeden önce anotasyon (etiketleme) ayarlarını yapmalısınız.');
+    toast.warning('Hasta eklemeden önce etiketleme ayarlarını yapmalısınız.');
     isAnnotationSettingsModalOpen.value = true;
   } else {
     isCreatePatientModalOpen.value = true;

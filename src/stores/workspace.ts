@@ -3,20 +3,23 @@ import { ref, shallowRef } from 'vue';
 import { repositories } from '@/services';
 import type { Workspace } from '@/core/entities/Workspace';
 import type { Patient } from '@/core/entities/Patient';
+import type { Image } from '@/core/entities/Image';
 import type {
   CreateNewWorkspaceRequest,
   UpdateWorkspaceRequest,
 } from '@/core/repositories/IWorkspaceRepository';
 import type { CreateNewPatientRequest } from '@/core/repositories/IPatientRepository';
+import type { CreateNewImageRequest } from '@/core/repositories/IImageRepository';
 import type { Pagination } from '@/core/types/common';
 import { useToast } from 'vue-toastification';
 
 export const useWorkspaceStore = defineStore('workspace', () => {
-  // --- STATE ---
   const workspaces = shallowRef<Workspace[]>([]);
   const patientsByWorkspace = ref<Map<string, Patient[]>>(new Map());
+  const imagesByPatient = ref<Map<string, Image[]>>(new Map());
   const loading = ref(false);
   const patientsLoading = ref(false);
+  const imagesLoading = ref(false);
   const paginationMeta = ref<Pagination>({ limit: 10, offset: 0, hasMore: false });
   const toast = useToast();
 
@@ -188,12 +191,79 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   }
 
+  async function fetchImagesForPatient(patientId: string) {
+    imagesLoading.value = true;
+    try {
+      const result = await repositories.image.getByPatientId(patientId, {
+        limit: 100, // Şimdilik yüksek limit, gerekirse pagination eklenir
+        offset: 0,
+        sortBy: 'created_at',
+        sortOrder: 'desc',
+      });
+      imagesByPatient.value.set(patientId, result.data);
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Görüntüler alınamadı.');
+    } finally {
+      imagesLoading.value = false;
+    }
+  }
+
+  async function uploadImage(
+    file: File,
+    patientId: string,
+    onProgress?: (percent: number) => void
+  ): Promise<boolean> {
+    try {
+      const format = file.type.split('/')[1]?.toUpperCase() || 'UNKNOWN';
+
+      const createPayload: CreateNewImageRequest = {
+        patient_id: patientId,
+        content_type: file.type,
+        name: file.name,
+        format: format,
+        size: file.size,
+      };
+
+      const uploadConfig = await repositories.image.create(createPayload);
+      await repositories.image.upload({
+        payload: uploadConfig,
+        file: file,
+        onUploadProgress: onProgress,
+      });
+
+      toast.success('Görüntü yüklendi. İşleniyor...');
+
+      setTimeout(() => {
+        fetchImagesForPatient(patientId);
+      }, 2000);
+
+      return true;
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Görüntü yüklenirken hata oluştu.');
+      return false;
+    }
+  }
+
+  async function deleteImage(imageId: string, patientId: string) {
+    try {
+      await repositories.image.delete(imageId);
+      toast.success('Görüntü silindi.');
+      await fetchImagesForPatient(patientId);
+    } catch (err: any) {
+      toast.error('Silme işlemi başarısız.');
+    }
+  }
+
   return {
     // State
     workspaces,
     patientsByWorkspace,
+    imagesByPatient,
     loading,
     patientsLoading,
+    imagesLoading,
     paginationMeta,
     // Actions
     fetchWorkspaces,
@@ -205,5 +275,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     updatePatient,
     deletePatient,
     transferPatient,
+    fetchImagesForPatient,
+    uploadImage,
+    deleteImage,
   };
 });

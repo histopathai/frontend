@@ -197,7 +197,6 @@ import { useWorkspaceStore } from '@/stores/workspace';
 import { useToast } from 'vue-toastification';
 import type { CreateNewAnnotationTypeRequest } from '@/core/repositories/IAnnotationType';
 
-// Props'a currentAnnotationTypeId eklendi
 const props = defineProps({
   workspaceId: { type: String, required: true },
   workspaceName: { type: String, default: '' },
@@ -211,40 +210,34 @@ const toast = useToast();
 const loading = ref(false);
 const initialLoading = ref(false);
 
-// Edit Mod Kontrolü
 const isEditMode = computed(() => !!props.currentAnnotationTypeId);
 
-// Form State
-const name = ref(`${props.workspaceName} - Anotasyon Tipi`);
+const name = ref(`${props.workspaceName} - Etiketleme Tipi`);
 const mode = ref<'classification' | 'score' | 'both'>('classification');
 
-// Tag Sistemi için State
 const addedClasses = ref<string[]>([]);
 const newClassInput = ref('');
 
 const scoreMin = ref(0);
 const scoreMax = ref(5);
 
-// --- TAG YÖNETİM METOTLARI ---
 function addNewClass() {
   const val = newClassInput.value.trim();
   if (!val) return;
 
-  // Duplicate kontrolü (büyük/küçük harf duyarsız)
   if (addedClasses.value.some((c) => c.toLowerCase() === val.toLowerCase())) {
     toast.warning(`'${val}' sınıfı zaten listede var.`);
     return;
   }
 
   addedClasses.value.push(val);
-  newClassInput.value = ''; // Inputu temizle
+  newClassInput.value = '';
 }
 
 function removeClass(index: number) {
   addedClasses.value.splice(index, 1);
 }
 
-// --- VERİ YÜKLEME (EDIT MODE) ---
 onMounted(async () => {
   if (isEditMode.value && props.currentAnnotationTypeId) {
     initialLoading.value = true;
@@ -254,7 +247,6 @@ onMounted(async () => {
       if (existingType) {
         name.value = existingType.name;
 
-        // Modu belirle
         if (existingType.classificationEnabled && existingType.scoreEnabled) {
           mode.value = 'both';
         } else if (existingType.scoreEnabled) {
@@ -263,12 +255,10 @@ onMounted(async () => {
           mode.value = 'classification';
         }
 
-        // Sınıfları yükle
         if (existingType.classList) {
           addedClasses.value = [...existingType.classList];
         }
 
-        // Puanları yükle
         const range = existingType.scoreRange();
         if (range) {
           scoreMin.value = range.min;
@@ -284,14 +274,12 @@ onMounted(async () => {
   }
 });
 
-// --- KAYDETME / GÜNCELLEME ---
 async function handleSubmit() {
   loading.value = true;
   try {
     const isClassification = mode.value === 'classification' || mode.value === 'both';
     const isScore = mode.value === 'score' || mode.value === 'both';
 
-    // Validasyon: Dizi boş mu?
     if (isClassification && addedClasses.value.length === 0) {
       toast.error('Sınıflandırma modu için en az bir sınıf eklemelisiniz.');
       loading.value = false;
@@ -307,20 +295,15 @@ async function handleSubmit() {
       score_name: isScore ? 'Skor' : undefined,
       score_min: isScore ? scoreMin.value : undefined,
       score_max: isScore ? scoreMax.value : undefined,
-      // Diziyi doğrudan gönderiyoruz
       class_list: isClassification ? addedClasses.value : undefined,
     };
 
     if (isEditMode.value && props.currentAnnotationTypeId) {
-      // GÜNCELLEME İŞLEMİ
       console.log('Güncelleme payload:', payload);
       await repositories.annotationType.update(props.currentAnnotationTypeId, payload);
-      toast.success('Anotasyon ayarları güncellendi.');
+      toast.success('Etiketleme ayarları güncellendi.');
     } else {
-      // YENİ OLUŞTURMA İŞLEMİ
       const newType = await repositories.annotationType.create(payload);
-
-      // ID kontrolü (Wrapper ihtimaline karşı)
       const typeId = (newType as any).data?.id || newType.id;
 
       if (!typeId) throw new Error('Anotasyon tipi oluşturuldu ancak ID alınamadı.');
@@ -328,7 +311,7 @@ async function handleSubmit() {
       await store.updateWorkspace(props.workspaceId, {
         annotation_type_id: typeId,
       });
-      toast.success('Anotasyon ayarları oluşturuldu.');
+      toast.success('Etiketleme ayarları oluşturuldu.');
     }
 
     emit('saved');
