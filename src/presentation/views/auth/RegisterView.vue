@@ -90,7 +90,6 @@
 import { RouterLink } from 'vue-router';
 import { useRegistration } from '@/presentation/composables/auth/useRegistration';
 
-// Yeni composable'ımızı kullanıyoruz
 const {
   displayName,
   email,
