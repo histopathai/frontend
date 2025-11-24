@@ -188,131 +188,220 @@
               </td>
             </tr>
 
-            <tr
-              v-for="patient in patients"
-              :key="patient.id"
-              class="hover:bg-indigo-50 cursor-pointer transition-colors group"
-              :class="{ 'bg-indigo-50/50': selectedIds.includes(patient.id) }"
-              @click="goToPatientDetail(patient.id)"
-            >
-              <td class="px-6 py-4 whitespace-nowrap" @click.stop>
-                <input
-                  type="checkbox"
-                  class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                  :value="patient.id"
-                  v-model="selectedIds"
-                />
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="font-medium text-gray-900">{{ patient.name }}</div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ patient.age || '-' }}
-                <span v-if="patient.age" class="text-gray-400 mx-1">/</span>
-                {{ patient.gender || '-' }}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ patient.disease || '-' }}
-                <span
-                  v-if="patient.subtype"
-                  class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 ml-2"
-                >
-                  {{ patient.subtype }}
-                </span>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ new Date(patient.createdAt).toLocaleDateString('tr-TR') }}
-              </td>
+            <template v-for="patient in patients" :key="patient.id">
+              <tr
+                class="hover:bg-indigo-50 cursor-pointer transition-colors group"
+                :class="{
+                  'bg-indigo-50/50': selectedIds.includes(patient.id),
+                  'bg-blue-50': expandedPatientId === patient.id,
+                }"
+                @click="togglePatientDetails(patient.id)"
+              >
+                <td class="px-6 py-4 whitespace-nowrap" @click.stop>
+                  <input
+                    type="checkbox"
+                    class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    :value="patient.id"
+                    v-model="selectedIds"
+                  />
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center">
+                    <span class="mr-2 text-gray-400 text-xs">
+                      {{ expandedPatientId === patient.id ? '▼' : '▶' }}
+                    </span>
+                    <div class="font-medium text-gray-900">{{ patient.name }}</div>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ patient.age || '-' }}
+                  <span v-if="patient.age" class="text-gray-400 mx-1">/</span>
+                  {{ patient.gender || '-' }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ patient.disease || '-' }}
+                  <span
+                    v-if="patient.subtype"
+                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 ml-2"
+                  >
+                    {{ patient.subtype }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ new Date(patient.createdAt).toLocaleDateString('tr-TR') }}
+                </td>
 
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" @click.stop>
-                <div
-                  class="flex justify-end items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <button
-                    @click="openImageUploadModal(patient)"
-                    class="text-green-600 hover:text-green-900 flex items-center gap-1"
-                    :title="t('patient.actions.upload_image')"
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" @click.stop>
+                  <div
+                    class="flex justify-end items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke-width="1.5"
-                      stroke="currentColor"
-                      class="w-4 h-4"
+                    <button
+                      @click="openImageUploadModal(patient)"
+                      class="text-green-600 hover:text-green-900 flex items-center gap-1"
+                      :title="t('patient.actions.upload_image')"
                     >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
-                      />
-                    </svg>
-                    {{ t('patient.actions.upload_image') }}
-                  </button>
-                  <button
-                    @click="openTransferModal(patient)"
-                    class="text-blue-600 hover:text-blue-900 flex items-center gap-1"
-                    :title="t('patient.actions.transfer')"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke-width="1.5"
-                      stroke="currentColor"
-                      class="w-4 h-4"
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1.5"
+                        stroke="currentColor"
+                        class="w-4 h-4"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+                        />
+                      </svg>
+                      {{ t('patient.actions.upload_image') }}
+                    </button>
+                    <button
+                      @click="openTransferModal(patient)"
+                      class="text-blue-600 hover:text-blue-900 flex items-center gap-1"
+                      :title="t('patient.actions.transfer')"
                     >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"
-                      />
-                    </svg>
-                    {{ t('patient.actions.transfer') }}
-                  </button>
-                  <button
-                    @click="openEditModal(patient)"
-                    class="text-indigo-600 hover:text-indigo-900 flex items-center gap-1"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke-width="1.5"
-                      stroke="currentColor"
-                      class="w-4 h-4"
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1.5"
+                        stroke="currentColor"
+                        class="w-4 h-4"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"
+                        />
+                      </svg>
+                      {{ t('patient.actions.transfer') }}
+                    </button>
+                    <button
+                      @click="openEditModal(patient)"
+                      class="text-indigo-600 hover:text-indigo-900 flex items-center gap-1"
                     >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
-                      />
-                    </svg>
-                    {{ t('patient.actions.edit') }}
-                  </button>
-                  <button
-                    @click="openDeleteModal(patient)"
-                    class="text-red-600 hover:text-red-900 flex items-center gap-1"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke-width="1.5"
-                      stroke="currentColor"
-                      class="w-4 h-4"
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1.5"
+                        stroke="currentColor"
+                        class="w-4 h-4"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
+                        />
+                      </svg>
+                      {{ t('patient.actions.edit') }}
+                    </button>
+                    <button
+                      @click="openDeleteModal(patient)"
+                      class="text-red-600 hover:text-red-900 flex items-center gap-1"
                     >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
-                      />
-                    </svg>
-                    {{ t('patient.actions.delete') }}
-                  </button>
-                </div>
-              </td>
-            </tr>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1.5"
+                        stroke="currentColor"
+                        class="w-4 h-4"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+                        />
+                      </svg>
+                      {{ t('patient.actions.delete') }}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+
+              <tr
+                v-if="expandedPatientId === patient.id"
+                class="bg-gray-50 shadow-inner"
+                :key="`details-${patient.id}`"
+              >
+                <td colspan="6" class="px-6 py-4">
+                  <div class="ml-8">
+                    <h4 class="text-sm font-bold text-gray-700 mb-3">Görüntüler</h4>
+
+                    <div v-if="imageStore.loading" class="text-gray-500 text-sm">
+                      Görüntüler yükleniyor...
+                    </div>
+
+                    <div
+                      v-else-if="imageStore.getImagesByPatientId(patient.id).length === 0"
+                      class="text-gray-500 text-sm italic border-2 border-dashed border-gray-300 rounded-md p-4 text-center"
+                    >
+                      Henüz görüntü yüklenmemiş.
+                    </div>
+
+                    <div v-else class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                      <div
+                        v-for="img in imageStore.getImagesByPatientId(patient.id)"
+                        :key="img.id"
+                        class="relative group bg-white p-2 rounded-lg border border-gray-200 hover:shadow-md transition-all"
+                      >
+                        <span
+                          class="absolute top-1 right-1 z-10 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium"
+                          :class="{
+                            'bg-yellow-100 text-yellow-800': img.status.toString() === 'PROCESSING',
+                            'bg-green-100 text-green-800': img.status.toString() === 'PROCESSED',
+                            'bg-red-100 text-red-800': img.status.toString() === 'FAILED',
+                          }"
+                        >
+                          {{
+                            img.status.isProcessed()
+                              ? 'Hazır'
+                              : img.status.isFailed()
+                                ? 'Hata'
+                                : 'İşleniyor'
+                          }}
+                        </span>
+
+                        <div
+                          class="aspect-square bg-gray-100 rounded-md overflow-hidden mb-2 flex items-center justify-center"
+                        >
+                          <img
+                            v-if="img.isProcessed()"
+                            :src="getThumbnailUrl(img)"
+                            class="w-full h-full object-cover"
+                            alt="Thumbnail"
+                          />
+                          <svg
+                            v-else
+                            class="w-8 h-8 text-gray-400 animate-pulse"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
+                          </svg>
+                        </div>
+
+                        <div class="text-xs text-gray-600 truncate font-medium" :title="img.name">
+                          {{ img.name }}
+                        </div>
+                        <div class="text-[10px] text-gray-400" v-if="img.width">
+                          {{ img.width }}x{{ img.height }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -413,11 +502,13 @@ import { onMounted, ref, computed, shallowRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { usePatientStore } from '@/stores/patient';
+import { useImageStore } from '@/stores/image';
 import { repositories } from '@/services';
 import { useToast } from 'vue-toastification';
 import { useI18n } from 'vue-i18n';
 import type { Workspace } from '@/core/entities/Workspace';
 import type { Patient } from '@/core/entities/Patient';
+import type { Image } from '@/core/entities/Image';
 
 import CreatePatientModal from '@/presentation/components/workspace/CreatePatientModal.vue';
 import EditPatientModal from '@/presentation/components/workspace/EditPatientModal.vue';
@@ -430,6 +521,7 @@ const route = useRoute();
 const router = useRouter();
 const workspaceStore = useWorkspaceStore();
 const patientStore = usePatientStore();
+const imageStore = useImageStore();
 const toast = useToast();
 const { t } = useI18n();
 
@@ -457,6 +549,7 @@ const selectedIdsForTransfer = ref<string[]>([]);
 const idsToDelete = ref<string[]>([]);
 const isSingleDelete = ref(true);
 const deleteWarningText = ref('');
+const expandedPatientId = ref<string | null>(null);
 
 const isAllSelected = computed(() => {
   return patients.value.length > 0 && selectedIds.value.length === patients.value.length;
@@ -527,6 +620,30 @@ function changePage(newPage: number) {
   loading.value = true;
   loadPatients().finally(() => (loading.value = false));
 }
+
+// --- Satır Genişletme ve Resim Listeleme Mantığı ---
+async function togglePatientDetails(patientId: string) {
+  // Eğer zaten açıksa kapat
+  if (expandedPatientId.value === patientId) {
+    expandedPatientId.value = null;
+    return;
+  }
+  // Değilse aç ve resimleri getir
+  expandedPatientId.value = patientId;
+  // Resimleri sessizce (toast mesajı göstermeden) çek
+  await imageStore.fetchImagesByPatient(patientId, undefined, { showToast: false });
+}
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+function getThumbnailUrl(image: any): string {
+  // image nesnesinin ve processedpath özelliğinin varlığını kontrol ediyoruz
+  if (!image || !image.processedpath) return '';
+
+  const basePath = image.processedpath.substring(0, image.processedpath.lastIndexOf('/'));
+  return `${API_BASE_URL}/api/v1/proxy/${basePath}/thumbnail.jpeg`;
+}
+// ---------------------------------------------------
 
 function openAnnotationSettings() {
   isAnnotationSettingsModalOpen.value = true;
@@ -638,7 +755,14 @@ function closeImageUploadModal() {
   selectedPatient.value = null;
 }
 
-function handleImageUploaded() {}
+async function handleImageUploaded() {
+  if (selectedPatient.value) {
+    expandedPatientId.value = selectedPatient.value.id;
+    await imageStore.fetchImagesByPatient(selectedPatient.value.id, undefined, {
+      showToast: false,
+    });
+  }
+}
 
 function goToPatientDetail(patientId: string) {
   console.log('Go to patient detail:', patientId);

@@ -27,7 +27,7 @@ export class Image {
       format: data.format,
       width: data.width ?? null,
       height: data.height ?? null,
-      status: ImageStatus.fromString(data.status),
+      status: ImageStatus.fromString(data.status || 'PROCESSING'),
       originpath: data.origin_path ?? null,
       processedpath: data.processed_path ?? null,
       createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,

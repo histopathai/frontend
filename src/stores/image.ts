@@ -61,7 +61,7 @@ export const useImageStore = defineStore('image', () => {
   const pagination = ref<Pagination>({
     limit: 10,
     offset: 0,
-    sortBy: 'created_at',
+    sortBy: 'createdAt',
     sortOrder: 'desc',
     hasMore: false,
   });
@@ -116,7 +116,6 @@ export const useImageStore = defineStore('image', () => {
   };
 
   const updateImageInState = (updatedImage: Image): void => {
-    // Update in main images array
     const index = images.value.findIndex((img) => img.id === updatedImage.id);
     if (index !== -1) {
       images.value = [
@@ -126,47 +125,48 @@ export const useImageStore = defineStore('image', () => {
       ];
     }
 
-    // Update in patient-specific images
     const patientImages = imagesByPatient.value.get(updatedImage.patientId);
     if (patientImages) {
       const ptIndex = patientImages.findIndex((img) => img.id === updatedImage.id);
       if (ptIndex !== -1) {
         const newPatientImages = [...patientImages];
         newPatientImages[ptIndex] = updatedImage;
-        imagesByPatient.value.set(updatedImage.patientId, newPatientImages);
+        // Reactivity fix: Yeni Map set et
+        const newMap = new Map(imagesByPatient.value);
+        newMap.set(updatedImage.patientId, newPatientImages);
+        imagesByPatient.value = newMap;
       }
     }
 
-    // Update current image if it matches
     if (currentImage.value?.id === updatedImage.id) {
       currentImage.value = updatedImage;
     }
   };
 
   const removeImageFromState = (imageId: string, patientId?: string): void => {
-    // Remove from main images array
     images.value = images.value.filter((img) => img.id !== imageId);
 
-    // Remove from patient-specific images
     if (patientId) {
       const patientImages = imagesByPatient.value.get(patientId);
       if (patientImages) {
-        imagesByPatient.value.set(
+        const newMap = new Map(imagesByPatient.value);
+        newMap.set(
           patientId,
           patientImages.filter((img) => img.id !== imageId)
         );
+        imagesByPatient.value = newMap;
       }
     } else {
-      // Remove from all patients if patientId not provided
-      imagesByPatient.value.forEach((images, ptId) => {
-        imagesByPatient.value.set(
+      const newMap = new Map(imagesByPatient.value);
+      newMap.forEach((images, ptId) => {
+        newMap.set(
           ptId,
           images.filter((img) => img.id !== imageId)
         );
       });
+      imagesByPatient.value = newMap;
     }
 
-    // Clear current image if it matches
     if (currentImage.value?.id === imageId) {
       currentImage.value = null;
     }
@@ -202,6 +202,7 @@ export const useImageStore = defineStore('image', () => {
     }
   };
 
+  // --- REAKTİVİTE DÜZELTMESİ YAPILAN FONKSİYON ---
   const fetchImagesByPatient = async (
     patientId: string,
     paginationOptions?: Partial<Pagination>,
@@ -216,10 +217,7 @@ export const useImageStore = defineStore('image', () => {
 
     try {
       const paginationParams: Pagination = {
-        limit: 10,
-        offset: 0,
-        sortBy: 'created_at',
-        sortOrder: 'desc',
+        ...pagination.value,
         ...paginationOptions,
       };
 
@@ -228,13 +226,15 @@ export const useImageStore = defineStore('image', () => {
         paginationParams
       );
 
-      // Store in patient-specific map
-      imagesByPatient.value.set(patientId, result.data);
+      console.log(`[fetchImagesByPatient] ID: ${patientId} - Gelen Veri:`, result);
 
-      // Also update main images array
+      // FIX: Map reaktivitesini tetiklemek için yeni Map oluşturup atıyoruz
+      const newMap = new Map(imagesByPatient.value);
+      newMap.set(patientId, result.data);
+      imagesByPatient.value = newMap;
+
       images.value = result.data;
 
-      // Update pagination
       pagination.value = {
         ...paginationParams,
         ...result.pagination,
@@ -266,13 +266,12 @@ export const useImageStore = defineStore('image', () => {
     patientId: string,
     file: File,
     options: UploadOptions = {}
-  ): Promise<Image | null> => {
+  ): Promise<boolean> => {
     uploading.value = true;
     resetError();
     resetUploadProgress();
 
     try {
-      // Step 1: Create image metadata
       const createRequest: CreateNewImageRequest = {
         patient_id: patientId,
         content_type: file.type,
@@ -283,7 +282,6 @@ export const useImageStore = defineStore('image', () => {
 
       const uploadPayload: ImageUploadPayload = await imageRepo.create(createRequest);
 
-      // Step 2: Upload file to storage
       const uploadParams: UploadImageParams = {
         payload: uploadPayload,
         file,
@@ -294,18 +292,19 @@ export const useImageStore = defineStore('image', () => {
       };
 
       await imageRepo.upload(uploadParams);
+      const paginationParams: Pagination = {
+        ...pagination.value,
+      };
 
-      // Step 3: Fetch the created image (it should now have processing status)
-      // We need to extract the image ID from the response
-      // This might need adjustment based on your actual API response
-      const newImage = await fetchImagesByPatient(patientId, undefined, { showToast: false });
+      // Listeyi yenile
+      await fetchImagesByPatient(patientId, paginationParams, { showToast: false });
 
       toast.success(t('image.messages.upload_success'));
 
-      return images.value[0] || null;
+      return true;
     } catch (err: any) {
       handleError(err, t('image.messages.upload_error'));
-      return null;
+      return false;
     } finally {
       uploading.value = false;
       resetUploadProgress();
@@ -342,7 +341,6 @@ export const useImageStore = defineStore('image', () => {
     try {
       await imageRepo.batchDelete(imageIds);
 
-      // Remove all deleted images from state
       imageIds.forEach((id) => removeImageFromState(id, patientId));
 
       toast.success(t('image.messages.batch_delete_success'));
@@ -370,10 +368,8 @@ export const useImageStore = defineStore('image', () => {
     try {
       await imageRepo.transfer(imageId, targetPatientId);
 
-      // Remove from current patient
       removeImageFromState(imageId, currentPatientId);
 
-      // Refresh both patients' images
       await fetchImagesByPatient(currentPatientId, undefined, { showToast: false });
       await fetchImagesByPatient(targetPatientId, undefined, { showToast: false });
 
@@ -438,10 +434,9 @@ export const useImageStore = defineStore('image', () => {
       if (!image) return;
 
       if (image.status.isProcessed() || image.status.isFailed()) {
-        return; // Stop polling
+        return;
       }
 
-      // Continue polling
       setTimeout(poll, interval);
     };
 
@@ -457,12 +452,7 @@ export const useImageStore = defineStore('image', () => {
     }
   };
 
-  // ===========================
-  // Return
-  // ===========================
-
   return {
-    // State
     images,
     imagesByPatient,
     currentImage,
@@ -472,8 +462,6 @@ export const useImageStore = defineStore('image', () => {
     uploadProgress,
     error,
     pagination,
-
-    // Getters
     isLoading,
     isUploading,
     isActionLoading,
@@ -484,24 +472,14 @@ export const useImageStore = defineStore('image', () => {
     getImageById,
     getImagesByPatientId,
     processedImages,
-
-    // Actions - Fetch
     fetchImageById,
     fetchImagesByPatient,
     loadMoreImages,
-
-    // Actions - Upload
     uploadImage,
-
-    // Actions - Delete
     deleteImage,
     batchDeleteImages,
-
-    // Actions - Transfer
     transferImage,
     batchTransferImages,
-
-    // Actions - Utility
     setCurrentImage,
     clearCurrentImage,
     clearImages,
