@@ -61,7 +61,7 @@
     "failed_retry": "İşlem başarısız oldu, tekrar denemek ister misiniz?"
   },
   "validation": {
-    "file_required": "Dosya seçilmelidir",
+    "file_required": "Dosya seçilmelidir veya mikroskoptan görüntü alınmalıdır",
     "file_type_invalid": "Geçersiz dosya türü",
     "file_size_exceeded": "Dosya boyutu çok büyük",
     "patient_required": "Hasta seçilmelidir"

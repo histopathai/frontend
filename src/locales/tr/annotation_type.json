@@ -27,7 +27,7 @@
     "score_max": "Maksimum Skor",
     "score_max_placeholder": "Maksimum değer girin",
     "class_list": "Sınıf Listesi",
-    "class_list_placeholder": "Sınıfları virgülle ayırarak girin",
+    "class_list_placeholder": "Örn: Invasive Ductal, Invasive Lobular v.b.",
     "add_class": "Sınıf Ekle",
     "remove_class": "Kaldır"
   },
