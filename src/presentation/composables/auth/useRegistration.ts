@@ -2,7 +2,6 @@ import { ref } from 'vue';
 import { createUserWithEmailAndPassword, updateProfile, deleteUser } from 'firebase/auth';
 import { i18n } from '@/i18n';
 import { validatePassword } from '@/utils/ValidatePassword';
-import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { auth } from '@/main';
 
@@ -12,13 +11,16 @@ export function useRegistration() {
   const password = ref('');
   const confirmPassword = ref('');
   const error = ref<string | null>(null);
+  const successMessage = ref<string | null>(null);
+
+  const loading = ref(false);
 
   const authStore = useAuthStore();
-  const router = useRouter();
   const t = i18n.global.t;
 
   async function handleRegister() {
     error.value = null;
+    successMessage.value = null;
 
     if (password.value !== confirmPassword.value) {
       error.value = t('auth.register_password_mismatch');
@@ -31,6 +33,7 @@ export function useRegistration() {
       return;
     }
 
+    loading.value = true;
     let firebaseUser = null;
 
     try {
@@ -55,7 +58,7 @@ export function useRegistration() {
           email: email.value,
         });
 
-        router.push({ name: 'Login' });
+        successMessage.value = t('auth.register_success');
       } catch (backendError: any) {
         console.error('Backend registration failed, rolling back Firebase user:', backendError);
 
@@ -85,6 +88,8 @@ export function useRegistration() {
       if (!error.value) {
         error.value = msg;
       }
+    } finally {
+      loading.value = false;
     }
   }
 
@@ -93,7 +98,9 @@ export function useRegistration() {
     email,
     password,
     confirmPassword,
+    loading,
     error,
+    successMessage,
     handleRegister,
   };
 }

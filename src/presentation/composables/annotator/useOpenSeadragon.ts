@@ -1,10 +1,11 @@
-import { ref, onMounted, onUnmounted, shallowRef, watch } from 'vue';
+import { ref, onMounted, onUnmounted, shallowRef } from 'vue';
 import { useAnnotationStore } from '@/stores/annotation';
 import type { Image } from '@/core/entities/Image';
 import OpenSeadragon from 'openseadragon';
 import Annotorious from '@recogito/annotorious-openseadragon';
 import '@recogito/annotorious-openseadragon/dist/annotorious.min.css';
 import { Point } from '@/core/value-objects/Point';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export function useOpenSeadragon(viewerId: string) {
@@ -48,20 +49,28 @@ export function useOpenSeadragon(viewerId: string) {
         points.push(Point.from({ x: polygonPoints[i], y: polygonPoints[i + 1] }));
       }
 
-      await annotationStore.createAnnotation({
-        polygon: points,
-      });
-      loadAnnotations(currentImageId.value!);
+      if (currentImageId.value) {
+        await annotationStore.createAnnotation(currentImageId.value, {
+          annotator_id: '',
+          polygon: points,
+        });
+
+        loadAnnotations(currentImageId.value);
+      }
     });
+
     anno.value.on('deleteAnnotation', (annotation: any) => {
-      annotationStore.deleteAnnotation(annotation.id);
+      if (currentImageId.value) {
+        annotationStore.deleteAnnotation(annotation.id, currentImageId.value);
+      }
     });
   }
 
   async function loadAnnotations(imageId: string) {
     if (!anno.value) return;
     anno.value.clearAnnotations();
-    await annotationStore.loadDataForImage(imageId);
+
+    await annotationStore.fetchAnnotationsByImage(imageId);
 
     const w3cAnnotations = annotationStore.annotations.map((ann) => {
       const polygonStr = ann.polygon.map((p) => `${p.x},${p.y}`).join(',');
@@ -73,7 +82,7 @@ export function useOpenSeadragon(viewerId: string) {
         body: [
           {
             type: 'TextualBody',
-            value: ann.class || `Skor: ${ann.score}`,
+            value: ann.class || (ann.score !== null ? `Skor: ${ann.score}` : ''),
             purpose: 'commenting',
           },
         ],
@@ -86,7 +95,7 @@ export function useOpenSeadragon(viewerId: string) {
       };
     });
 
-    w3cAnnotations.forEach(anno.value.addAnnotation);
+    w3cAnnotations.forEach((a) => anno.value.addAnnotation(a));
   }
 
   async function loadImage(image: Image) {
@@ -118,7 +127,7 @@ export function useOpenSeadragon(viewerId: string) {
     if (anno.value) {
       anno.value.destroy();
     }
-    annotationStore.clearAnnotationData();
+    annotationStore.clearAnnotations();
   });
 
   return {

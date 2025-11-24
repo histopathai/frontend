@@ -1,9 +1,5 @@
 import { ref, computed, watch, type Ref } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
-import type {
-  CreateNewWorkspaceRequest,
-  UpdateWorkspaceRequest,
-} from '@/core/repositories/IWorkspaceRepository';
 import type { Workspace } from '@/core/entities/Workspace';
 
 export function useWorkspaceForm(
@@ -23,7 +19,7 @@ export function useWorkspaceForm(
 
   const isEditMode = computed(() => !!workspaceToEdit.value);
   const isPublicDataset = computed(() => {
-    return license.value === 'CC-BY' || license.value === 'CC-BY-NC';
+    return license.value !== 'Özel';
   });
 
   watch(

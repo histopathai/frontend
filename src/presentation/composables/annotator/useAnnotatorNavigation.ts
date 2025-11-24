@@ -1,5 +1,7 @@
 import { ref, computed, watch } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
+import { usePatientStore } from '@/stores/patient';
+import { useImageStore } from '@/stores/image';
 import { storeToRefs } from 'pinia';
 import type { Patient } from '@/core/entities/Patient';
 import type { Image } from '@/core/entities/Image';
@@ -7,21 +9,31 @@ import type { Workspace } from '@/core/entities/Workspace';
 
 export function useAnnotatorNavigation() {
   const workspaceStore = useWorkspaceStore();
-  const { workspaces, patientsByWorkspace, imagesByPatient } = storeToRefs(workspaceStore);
+  const patientStore = usePatientStore();
+  const imageStore = useImageStore();
 
-  const loading = computed(() => workspaceStore.loading);
+  const { workspaces } = storeToRefs(workspaceStore);
+  const { patientsByWorkspace } = storeToRefs(patientStore);
+  const { imagesByPatient } = storeToRefs(imageStore);
+
+  const loading = computed(
+    () => workspaceStore.loading || patientStore.loading || imageStore.loading
+  );
+
   const selectedWorkspaceId = ref<string | undefined>(undefined);
   const selectedPatientId = ref<string | undefined>(undefined);
   const selectedImageId = ref<string | undefined>(undefined);
 
   const currentPatients = computed((): Patient[] => {
-    return selectedWorkspaceId.value
-      ? patientsByWorkspace.value.get(selectedWorkspaceId.value) || []
+    const list = selectedWorkspaceId.value
+      ? patientsByWorkspace.value.get(selectedWorkspaceId.value)
       : [];
+    return (list || []) as Patient[];
   });
 
   const currentImages = computed((): Image[] => {
-    return selectedPatientId.value ? imagesByPatient.value.get(selectedPatientId.value) || [] : [];
+    const list = selectedPatientId.value ? imagesByPatient.value.get(selectedPatientId.value) : [];
+    return (list || []) as Image[];
   });
 
   const selectedPatient = computed((): Patient | null => {
@@ -42,7 +54,8 @@ export function useAnnotatorNavigation() {
     selectedWorkspaceId.value = workspace.id;
     selectedPatientId.value = undefined;
     selectedImageId.value = undefined;
-    workspaceStore.fetchPatients(workspace.id);
+
+    patientStore.fetchPatientsByWorkspace(workspace.id);
   }
 
   function selectPatient(patient: Patient) {
@@ -50,7 +63,8 @@ export function useAnnotatorNavigation() {
 
     selectedPatientId.value = patient.id;
     selectedImageId.value = undefined;
-    workspaceStore.fetchImages(patient.id);
+
+    imageStore.fetchImagesByPatient(patient.id);
   }
 
   function selectImage(image: Image) {
@@ -60,14 +74,20 @@ export function useAnnotatorNavigation() {
   function nextImage() {
     if (selectedImageIndex.value < currentImages.value.length - 1) {
       const nextImage = currentImages.value[selectedImageIndex.value + 1];
-      selectImage(nextImage);
+      // DÜZELTME: nextImage'in undefined olmadığını kontrol ediyoruz
+      if (nextImage) {
+        selectImage(nextImage);
+      }
     }
   }
 
   function prevImage() {
     if (selectedImageIndex.value > 0) {
       const prevImage = currentImages.value[selectedImageIndex.value - 1];
-      selectImage(prevImage);
+      // DÜZELTME: prevImage'in undefined olmadığını kontrol ediyoruz
+      if (prevImage) {
+        selectImage(prevImage);
+      }
     }
   }
 

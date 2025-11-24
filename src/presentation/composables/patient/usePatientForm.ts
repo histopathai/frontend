@@ -4,7 +4,7 @@ import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { repositories } from '@/services';
 import type { Patient } from '@/core/entities/Patient';
 import type { CreateNewPatientRequest } from '@/core/repositories/IPatientRepository';
-import type { AnnotationType } from '@/core/entities/AnnotationType'; // Eklendi
+import type { AnnotationType } from '@/core/entities/AnnotationType';
 
 export function usePatientForm(
   props: {
@@ -18,6 +18,8 @@ export function usePatientForm(
 
   const loading = computed(() => patientStore.isActionLoading);
   const subtypeOptions = ref<string[]>([]);
+  const isScoreEnabled = ref(false);
+  const isClassificationEnabled = ref(false);
   const loadingSubtypes = ref(false);
 
   const form = reactive({
@@ -33,7 +35,6 @@ export function usePatientForm(
 
   const isEditMode = computed(() => !!props.patientToEdit);
 
-  // Edit modundaysa formu doldur
   watch(
     () => props.patientToEdit,
     (newVal) => {
@@ -51,14 +52,43 @@ export function usePatientForm(
     { immediate: true }
   );
 
-  // Subtype seçeneklerini getir (Anotasyon tipine bağlı olarak)
+  async function fetchAnnotationConfig() {
+    loadingSubtypes.value = true;
+    try {
+      const workspace = await repositories.workspace.getById(props.workspaceId);
+
+      if (workspace && workspace.annotationTypeId) {
+        let annotationType: AnnotationType | null | undefined =
+          annotationTypeStore.getAnnotationTypeById(workspace.annotationTypeId);
+
+        if (!annotationType) {
+          annotationType = await annotationTypeStore.fetchAnnotationTypeById(
+            workspace.annotationTypeId
+          );
+        }
+
+        if (annotationType) {
+          isScoreEnabled.value = annotationType.scoreEnabled;
+          isClassificationEnabled.value = annotationType.classificationEnabled;
+
+          if (annotationType.classList) {
+            subtypeOptions.value = annotationType.classList;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Anotasyon ayarları yüklenemedi:', error);
+    } finally {
+      loadingSubtypes.value = false;
+    }
+  }
+
   async function fetchSubtypeOptions() {
     loadingSubtypes.value = true;
     try {
       const workspace = await repositories.workspace.getById(props.workspaceId);
 
       if (workspace && workspace.annotationTypeId) {
-        // Tip Düzeltmesi: Değişkenin null veya undefined olabileceğini belirttik
         let annotationType: AnnotationType | null | undefined =
           annotationTypeStore.getAnnotationTypeById(workspace.annotationTypeId);
 
@@ -81,6 +111,7 @@ export function usePatientForm(
 
   onMounted(() => {
     fetchSubtypeOptions();
+    fetchAnnotationConfig();
   });
 
   async function handleSubmit() {
@@ -90,9 +121,9 @@ export function usePatientForm(
       age: form.age || undefined,
       gender: form.gender || undefined,
       race: form.race || undefined,
-      disease: form.disease || undefined,
-      subtype: form.subtype || undefined,
-      grade: form.grade || undefined,
+      disease: isClassificationEnabled.value ? form.disease || undefined : undefined,
+      subtype: isClassificationEnabled.value ? form.subtype || undefined : undefined,
+      grade: isScoreEnabled.value ? form.grade || undefined : undefined,
       history: form.history || undefined,
     };
 
@@ -115,6 +146,8 @@ export function usePatientForm(
     form,
     loading,
     subtypeOptions,
+    isScoreEnabled,
+    isClassificationEnabled,
     loadingSubtypes,
     isEditMode,
     handleSubmit,

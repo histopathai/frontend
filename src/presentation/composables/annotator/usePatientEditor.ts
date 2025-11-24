@@ -1,11 +1,11 @@
-import { ref, watch, computed } from 'vue';
-import { useWorkspaceStore } from '@/stores/workspace';
+import { ref, watch, computed, type Ref } from 'vue';
+import { usePatientStore } from '@/stores/patient';
 import type { Patient } from '@/core/entities/Patient';
 import type { UpdatePatientRequest } from '@/core/repositories/IPatientRepository';
 
 export function usePatientEditor(patient: Ref<Patient | null>) {
-  const workspaceStore = useWorkspaceStore();
-  const loading = computed(() => workspaceStore.loading);
+  const patientStore = usePatientStore();
+  const loading = computed(() => patientStore.isActionLoading);
 
   const age = ref<number | undefined>();
   const gender = ref<string | undefined>();
@@ -41,7 +41,7 @@ export function usePatientEditor(patient: Ref<Patient | null>) {
       history: history.value,
     };
 
-    await workspaceStore.updatePatient(patient.value.id, payload);
+    await patientStore.updatePatient(patient.value.id, payload);
   }
 
   return {
