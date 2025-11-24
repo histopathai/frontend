@@ -57,49 +57,52 @@
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label for="p-disease" class="form-label">{{ t('patient.form.disease') }}</label>
-              <input
-                id="p-disease"
-                v-model="form.disease"
-                class="form-input"
-                :placeholder="t('patient.form.disease_placeholder')"
-              />
-            </div>
+            <template v-if="isClassificationEnabled">
+              <div>
+                <label for="p-disease" class="form-label">{{ t('patient.form.disease') }}</label>
+                <select id="p-disease" v-model="form.disease" class="form-input">
+                  <option value="" disabled>{{ t('patient.form.disease_placeholder') }}</option>
+                  <option value="Karsinom">Karsinom</option>
+                  <option value="Normal">Normal</option>
+                </select>
+              </div>
 
-            <div>
-              <label for="p-subtype" class="form-label">{{ t('patient.form.subtype') }}</label>
-              <select
-                v-if="subtypeOptions.length > 0"
-                id="p-subtype"
-                v-model="form.subtype"
-                class="form-input"
-              >
-                <option value="">{{ t('patient.form.subtype_placeholder') }}</option>
-                <option v-for="opt in subtypeOptions" :key="opt" :value="opt">
-                  {{ opt }}
-                </option>
-              </select>
-              <input
-                v-else
-                id="p-subtype"
-                type="text"
-                v-model="form.subtype"
-                :placeholder="loadingSubtypes ? '...' : t('patient.form.subtype_placeholder')"
-                class="form-input"
-              />
-            </div>
+              <div>
+                <label for="p-subtype" class="form-label">{{ t('patient.form.subtype') }}</label>
+                <select
+                  v-if="subtypeOptions.length > 0"
+                  id="p-subtype"
+                  v-model="form.subtype"
+                  class="form-input"
+                >
+                  <option value="">{{ t('patient.form.subtype_placeholder') }}</option>
+                  <option v-for="opt in subtypeOptions" :key="opt" :value="opt">
+                    {{ opt }}
+                  </option>
+                </select>
+                <input
+                  v-else
+                  id="p-subtype"
+                  type="text"
+                  v-model="form.subtype"
+                  :placeholder="loadingSubtypes ? '...' : t('patient.form.subtype_placeholder')"
+                  class="form-input"
+                />
+              </div>
+            </template>
 
-            <div>
-              <label for="p-grade" class="form-label">{{ t('patient.form.grade') }}</label>
-              <input
-                id="p-grade"
-                type="number"
-                v-model.number="form.grade"
-                class="form-input"
-                :placeholder="t('patient.form.grade_placeholder')"
-              />
-            </div>
+            <template v-if="isScoreEnabled">
+              <div>
+                <label for="p-grade" class="form-label">{{ t('patient.form.grade') }}</label>
+                <input
+                  id="p-grade"
+                  type="number"
+                  v-model.number="form.grade"
+                  class="form-input"
+                  :placeholder="t('patient.form.grade_placeholder')"
+                />
+              </div>
+            </template>
           </div>
 
           <div>
@@ -140,8 +143,13 @@ const props = defineProps({
 const emit = defineEmits(['close', 'saved']);
 const { t } = useI18n();
 
-const { form, loading, subtypeOptions, loadingSubtypes, handleSubmit } = usePatientForm(
-  { workspaceId: props.workspaceId },
-  emit
-);
+const {
+  form,
+  loading,
+  subtypeOptions,
+  isScoreEnabled,
+  isClassificationEnabled,
+  loadingSubtypes,
+  handleSubmit,
+} = usePatientForm({ workspaceId: props.workspaceId }, emit);
 </script>
