@@ -19,6 +19,7 @@
           <tr>
             <th scope="col" class="px-6 py-3 w-10">
               <input
+                v-if="workspaces.length > 0"
                 type="checkbox"
                 class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                 :checked="isAllSelected"
@@ -189,7 +190,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import type { PropType } from 'vue';
@@ -215,8 +216,15 @@ const emit = defineEmits(['page-change', 'edit', 'delete', 'delete-selected']);
 const router = useRouter();
 const { t } = useI18n();
 
-// Local state for selection
 const selectedIds = ref<string[]>([]);
+
+watch(
+  () => props.workspaces,
+  (newWorkspaces) => {
+    const currentIds = new Set(newWorkspaces.map((w) => w.id));
+    selectedIds.value = selectedIds.value.filter((id) => currentIds.has(id));
+  }
+);
 
 const isAllSelected = computed(() => {
   return props.workspaces.length > 0 && selectedIds.value.length === props.workspaces.length;
