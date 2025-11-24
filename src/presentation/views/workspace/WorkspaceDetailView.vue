@@ -130,6 +130,7 @@
             <tr>
               <th scope="col" class="px-6 py-3 w-10">
                 <input
+                  v-if="patients.length > 0"
                   type="checkbox"
                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                   :checked="isAllSelected"
@@ -227,6 +228,27 @@
                 <div
                   class="flex justify-end items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
+                  <button
+                    @click="openImageUploadModal(patient)"
+                    class="text-green-600 hover:text-green-900 flex items-center gap-1"
+                    :title="t('patient.actions.upload_image')"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke-width="1.5"
+                      stroke="currentColor"
+                      class="w-4 h-4"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
+                      />
+                    </svg>
+                    {{ t('patient.actions.upload_image') }}
+                  </button>
                   <button
                     @click="openTransferModal(patient)"
                     class="text-blue-600 hover:text-blue-900 flex items-center gap-1"
@@ -376,6 +398,13 @@
       @close="closeDeleteModal"
       @confirm="handleDeleteConfirm"
     />
+
+    <ImageUploadModal
+      v-if="isImageUploadModalOpen && selectedPatient"
+      :patient-id="selectedPatient.id"
+      @close="closeImageUploadModal"
+      @uploaded="handleImageUploaded"
+    />
   </div>
 </template>
 
@@ -395,6 +424,7 @@ import EditPatientModal from '@/presentation/components/workspace/EditPatientMod
 import TransferPatientModal from '@/presentation/components/workspace/TransferPatientModal.vue';
 import DeleteConfirmationModal from '@/presentation/components/workspace/DeleteConfirmationModal.vue';
 import AnnotationSettingsModal from '@/presentation/components/workspace/AnnotationSettingsModal.vue';
+import ImageUploadModal from '@/presentation/components/image/ImageUploadModal.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -409,28 +439,25 @@ const patients = shallowRef<Patient[]>([]);
 const loading = ref(false);
 const loadingAction = ref(false);
 
-// Pagination
 const limit = 20;
 const offset = ref(0);
 const hasMore = ref(false);
 const currentPage = computed(() => Math.floor(offset.value / limit) + 1);
 
-// Modals
 const isCreatePatientModalOpen = ref(false);
 const isEditModalOpen = ref(false);
 const isTransferModalOpen = ref(false);
 const isDeleteModalOpen = ref(false);
 const isAnnotationSettingsModalOpen = ref(false);
+const isImageUploadModalOpen = ref(false);
 
-// Selection & Actions
 const selectedPatient = shallowRef<Patient | null>(null);
 const selectedIds = ref<string[]>([]);
-const selectedIdsForTransfer = ref<string[]>([]); // For passing to modal
+const selectedIdsForTransfer = ref<string[]>([]);
 const idsToDelete = ref<string[]>([]);
 const isSingleDelete = ref(true);
 const deleteWarningText = ref('');
 
-// --- Selection Logic ---
 const isAllSelected = computed(() => {
   return patients.value.length > 0 && selectedIds.value.length === patients.value.length;
 });
@@ -447,7 +474,6 @@ function toggleSelectAll() {
   }
 }
 
-// --- Delete Modal Logic ---
 const deleteModalTitle = computed(() =>
   isSingleDelete.value ? t('patient.actions.delete') : t('patient.actions.delete_selected')
 );
@@ -461,7 +487,6 @@ const deleteModalMessage = computed(() => {
   return t('patient.messages.batch_delete_confirm', { count: idsToDelete.value.length });
 });
 
-// --- Lifecycle ---
 onMounted(async () => {
   await loadData();
 });
@@ -490,7 +515,6 @@ async function loadPatients() {
     });
     patients.value = result.data;
     hasMore.value = result.pagination.hasMore ?? result.data.length === limit;
-    // Reset selection on reload
     selectedIds.value = [];
   } catch (e) {
     console.error('Hasta listesi yüklenirken hata:', e);
@@ -503,8 +527,6 @@ function changePage(newPage: number) {
   loading.value = true;
   loadPatients().finally(() => (loading.value = false));
 }
-
-// --- Actions ---
 
 function openAnnotationSettings() {
   isAnnotationSettingsModalOpen.value = true;
@@ -540,17 +562,16 @@ function closeEditModal() {
   selectedPatient.value = null;
 }
 
-// Transfer
 function openTransferModal(patient: Patient) {
   selectedPatient.value = patient;
-  selectedIdsForTransfer.value = []; // Tekil mod
+  selectedIdsForTransfer.value = [];
   isTransferModalOpen.value = true;
 }
 
 function openBatchTransferModal() {
   if (selectedIds.value.length === 0) return;
   selectedPatient.value = null;
-  selectedIdsForTransfer.value = selectedIds.value; // Çoklu mod
+  selectedIdsForTransfer.value = selectedIds.value;
   isTransferModalOpen.value = true;
 }
 
@@ -565,7 +586,6 @@ function handleTransferSuccess() {
   selectedIds.value = [];
 }
 
-// Delete
 function openDeleteModal(patient: Patient) {
   selectedPatient.value = patient;
   idsToDelete.value = [];
@@ -595,7 +615,6 @@ async function handleDeleteConfirm() {
   let success = false;
 
   if (isSingleDelete.value && selectedPatient.value) {
-    // Cascade delete kullanıyoruz
     success = await patientStore.cascadeDeletePatient(selectedPatient.value.id, workspaceId);
   } else if (!isSingleDelete.value && idsToDelete.value.length > 0) {
     success = await patientStore.batchDeletePatients(idsToDelete.value, workspaceId);
@@ -609,9 +628,19 @@ async function handleDeleteConfirm() {
   }
 }
 
+function openImageUploadModal(patient: Patient) {
+  selectedPatient.value = patient;
+  isImageUploadModalOpen.value = true;
+}
+
+function closeImageUploadModal() {
+  isImageUploadModalOpen.value = false;
+  selectedPatient.value = null;
+}
+
+function handleImageUploaded() {}
+
 function goToPatientDetail(patientId: string) {
-  // TODO: Implement patient detail view navigation
-  // router.push({ name: 'PatientDetail', params: { workspaceId, patientId } });
   console.log('Go to patient detail:', patientId);
 }
 </script>
