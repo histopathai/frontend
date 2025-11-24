@@ -24,7 +24,8 @@ export class AdminRepository implements IAdminRepository {
 
   async getUser(uid: string): Promise<User> {
     const response = await this.apiClient.get<{ user: any }>(`/api/v1/admin/users/${uid}`);
-    return User.create(response.user);
+    const userData = response.user || response;
+    return User.create(userData);
   }
 
   async approveUser(uid: string, data: ApproveUserRequest): Promise<User> {
@@ -34,19 +35,22 @@ export class AdminRepository implements IAdminRepository {
         role: data.role.toString(),
       }
     );
-    return User.create(response.user);
+    const userData = response.user || response;
+    return User.create(userData);
   }
 
   async suspendUser(uid: string): Promise<User> {
     const response = await this.apiClient.post<{ user: any }>(`/api/v1/admin/users/${uid}/suspend`);
-    return User.create(response.user);
+    const userData = response.user || response;
+    return User.create(userData);
   }
 
   async makeAdmin(uid: string): Promise<User> {
     const response = await this.apiClient.post<{ user: any }>(
       `/api/v1/admin/users/${uid}/make-admin`
     );
-    return User.create(response.user);
+    const userData = response.user || response;
+    return User.create(userData);
   }
 
   async deleteUser(uid: string): Promise<void> {
