@@ -26,3 +26,5 @@ export interface IPatientRepository {
   batchTransfer(data: BatchTransfer): Promise<void>;
   cascadeDelete(id: string): Promise<void>;
 }
+
+export type UpdatePatientRequest = Partial<CreateNewPatientRequest>;
