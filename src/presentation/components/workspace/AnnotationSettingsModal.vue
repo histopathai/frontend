@@ -232,8 +232,7 @@ const workspaceStore = useWorkspaceStore();
 const initialLoading = ref(false);
 const actionLoading = computed(() => store.actionLoading);
 
-// Form State
-const name = ref(`${props.workspaceName} - Anotasyon Tipi`);
+const name = ref(`${props.workspaceName} - Etiketleme Tipi`);
 const mode = ref<'classification' | 'score' | 'both'>('classification');
 const addedClasses = ref<string[]>([]);
 const newClassInput = ref('');

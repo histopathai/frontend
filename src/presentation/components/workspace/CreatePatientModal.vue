@@ -61,7 +61,6 @@
               <label for="p-disease" class="form-label">{{ t('patient.form.disease') }}</label>
               <input
                 id="p-disease"
-                type="text"
                 v-model="form.disease"
                 class="form-input"
                 :placeholder="t('patient.form.disease_placeholder')"
