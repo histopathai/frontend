@@ -13,7 +13,13 @@ export class PatientRepository implements IPatientRepository {
 
   async getById(id: string): Promise<Patient | null> {
     const response = await this.apiClient.get<any>(`/api/v1/proxy/patients/${id}`);
-    return response ? Patient.create(response) : null;
+    if (response && response.data) {
+      return Patient.create(response.data);
+    } else if (response && response.id) {
+      return Patient.create(response);
+    }
+
+    return null;
   }
 
   async getByWorkspaceId(
@@ -37,7 +43,8 @@ export class PatientRepository implements IPatientRepository {
 
   async create(data: CreateNewPatientRequest): Promise<Patient> {
     const response = await this.apiClient.post<any>('/api/v1/proxy/patients', data);
-    return Patient.create(response);
+    const patientData = response.data || response;
+    return Patient.create(patientData);
   }
 
   async update(id: string, data: Partial<CreateNewPatientRequest>): Promise<void> {

@@ -71,7 +71,6 @@ export class ImageRepository implements IImageRepository {
   }
 
   async getByPatientId(patientId: string, pagination: Pagination): Promise<PaginatedResult<Image>> {
-    console.log('ImageRepository getByPatientId called with:', pagination);
     const response = await this.apiClient.get<BackendImageListResponse>(
       `/api/v1/proxy/patients/${patientId}/images`,
       {
@@ -81,7 +80,7 @@ export class ImageRepository implements IImageRepository {
         sortOrder: pagination.sortOrder,
       }
     );
-    console.log('ImageRepository getByPatientId response:', response);
+
     return {
       data: response.data.map(Image.create),
       pagination: response.pagination,
