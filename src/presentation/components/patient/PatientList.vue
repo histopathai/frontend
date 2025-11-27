@@ -129,26 +129,6 @@
                   class="flex justify-end items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <button
-                    @click="openImageUploadModal(patient)"
-                    class="text-green-600 hover:text-green-900 flex items-center gap-1"
-                    :title="t('patient.actions.upload_image')"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke-width="1.5"
-                      stroke="currentColor"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
-                      />
-                    </svg>
-                  </button>
-                  <button
                     @click="openTransferModal(patient)"
                     class="text-blue-600 hover:text-blue-900 flex items-center gap-1"
                     :title="t('patient.actions.transfer')"
@@ -280,11 +260,6 @@
       @close="isDeleteModalOpen = false"
       @confirm="handleDeleteConfirm"
     />
-    <ImageUploadModal
-      v-if="isImageUploadModalOpen && selectedPatient"
-      :patient-id="selectedPatient.id"
-      @close="isImageUploadModalOpen = false"
-    />
   </div>
 </template>
 
@@ -292,11 +267,10 @@
 import { useRouter } from 'vue-router';
 import { usePatientList } from '@/presentation/composables/patient/usePatientList';
 
-// CreatePatientModal IMPORT'U KALDIRILDI
+// ImageUploadModal importunu kaldırıyoruz
 import EditPatientModal from '@/presentation/components/patient/EditPatientModal.vue';
 import TransferPatientModal from '@/presentation/components/patient/TransferPatientModal.vue';
 import DeleteConfirmationModal from '@/presentation/components/common/DeleteConfirmationModal.vue';
-import ImageUploadModal from '@/presentation/components/image/ImageUploadModal.vue';
 
 const props = defineProps({
   workspaceId: { type: String, required: true },
@@ -311,28 +285,22 @@ const {
   hasMore,
   selectedIds,
   selectedPatient,
-  // Modal States
   isEditModalOpen,
   isTransferModalOpen,
   isDeleteModalOpen,
-  isImageUploadModalOpen,
   isSingleDelete,
   deleteWarningText,
   idsToDelete,
-  // Computed
   isAllSelected,
   isIndeterminate,
-  // Actions
   loadPatients,
   changePage,
   toggleSelectAll,
-  // openCreateModal KALDIRILDI
   openEditModal,
   openTransferModal,
   openBatchTransferModal,
   openDeleteModal,
   openBatchDeleteModal,
-  openImageUploadModal,
   handleDeleteConfirm,
   t,
 } = usePatientList(props.workspaceId);
