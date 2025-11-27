@@ -202,16 +202,18 @@ export const useImageStore = defineStore('image', () => {
     }
   };
 
-  // --- REAKTİVİTE DÜZELTMESİ YAPILAN FONKSİYON ---
   const fetchImagesByPatient = async (
     patientId: string,
     paginationOptions?: Partial<Pagination>,
-    options: FetchOptions = {}
+    options: FetchOptions & { append?: boolean } = {} // append seçeneği eklendi
   ): Promise<void> => {
-    const { refresh = false, showToast: showErrorToast = true } = options;
+    const { refresh = false, showToast: showErrorToast = true, append = false } = options;
 
-    if (loading.value && !refresh) return;
+    if (loading.value && !refresh && !append) return;
 
+    // Eğer append işlemi ise loading state'ini global loading yerine actionLoading kullanabiliriz
+    // veya UI'da karışıklık olmasın diye sadece bu işlem için loading true yapmayabiliriz.
+    // Şimdilik standart loading kullanalım.
     loading.value = true;
     resetError();
 
@@ -226,14 +228,26 @@ export const useImageStore = defineStore('image', () => {
         paginationParams
       );
 
-      console.log(`[fetchImagesByPatient] ID: ${patientId} - Gelen Veri:`, result);
+      console.log(
+        `[fetchImagesByPatient] ID: ${patientId} - Append: ${append} - Gelen: ${result.data.length}`
+      );
 
-      // FIX: Map reaktivitesini tetiklemek için yeni Map oluşturup atıyoruz
+      // Mevcut listeyi al
+      const currentList = imagesByPatient.value.get(patientId) || [];
+
+      // Yeni liste: Eğer append ise eskilerin üzerine ekle, değilse sadece yenileri koy
+      const newList = append ? [...currentList, ...result.data] : result.data;
+
+      // Reactivity fix: Yeni Map set et
       const newMap = new Map(imagesByPatient.value);
-      newMap.set(patientId, result.data);
+      newMap.set(patientId, newList);
       imagesByPatient.value = newMap;
 
-      images.value = result.data;
+      if (!append) {
+        images.value = result.data;
+      } else {
+        images.value = [...images.value, ...result.data];
+      }
 
       pagination.value = {
         ...paginationParams,
