@@ -39,7 +39,7 @@
             Seçilenleri Taşı
           </button>
           <button
-            @click="handleBatchDelete"
+            @click="openBatchDeleteModal"
             class="btn btn-sm btn-danger bg-white border border-red-200 text-red-600 hover:bg-red-50"
           >
             Seçilenleri Sil
@@ -106,7 +106,7 @@
           class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1"
         >
           <button
-            @click.stop="handleDelete(img)"
+            @click.stop="openSingleDeleteModal(img)"
             class="bg-white text-red-600 p-1.5 rounded-md shadow-sm border border-gray-200 hover:bg-red-50 hover:border-red-200 transition-colors"
             title="Sil"
           >
@@ -144,6 +144,7 @@
             </svg>
           </button>
         </div>
+
         <span
           class="absolute bottom-2 right-2 z-10 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium opacity-90 shadow-sm"
           :class="{
@@ -207,17 +208,33 @@
         Daha Fazla Göster
       </button>
     </div>
+
+    <DeleteConfirmationModal
+      v-if="isDeleteModalOpen"
+      :title="deleteModalTitle"
+      :item-name="itemNameToDelete"
+      :message="deleteModalMessage"
+      :warning-text="isBatchDelete ? 'Bu işlem geri alınamaz!' : ''"
+      :loading="isDeleting"
+      :require-confirmation="false"
+      @close="closeDeleteModal"
+      @confirm="confirmDelete"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
 import { useImageList } from '@/presentation/composables/image/useImageList';
+import { useImageStore } from '@/stores/image';
+import DeleteConfirmationModal from '@/presentation/components/common/DeleteConfirmationModal.vue';
 
 const props = defineProps({
   patientId: { type: String, required: true },
 });
 
 const emit = defineEmits(['transfer', 'batch-transfer']);
+const imageStore = useImageStore();
 
 const {
   images,
@@ -230,9 +247,74 @@ const {
   toggleSelection,
   toggleSelectAll,
   loadImages,
-  handleBatchDelete,
-  handleDelete,
-  transferSingle,
   transferSelected,
+  transferSingle,
 } = useImageList(props.patientId, emit);
+
+// --- Silme İşlemleri (Modal Entegrasyonu) ---
+const isDeleteModalOpen = ref(false);
+const isDeleting = ref(false);
+const imageToDelete = ref<any>(null);
+const isBatchDelete = ref(false);
+
+const deleteModalTitle = computed(() =>
+  isBatchDelete.value ? 'Seçili Görüntüleri Sil' : 'Görüntüyü Sil'
+);
+
+const deleteModalMessage = computed(() =>
+  isBatchDelete.value
+    ? `Seçili <strong>${selectedIds.value.length}</strong> adet görüntüyü silmek istediğinize emin misiniz?`
+    : `Bu görüntüyü silmek istediğinize emin misiniz?`
+);
+
+const itemNameToDelete = computed(() =>
+  isBatchDelete.value ? '' : imageToDelete.value?.name || ''
+);
+
+function openSingleDeleteModal(img: any) {
+  isBatchDelete.value = false;
+  imageToDelete.value = img;
+  isDeleteModalOpen.value = true;
+}
+
+function openBatchDeleteModal() {
+  isBatchDelete.value = true;
+  imageToDelete.value = null;
+  isDeleteModalOpen.value = true;
+}
+
+function closeDeleteModal() {
+  isDeleteModalOpen.value = false;
+  imageToDelete.value = null;
+}
+
+async function confirmDelete() {
+  isDeleting.value = true;
+  let success = false;
+
+  if (isBatchDelete.value) {
+    success = await imageStore.batchDeleteImages(selectedIds.value, props.patientId);
+    if (success) {
+      selectedIds.value = [];
+      await loadImages(true);
+    }
+  } else {
+    if (imageToDelete.value) {
+      success = await imageStore.deleteImage(imageToDelete.value.id, props.patientId);
+      if (success) {
+        selectedIds.value = selectedIds.value.filter((id) => id !== imageToDelete.value.id);
+        await loadImages(true);
+      }
+    }
+  }
+
+  isDeleting.value = false;
+  if (success) {
+    closeDeleteModal();
+  }
+}
+
+defineExpose({
+  loadImages,
+});
 </script>

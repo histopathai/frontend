@@ -114,6 +114,7 @@
 
     <PatientImageGrid
       v-if="patient"
+      ref="gridRef"
       :patient-id="patientId"
       @transfer="openTransferImageModal"
       @batch-transfer="openBatchTransferImageModal"
@@ -124,6 +125,15 @@
       :patient-id="patient.id"
       @close="isImageUploadModalOpen = false"
       @uploaded="handleImageUploaded"
+    />
+
+    <TransferImageModal
+      v-if="isTransferModalOpen && patient"
+      :workspace-id="workspaceId"
+      :current-patient-id="patientId"
+      :image-ids="transferImageIds"
+      @close="closeTransferModal"
+      @transferred="handleTransferSuccess"
     />
   </div>
 </template>
@@ -139,6 +149,7 @@ import { useToast } from 'vue-toastification';
 // Components
 import PatientImageGrid from '@/presentation/components/image/PatientImageGrid.vue';
 import ImageUploadModal from '@/presentation/components/image/ImageUploadModal.vue';
+import TransferImageModal from '@/presentation/components/image/TransferImageModal.vue';
 
 const props = defineProps({
   workspaceId: { type: String, required: true },
@@ -148,10 +159,18 @@ const props = defineProps({
 const { t } = useI18n();
 const toast = useToast();
 
+// State
 const workspace = ref<Workspace | null>(null);
 const patient = ref<Patient | null>(null);
-const isImageUploadModalOpen = ref(false);
 const pageLoading = ref(true);
+
+// Modal State
+const isImageUploadModalOpen = ref(false);
+const isTransferModalOpen = ref(false);
+const transferImageIds = ref<string[]>([]);
+
+// Refs
+const gridRef = ref<InstanceType<typeof PatientImageGrid> | null>(null);
 
 onMounted(async () => {
   pageLoading.value = true;
@@ -177,11 +196,25 @@ onMounted(async () => {
 
 function handleImageUploaded() {}
 
+// --- Transfer İşlemleri ---
+
 function openTransferImageModal(image: any) {
-  toast.info('Resim transfer özelliği yakında eklenecek.');
+  transferImageIds.value = [image.id];
+  isTransferModalOpen.value = true;
 }
 
 function openBatchTransferImageModal(ids: string[]) {
-  toast.info('Toplu resim transfer özelliği yakında eklenecek.');
+  transferImageIds.value = ids;
+  isTransferModalOpen.value = true;
+}
+
+function closeTransferModal() {
+  isTransferModalOpen.value = false;
+  transferImageIds.value = [];
+}
+
+function handleTransferSuccess() {
+  gridRef.value?.loadImages(true);
+  toast.success('Görüntüler başarıyla transfer edildi.');
 }
 </script>
