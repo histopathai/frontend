@@ -70,6 +70,20 @@ export function useImageList(patientId: string, emit: any) {
     }
   }
 
+  async function handleDelete(image: any) {
+    if (!confirm(`${image.name} adlı görüntüyü silmek istediğinize emin misiniz?`)) return;
+
+    const success = await imageStore.deleteImage(image.id, patientId);
+
+    if (success) {
+      if (selectedIds.value.includes(image.id)) {
+        selectedIds.value = selectedIds.value.filter((id) => id !== image.id);
+      }
+      offset.value = Math.max(0, offset.value - 1);
+      await loadImages(false);
+    }
+  }
+
   async function handleBatchDelete() {
     if (selectedIds.value.length === 0) return;
     if (!confirm(`${selectedIds.value.length} adet görüntüyü silmek istediğinize emin misiniz?`))
@@ -87,6 +101,10 @@ export function useImageList(patientId: string, emit: any) {
 
   function transferSelected() {
     emit('batch-transfer', selectedIds.value);
+  }
+
+  function transferSingle(image: any) {
+    emit('transfer', image);
   }
 
   onMounted(() => {
@@ -110,5 +128,7 @@ export function useImageList(patientId: string, emit: any) {
     loadImages,
     handleBatchDelete,
     transferSelected,
+    handleDelete,
+    transferSingle,
   };
 }
