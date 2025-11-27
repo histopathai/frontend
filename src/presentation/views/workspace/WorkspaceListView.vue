@@ -70,7 +70,7 @@ import { useI18n } from 'vue-i18n';
 // Components
 import WorkspaceList from '@/presentation/components/workspace/WorkspaceList.vue';
 import WorkspaceFormModal from '@/presentation/components/workspace/WorkspaceFormModal.vue';
-import DeleteConfirmationModal from '@/presentation/components/workspace/DeleteConfirmationModal.vue';
+import DeleteConfirmationModal from '@/presentation/components/common/DeleteConfirmationModal.vue';
 
 const store = useWorkspaceStore();
 const { t } = useI18n();
