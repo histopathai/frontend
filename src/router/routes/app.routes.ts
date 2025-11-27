@@ -12,6 +12,11 @@ const appRoutes: RouteRecordRaw = {
       component: () => import('@/presentation/views/home/HomeView.vue'),
     },
     {
+      path: 'profile',
+      name: 'UserProfile',
+      component: () => import('@/presentation/views/auth/ProfileView.vue'),
+    },
+    {
       path: 'annotator',
       name: 'Annotator',
       component: () => import('@/presentation/views/annotator/AnnotatorView.vue'),
@@ -25,6 +30,12 @@ const appRoutes: RouteRecordRaw = {
       path: 'workspaces/:workspaceId',
       name: 'WorkspaceDetail',
       component: () => import('@/presentation/views/workspace/WorkspaceDetailView.vue'),
+      props: true,
+    },
+    {
+      path: 'workspaces/:workspaceId/patients/:patientId',
+      name: 'PatientDetail',
+      component: () => import('@/presentation/views/patient/PatientDetailView.vue'),
       props: true,
     },
   ],
