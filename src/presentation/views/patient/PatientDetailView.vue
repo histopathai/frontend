@@ -194,7 +194,9 @@ onMounted(async () => {
   }
 });
 
-function handleImageUploaded() {}
+function handleImageUploaded() {
+  gridRef.value?.loadImages(true);
+}
 
 // --- Transfer İşlemleri ---
 
