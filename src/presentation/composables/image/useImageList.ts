@@ -15,8 +15,7 @@ export function useImageList(patientId: string, emit: any) {
   const images = computed(() => imageStore.getImagesByPatientId(patientId));
   const totalImages = computed(() => images.value.length);
 
-  const hasMore = ref(true);
-
+  const hasMore = computed(() => imageStore.hasMore);
   const isAllSelected = computed(() => {
     return images.value.length > 0 && selectedIds.value.length === images.value.length;
   });
