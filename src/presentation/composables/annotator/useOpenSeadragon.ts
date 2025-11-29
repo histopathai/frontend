@@ -99,6 +99,9 @@ export function useOpenSeadragon(viewerId: string) {
   }
 
   async function loadImage(image: Image) {
+    console.log('loadImage çağrıldı:', image);
+    console.log('Görüntü işlenmiş yolu:', image.processedpath);
+    console.log('viewer değeri:', viewer.value);
     if (!viewer.value || !image.processedpath) {
       console.error('OSD viewer başlatılamadı veya görüntü yolu yok.');
       return;

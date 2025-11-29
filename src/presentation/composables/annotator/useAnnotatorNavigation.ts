@@ -58,12 +58,21 @@ export function useAnnotatorNavigation() {
     patientStore.fetchPatientsByWorkspace(workspace.id);
   }
 
-  function selectPatient(patient: Patient) {
-    if (selectedPatientId.value === patient.id) return;
+  function selectPatient(patient: Patient | null) {
+    if (!patient) {
+      selectedPatientId.value = undefined;
+      selectedImageId.value = undefined;
+      return;
+    }
+
+    if (selectedPatientId.value === patient.id) {
+      selectedPatientId.value = undefined;
+      selectedImageId.value = undefined;
+      return;
+    }
 
     selectedPatientId.value = patient.id;
     selectedImageId.value = undefined;
-
     imageStore.fetchImagesByPatient(patient.id);
   }
 
