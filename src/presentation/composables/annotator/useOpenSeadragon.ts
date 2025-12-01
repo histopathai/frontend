@@ -32,6 +32,9 @@ export function useOpenSeadragon(viewerId: string) {
       visibilityRatio: 1,
       zoomPerScroll: 1.2,
       showNavigationControl: true,
+
+      loadTilesWithAjax: true,
+      ajaxWithCredentials: true,
     });
 
     anno.value = new Annotorious(viewer.value, {
@@ -111,7 +114,7 @@ export function useOpenSeadragon(viewerId: string) {
     currentImageId.value = image.id;
 
     try {
-      const tileSourceUrl = `${API_BASE_URL}/api/v1/proxy/${image.processedpath}`;
+      const tileSourceUrl = `${API_BASE_URL}/api/v1/proxy/${image.processedpath}/image.dzi`;
       viewer.value.open(tileSourceUrl);
       await loadAnnotations(image.id);
     } catch (err) {
