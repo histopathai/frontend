@@ -18,7 +18,6 @@ export class AuthRepository implements IAuthRepository {
   constructor(private apiClient: ApiClient) {}
 
   async register(data: BackendRegisterRequest): Promise<User> {
-    console.log('Registering user with data:', data);
     const response = await this.apiClient.post<BackendUserResponse>('/api/v1/auth/register', data);
     return User.create(response.user);
   }
@@ -64,7 +63,6 @@ export class AuthRepository implements IAuthRepository {
   async logout(): Promise<void> {
     try {
       await this.apiClient.delete('/api/v1/sessions/current');
-      console.log('Logout successful');
     } catch (error) {
       console.error('Logout error:', error);
       throw error;

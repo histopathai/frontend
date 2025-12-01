@@ -53,10 +53,7 @@ export const useAuthStore = defineStore('auth', () => {
 
         const profile = await authRepo.getProfile();
         user.value = profile;
-
-        console.log('Session restored successfully');
       } else {
-        console.log('No active session found');
         clearAuthData();
       }
     } catch (err: any) {
@@ -100,8 +97,6 @@ export const useAuthStore = defineStore('auth', () => {
       } else {
         toast.success(t('auth.login_success'));
       }
-
-      console.log('Login successful');
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || t('auth.login_failed');
       error.value = errorMessage;

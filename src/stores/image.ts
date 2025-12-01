@@ -205,15 +205,12 @@ export const useImageStore = defineStore('image', () => {
   const fetchImagesByPatient = async (
     patientId: string,
     paginationOptions?: Partial<Pagination>,
-    options: FetchOptions & { append?: boolean } = {} // append seçeneği eklendi
+    options: FetchOptions & { append?: boolean } = {}
   ): Promise<void> => {
     const { refresh = false, showToast: showErrorToast = true, append = false } = options;
 
     if (loading.value && !refresh && !append) return;
 
-    // Eğer append işlemi ise loading state'ini global loading yerine actionLoading kullanabiliriz
-    // veya UI'da karışıklık olmasın diye sadece bu işlem için loading true yapmayabiliriz.
-    // Şimdilik standart loading kullanalım.
     loading.value = true;
     resetError();
 
@@ -227,18 +224,8 @@ export const useImageStore = defineStore('image', () => {
         patientId,
         paginationParams
       );
-
-      console.log(
-        `[fetchImagesByPatient] ID: ${patientId} - Append: ${append} - Gelen: ${result.data.length}`
-      );
-
-      // Mevcut listeyi al
       const currentList = imagesByPatient.value.get(patientId) || [];
-
-      // Yeni liste: Eğer append ise eskilerin üzerine ekle, değilse sadece yenileri koy
       const newList = append ? [...currentList, ...result.data] : result.data;
-
-      // Reactivity fix: Yeni Map set et
       const newMap = new Map(imagesByPatient.value);
       newMap.set(patientId, newList);
       imagesByPatient.value = newMap;

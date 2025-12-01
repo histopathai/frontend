@@ -64,7 +64,6 @@ export function useRegistration() {
 
         try {
           await deleteUser(firebaseUser);
-          console.log('✅ Firebase user deleted successfully (rollback)');
         } catch (deleteError) {
           console.error('❌ Failed to delete Firebase user during rollback:', deleteError);
         }

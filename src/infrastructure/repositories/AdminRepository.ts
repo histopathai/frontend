@@ -15,7 +15,7 @@ export class AdminRepository implements IAdminRepository {
       sortBy: pagination.sortBy,
       sortOrder: pagination.sortOrder,
     });
-    console.log('API Response for getAllUsers:', response);
+
     return {
       data: response.data.map((item: any) => User.create(item)),
       pagination: response.pagination,

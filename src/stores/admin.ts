@@ -39,8 +39,6 @@ export const useAdminStore = defineStore('admin', () => {
     error.value = null;
     try {
       const result = await adminRepo.getAllUsers(pagination);
-      console.log('API Response for getAllUsers:', result);
-
       users.value = result.data;
     } catch (err: any) {
       console.error('Fetch Users Error:', err);

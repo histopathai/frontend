@@ -29,7 +29,6 @@ export function useAuth() {
       if (err.code?.startsWith('auth/')) {
         error.value = getFirebaseErrorMessage(err.code, t);
       } else {
-        console.log('Auth login error:', err);
         error.value = authStore.error || t('auth.login_failed');
       }
     }
