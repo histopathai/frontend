@@ -80,11 +80,11 @@
       Henüz görüntü yüklenmemiş.
     </div>
 
-    <div v-else class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+    <div v-else class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
       <div
         v-for="img in images"
         :key="img.id"
-        class="group relative bg-white p-2 rounded-lg border transition-all hover:shadow-md"
+        class="group relative bg-white p-1.5 rounded-lg border transition-all hover:shadow-md"
         :class="
           selectedIds.includes(img.id)
             ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50'
@@ -145,22 +145,30 @@
           </button>
         </div>
 
-        <span
-          class="absolute bottom-2 right-2 z-10 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium opacity-90 shadow-sm"
-          :class="{
-            'bg-yellow-100 text-yellow-800': img.status.toString() === 'PROCESSING',
-            'bg-green-100 text-green-800': img.status.toString() === 'PROCESSED',
-            'bg-red-100 text-red-800': img.status.toString() === 'FAILED',
-          }"
-        >
-          {{ img.status.isProcessed() ? 'Hazır' : img.status.isFailed() ? 'Hata' : 'İşleniyor' }}
-        </span>
-
         <div
-          class="aspect-square bg-gray-100 rounded-md overflow-hidden mb-2 flex items-center justify-center cursor-pointer"
+          class="aspect-square bg-gray-100 rounded-md overflow-hidden mb-2 flex items-center justify-center cursor-pointer relative"
         >
+          <span
+            class="absolute bottom-1 right-1 z-10 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium opacity-90 shadow-sm"
+            :class="{
+              'bg-yellow-100 text-yellow-800':
+                !img.processedpath && img.status.toString() === 'PROCESSING',
+              'bg-green-100 text-green-800':
+                img.processedpath || img.status.toString() === 'PROCESSED',
+              'bg-red-100 text-red-800': !img.processedpath && img.status.toString() === 'FAILED',
+            }"
+          >
+            {{
+              img.processedpath || img.status.isProcessed()
+                ? 'Hazır'
+                : img.status.isFailed()
+                  ? 'Hata'
+                  : 'İşleniyor'
+            }}
+          </span>
+
           <img
-            v-if="img.isProcessed()"
+            v-if="img.processedpath"
             :src="getThumbnailUrl(img)"
             class="w-full h-full object-cover"
             alt="Thumbnail"
