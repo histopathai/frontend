@@ -87,13 +87,17 @@
                     name="file-upload"
                     type="file"
                     class="sr-only"
-                    accept="image/*"
+                    accept=".jpeg,.png,.tiff,.svs,.jpg,.tif,.bmp,.ndpi,.scn,.bif,.vms,.vmu,.dng"
                     @change="handleFileSelect"
                   />
                 </label>
                 <p class="pl-1">veya sürükleyip bırakın</p>
               </div>
-              <p class="text-xs text-gray-500">PNG, JPG, TIFF (Max 50MB)</p>
+              <p class="text-xs text-gray-500">
+                {{
+                  t('image.upload.file_types') || 'Desteklenenler: JPG, PNG, TIFF, SVS, NDPI vb.'
+                }}
+              </p>
             </div>
           </div>
         </div>
@@ -153,10 +157,19 @@
             <div class="flex items-start space-x-4">
               <div class="flex-shrink-0">
                 <img
+                  v-if="previewUrl"
                   :src="previewUrl"
                   alt="Preview"
                   class="h-24 w-24 object-cover rounded-md border border-gray-300"
                 />
+                <div
+                  v-else
+                  class="h-24 w-24 flex items-center justify-center bg-gray-200 rounded-md border border-gray-300 text-gray-500"
+                >
+                  <span class="text-xs font-bold uppercase">{{
+                    selectedFile.name.split('.').pop()
+                  }}</span>
+                </div>
               </div>
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium text-gray-900 truncate">

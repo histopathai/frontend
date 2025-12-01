@@ -5,6 +5,24 @@ import { useI18n } from 'vue-i18n';
 
 export type UploadMode = 'local' | 'microscope';
 
+const ALLOWED_EXTENSIONS = [
+  'jpeg',
+  'png',
+  'tiff',
+  'svs',
+  'jpg',
+  'tif',
+  'bmp',
+  'ndpi',
+  'scn',
+  'bif',
+  'vms',
+  'vmu',
+  'dng',
+];
+
+const PREVIEWABLE_EXTENSIONS = ['jpeg', 'jpg', 'png', 'bmp', 'webp'];
+
 export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploaded') => void) {
   const store = useImageStore();
   const toast = useToast();
@@ -34,12 +52,19 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
   }
 
   function setFile(file: File) {
-    if (!file.type.startsWith('image/')) {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (!extension || !ALLOWED_EXTENSIONS.includes(extension)) {
       toast.error(t('image.validation.file_type_invalid'));
       return;
     }
+
     selectedFile.value = file;
-    previewUrl.value = URL.createObjectURL(file);
+
+    if (PREVIEWABLE_EXTENSIONS.includes(extension)) {
+      previewUrl.value = URL.createObjectURL(file);
+    } else {
+      previewUrl.value = null;
+    }
   }
 
   async function captureFromMicroscope() {

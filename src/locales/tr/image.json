@@ -14,7 +14,7 @@
   "upload": {
     "title": "Görüntü Yükle",
     "drag_drop": "Dosyaları buraya sürükleyin veya tıklayın",
-    "file_types": "Desteklenen formatlar: JPG, PNG, TIFF",
+    "file_types": "Desteklenenler: JPG, PNG, TIFF, SVS, NDPI, SCN, BMP, DNG vb.",
     "max_size": "Maksimum dosya boyutu: 50MB",
     "uploading": "Yükleniyor...",
     "progress": "İlerleme"
