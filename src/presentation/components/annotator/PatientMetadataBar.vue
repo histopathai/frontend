@@ -246,8 +246,8 @@ const subtypeOptions = ref<string[]>([]);
 const isHistoryModalOpen = ref(false);
 
 async function fetchConfig() {
-  console.log('Hasta değişti, metadata seçenekleri yükleniyor...');
   subtypeOptions.value = [];
+
   if (!props.patient || !props.patient.workspaceId) {
     console.warn('Hasta verisi veya Workspace ID eksik, istek atlanıyor.');
     return;
@@ -280,7 +280,6 @@ async function fetchConfig() {
   }
 }
 
-// Hasta değiştiğinde config'i yeniden çek
 watch(
   () => props.patient,
   () => {

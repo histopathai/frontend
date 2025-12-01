@@ -50,7 +50,7 @@ export function useOpenSeadragon(viewerId: string) {
     });
 
     anno.value = new Annotorious(viewer.value, {
-      widgets: ['POLYGON'],
+      widgets: ['COMMENT', 'TAG'],
     });
 
     anno.value.on('createAnnotation', async (annotation: any) => {
