@@ -285,8 +285,8 @@ function getThumbnailUrl(image: any): string {
   if (!image || !image.processedpath) {
     return 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
   }
-  const basePath = image.processedpath.substring(0, image.processedpath.lastIndexOf('/'));
-  return `${API_BASE_URL}/api/v1/proxy/${basePath}/thumbnail.jpeg`;
+
+  return `${API_BASE_URL}/api/v1/proxy/${image.processedpath}/thumbnail.jpg`;
 }
 </script>
 
