@@ -12,7 +12,7 @@ export class AdminRepository implements IAdminRepository {
     const response = await this.apiClient.get<any>('/api/v1/admin/users', {
       limit: pagination.limit,
       offset: pagination.offset,
-      sortBy: pagination.sortBy,
+      sort_by: pagination.sortBy,
       sort_dir: pagination.sortDir,
     });
 
