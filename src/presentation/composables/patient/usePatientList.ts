@@ -47,7 +47,7 @@ export function usePatientList(workspaceId: string) {
       limit,
       offset: offset.value,
       sortBy: 'created_at',
-      sortOrder: 'desc',
+      sortDir: 'desc',
     });
   }
 

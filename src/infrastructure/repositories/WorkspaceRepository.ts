@@ -15,8 +15,8 @@ export class WorkspaceRepository implements IWorkspaceRepository {
     const response = await this.apiClient.get<any>('/api/v1/proxy/workspaces', {
       limit: pagination.limit,
       offset: pagination.offset,
-      sortBy: pagination.sortBy,
-      sortOrder: pagination.sortOrder,
+      sort_by: pagination.sortBy,
+      sort_dir: pagination.sortDir,
     });
     return {
       data: response.data.map((item: any) => Workspace.create(item)),

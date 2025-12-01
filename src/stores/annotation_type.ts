@@ -50,7 +50,7 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     limit: 100,
     offset: 0,
     sortBy: 'created_at',
-    sortOrder: 'desc',
+    sortDir: 'desc',
     hasMore: false,
   });
 
@@ -357,7 +357,7 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
       limit: 100,
       offset: 0,
       sortBy: 'created_at',
-      sortOrder: 'desc',
+      sortDir: 'desc',
       hasMore: false,
     };
   };

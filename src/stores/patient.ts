@@ -50,7 +50,7 @@ export const usePatientStore = defineStore('patient', () => {
     limit: 10,
     offset: 0,
     sortBy: 'created_at',
-    sortOrder: 'desc',
+    sortDir: 'desc',
     hasMore: false,
   });
 
@@ -197,7 +197,7 @@ export const usePatientStore = defineStore('patient', () => {
         limit: 10,
         offset: 0,
         sortBy: 'created_at',
-        sortOrder: 'desc',
+        sortDir: 'desc',
         ...paginationOptions,
       };
 

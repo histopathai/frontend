@@ -120,7 +120,7 @@ async function loadData(page: number) {
     limit: limit,
     offset: offset,
     sortBy: 'created_at',
-    sortOrder: 'desc',
+    sortDir: 'desc',
   });
 }
 

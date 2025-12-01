@@ -76,8 +76,8 @@ export class ImageRepository implements IImageRepository {
       {
         limit: pagination.limit,
         offset: pagination.offset,
-        sortBy: pagination.sortBy,
-        sortOrder: pagination.sortOrder,
+        sort_by: pagination.sortBy,
+        sort_dir: pagination.sortDir,
       }
     );
 

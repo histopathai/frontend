@@ -49,7 +49,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     limit: 10,
     offset: 0,
     sortBy: 'created_at',
-    sortOrder: 'desc',
+    sortDir: 'desc',
     hasMore: false,
   });
 
@@ -322,7 +322,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       limit: 10,
       offset: 0,
       sortBy: 'created_at',
-      sortOrder: 'desc',
+      sortDir: 'desc',
       hasMore: false,
     };
   };

@@ -55,8 +55,8 @@ export function useImageList(patientId: string, emit: any) {
         {
           limit: limit,
           offset: offset.value,
-          sortBy: 'createdAt',
-          sortOrder: 'desc',
+          sortBy: 'created_at',
+          sortDir: 'desc',
         },
         { append: !reset, showToast: false }
       );

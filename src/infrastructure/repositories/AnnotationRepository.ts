@@ -17,8 +17,8 @@ export class AnnotationRepository implements IAnnotationRepository {
     const response = await this.apiClient.get<any>(`/api/v1/proxy/annotations/image/${imageId}`, {
       limit: pagination.limit,
       offset: pagination.offset,
-      sortBy: pagination.sortBy,
-      sortOrder: pagination.sortOrder,
+      sort_by: pagination.sortBy,
+      sort_dir: pagination.sortDir,
     });
     return {
       data: response.data.map((item: any) => Annotation.create(item)),

@@ -13,7 +13,7 @@ export class AdminRepository implements IAdminRepository {
       limit: pagination.limit,
       offset: pagination.offset,
       sortBy: pagination.sortBy,
-      sortOrder: pagination.sortOrder,
+      sort_dir: pagination.sortDir,
     });
 
     return {

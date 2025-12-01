@@ -2,7 +2,7 @@ export interface Pagination {
   limit: number;
   offset: number;
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortDir?: 'asc' | 'desc';
   hasMore?: boolean;
 }
 

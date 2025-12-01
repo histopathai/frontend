@@ -61,8 +61,8 @@ export const useImageStore = defineStore('image', () => {
   const pagination = ref<Pagination>({
     limit: 10,
     offset: 0,
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
+    sortBy: 'created_at',
+    sortDir: 'desc',
     hasMore: false,
   });
 

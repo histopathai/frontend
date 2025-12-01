@@ -31,8 +31,8 @@ export class PatientRepository implements IPatientRepository {
       {
         limit: pagination.limit,
         offset: pagination.offset,
-        sortBy: pagination.sortBy,
-        sortOrder: pagination.sortOrder,
+        sort_by: pagination.sortBy,
+        sort_dir: pagination.sortDir,
       }
     );
     return {

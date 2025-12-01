@@ -51,7 +51,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
     limit: 100,
     offset: 0,
     sortBy: 'created_at',
-    sortOrder: 'desc',
+    sortDir: 'desc',
     hasMore: false,
   });
 
@@ -213,7 +213,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
         limit: 100,
         offset: 0,
         sortBy: 'created_at',
-        sortOrder: 'desc',
+        sortDir: 'desc',
         ...paginationOptions,
       };
 
