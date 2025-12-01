@@ -248,8 +248,10 @@ const isHistoryModalOpen = ref(false);
 async function fetchConfig() {
   console.log('Hasta değişti, metadata seçenekleri yükleniyor...');
   subtypeOptions.value = [];
-  if (!props.patient) return;
-
+  if (!props.patient || !props.patient.workspaceId) {
+    console.warn('Hasta verisi veya Workspace ID eksik, istek atlanıyor.');
+    return;
+  }
   try {
     const workspace = await repositories.workspace.getById(props.patient.workspaceId);
 
