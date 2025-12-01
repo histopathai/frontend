@@ -22,8 +22,8 @@ export function useImageList(patientId: string, emit: any) {
 
   function getThumbnailUrl(image: any): string {
     if (!image || !image.processedpath) return '';
-    const basePath = image.processedpath.substring(0, image.processedpath.lastIndexOf('/'));
-    return `${API_BASE_URL}/api/v1/proxy/${basePath}/thumbnail.jpeg`;
+
+    return `${API_BASE_URL}/api/v1/proxy/${image.processedpath}/thumbnail.jpg`;
   }
 
   function toggleSelection(id: string) {
