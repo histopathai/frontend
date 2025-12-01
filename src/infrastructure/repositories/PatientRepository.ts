@@ -70,6 +70,6 @@ export class PatientRepository implements IPatientRepository {
     await this.apiClient.put(`/api/v1/proxy/patients/batch-transfer`, data);
   }
   async cascadeDelete(id: string): Promise<void> {
-    await this.apiClient.delete(`/api/v1/proxy/patients/${id}/cascade`);
+    await this.apiClient.delete(`/api/v1/proxy/patients/${id}/cascade-delete`);
   }
 }

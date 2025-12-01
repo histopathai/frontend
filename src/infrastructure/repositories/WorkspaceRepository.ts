@@ -52,6 +52,6 @@ export class WorkspaceRepository implements IWorkspaceRepository {
   }
 
   async cascadeDelete(id: string): Promise<void> {
-    await this.apiClient.delete(`/api/v1/proxy/workspaces/${id}/cascade`);
+    await this.apiClient.delete(`/api/v1/proxy/workspaces/${id}/cascade-delete`);
   }
 }
