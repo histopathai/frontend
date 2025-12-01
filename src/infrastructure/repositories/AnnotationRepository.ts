@@ -14,7 +14,7 @@ export class AnnotationRepository implements IAnnotationRepository {
     imageId: string,
     pagination: Pagination
   ): Promise<PaginatedResult<Annotation>> {
-    const response = await this.apiClient.get<any>(`/api/v1/proxy/images/${imageId}/annotations`, {
+    const response = await this.apiClient.get<any>(`/api/v1/proxy/annotations/image/${imageId}`, {
       limit: pagination.limit,
       offset: pagination.offset,
       sortBy: pagination.sortBy,
