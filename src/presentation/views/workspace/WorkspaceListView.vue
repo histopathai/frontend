@@ -144,8 +144,6 @@ function openEditModal(workspace: Workspace) {
 function handleModalClose() {
   isModalOpen.value = false;
   selectedWorkspace.value = null;
-  // Liste güncellenmiş olabilir, tekrar çekmeye gerek yok store güncelliyor
-  // Ancak pagination resetlenebilir duruma göre
 }
 
 // --- Delete Operations ---
@@ -156,14 +154,12 @@ async function openDeleteModal(workspace: Workspace) {
   isSingleDelete.value = true;
   deleteWarningText.value = t('workspace.messages.cascade_delete_warning');
 
-  // İçerik kontrolü (İsteğe bağlı)
   try {
     const result = await repositories.patient.getByWorkspaceId(workspace.id, {
       limit: 1,
       offset: 0,
     });
     if (result.data.length > 0) {
-      // deleteWarningText.value zaten set edildi, burada ekstra bir şey yapılabilir
     }
   } catch (error) {
     console.error('Patient check failed', error);
@@ -192,21 +188,16 @@ async function handleDeleteConfirm() {
   let success = false;
 
   if (isSingleDelete.value && workspaceToDelete.value) {
-    // Cascade delete kullanıyoruz (Store'da var)
     success = await store.cascadeDeleteWorkspace(workspaceToDelete.value.id);
   } else if (!isSingleDelete.value && idsToDelete.value.length > 0) {
-    // Batch delete
     success = await store.batchDeleteWorkspaces(idsToDelete.value);
   }
 
   if (success) {
     closeDeleteModal();
-    // Eğer son sayfadaki her şeyi sildiysek bir önceki sayfaya git
     if (store.workspaces.length === 0 && currentPage.value > 1) {
       loadData(currentPage.value - 1);
     } else {
-      // Mevcut sayfayı yenile (Store'dan silindiği için UI güncel ama count değişebilir)
-      // İsteğe bağlı: loadData(currentPage.value);
     }
   }
 }

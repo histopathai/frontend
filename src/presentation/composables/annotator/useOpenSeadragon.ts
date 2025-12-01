@@ -10,11 +10,24 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export function useOpenSeadragon(viewerId: string) {
   const annotationStore = useAnnotationStore();
-
   const viewer = shallowRef<OpenSeadragon.Viewer | null>(null);
   const anno = shallowRef<InstanceType<typeof Annotorious> | null>(null);
   const currentImageId = ref<string | null>(null);
   const loading = ref(false);
+
+  function startDrawing() {
+    if (anno.value) {
+      anno.value.setDrawingTool('polygon');
+      anno.value.setDrawingEnabled(true);
+    }
+  }
+
+  function stopDrawing() {
+    if (anno.value) {
+      anno.value.setDrawingEnabled(false);
+      anno.value.setDrawingTool(null);
+    }
+  }
 
   function initViewer() {
     if (viewer.value) {
@@ -32,7 +45,6 @@ export function useOpenSeadragon(viewerId: string) {
       visibilityRatio: 1,
       zoomPerScroll: 1.2,
       showNavigationControl: true,
-
       loadTilesWithAjax: true,
       ajaxWithCredentials: true,
     });
@@ -102,9 +114,6 @@ export function useOpenSeadragon(viewerId: string) {
   }
 
   async function loadImage(image: Image) {
-    console.log('loadImage çağrıldı:', image);
-    console.log('Görüntü işlenmiş yolu:', image.processedpath);
-    console.log('viewer değeri:', viewer.value);
     if (!viewer.value || !image.processedpath) {
       console.error('OSD viewer başlatılamadı veya görüntü yolu yok.');
       return;
@@ -139,5 +148,7 @@ export function useOpenSeadragon(viewerId: string) {
   return {
     loading,
     loadImage,
+    startDrawing,
+    stopDrawing,
   };
 }

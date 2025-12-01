@@ -107,6 +107,19 @@ export function useAnnotatorNavigation() {
     }
   });
 
+  watch(
+    workspaces,
+    (newWorkspaces) => {
+      if (newWorkspaces && newWorkspaces.length > 0 && !selectedWorkspaceId.value) {
+        const firstWorkspace = newWorkspaces[0];
+        if (firstWorkspace) {
+          selectWorkspace(firstWorkspace);
+        }
+      }
+    },
+    { immediate: true }
+  );
+
   workspaceStore.fetchWorkspaces();
 
   return {
