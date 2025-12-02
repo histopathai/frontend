@@ -36,7 +36,9 @@ export class PatientRepository implements IPatientRepository {
       }
     );
     return {
-      data: response.data.map((item: any) => Patient.create(item)),
+      data: response.data.map((item: any) =>
+        Patient.create({ ...item, workspace_id: item.workspace_id || workspaceId })
+      ),
       pagination: response.pagination,
     };
   }
