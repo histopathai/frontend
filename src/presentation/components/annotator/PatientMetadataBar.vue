@@ -15,9 +15,20 @@
         <div>
           <h2 class="text-lg font-bold text-gray-900 leading-tight">{{ patient.name }}</h2>
           <div class="flex items-center gap-2 mt-0.5">
-            <span class="text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+            <span
+              v-if="image"
+              class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 truncate max-w-[200px]"
+              :title="image.name"
+            >
+              {{ image.name }}
+            </span>
+            <span
+              v-else
+              class="text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded"
+            >
               ID: {{ patient.id.substring(0, 8) }}
             </span>
+
             <span class="text-xs text-gray-500 font-medium border-l border-gray-300 pl-2">
               {{ formatDate(patient.createdAt) }}
             </span>
@@ -59,6 +70,7 @@
 
             <div class="input-wrapper flex-1">
               <label class="floating-label">Alt Tip</label>
+
               <select
                 v-if="subtypeOptions.length > 0"
                 v-model="subtype"
@@ -239,17 +251,29 @@
 <script setup lang="ts">
 import { ref, watch, type PropType, toRef, computed } from 'vue';
 import type { Patient } from '@/core/entities/Patient';
+import type { Image } from '@/core/entities/Image';
+import type { Workspace } from '@/core/entities/Workspace';
+import type { AnnotationType } from '@/core/entities/AnnotationType';
+
 import { usePatientEditor } from '@/presentation/composables/annotator/usePatientEditor';
-import { repositories } from '@/services';
 import { useAnnotationStore } from '@/stores/annotation';
+import { useAnnotationTypeStore } from '@/stores/annotation_type';
+import { useWorkspaceStore } from '@/stores/workspace';
+
 const props = defineProps({
   patient: {
     type: Object as PropType<Patient | null>,
     default: null,
   },
+  image: {
+    type: Object as PropType<Image | null>,
+    default: null,
+  },
 });
 
 const annotationStore = useAnnotationStore();
+const annotationTypeStore = useAnnotationTypeStore();
+const workspaceStore = useWorkspaceStore();
 
 const {
   loading: patientLoading,
@@ -292,25 +316,47 @@ async function fetchConfig() {
   if (!props.patient || !props.patient.workspaceId) {
     return;
   }
+
+  const wsId = props.patient.workspaceId;
   try {
-    const workspace = await repositories.workspace.getById(props.patient.workspaceId);
+    let workspace: Workspace | null | undefined = workspaceStore.getWorkspaceById(wsId);
 
-    if (workspace && workspace.annotationTypeId) {
-      const annotationType = await repositories.annotationType.getById(workspace.annotationTypeId);
+    if (!workspace || !workspace.annotationTypeId) {
+      const freshWorkspace = await workspaceStore.fetchWorkspaceById(wsId);
 
-      if (annotationType) {
-        const classes =
-          annotationType.classList ||
-          (annotationType as any).class_list ||
-          (annotationType as any).classList;
-
-        if (Array.isArray(classes)) {
-          subtypeOptions.value = [...classes];
-        }
+      if (freshWorkspace) {
+        workspace = freshWorkspace;
       }
     }
+    if (workspace) {
+      if (workspace.annotationTypeId) {
+        let annotationType: AnnotationType | null | undefined =
+          annotationTypeStore.getAnnotationTypeById(workspace.annotationTypeId);
+        if (!annotationType) {
+          annotationType = await annotationTypeStore.fetchAnnotationTypeById(
+            workspace.annotationTypeId
+          );
+        }
+
+        if (annotationType) {
+          if (annotationType.classList && annotationType.classList.length > 0) {
+            subtypeOptions.value = [...annotationType.classList];
+          } else {
+            console.warn('⚠️ UYARI: AnnotationType bulundu ama sınıf listesi boş!');
+          }
+        } else {
+          console.error('❌ HATA: AnnotationType verisi alınamadı (null döndü).');
+        }
+      } else {
+        console.warn('⚠️ UYARI: Bu workspace için bir AnnotationType atanmamış.');
+      }
+    } else {
+      console.error('❌ HATA: Workspace verisi hiçbir şekilde alınamadı.');
+    }
   } catch (error) {
-    console.error('Metadata seçenekleri yüklenemedi:', error);
+    console.error('🔥 KRİTİK HATA:', error);
+  } finally {
+    console.groupEnd();
   }
 }
 
