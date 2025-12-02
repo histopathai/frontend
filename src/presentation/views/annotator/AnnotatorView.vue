@@ -16,7 +16,7 @@
     </aside>
 
     <main class="flex-1 h-full flex flex-col bg-white">
-      <PatientMetadataBar :patient="selectedPatient" />
+      <PatientMetadataBar :patient="selectedPatient" :image="selectedImage" />
 
       <div class="flex-1 h-full w-full overflow-hidden">
         <Viewer :selected-image="selectedImage" @prev-image="prevImage" @next-image="nextImage" />
