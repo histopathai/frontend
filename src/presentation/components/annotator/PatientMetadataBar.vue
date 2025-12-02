@@ -111,12 +111,12 @@
         </button>
 
         <button
-          @click="savePatientChanges"
-          :disabled="loading"
+          @click="handleSaveAll"
+          :disabled="isLoading"
           class="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-medium text-sm shadow-md hover:bg-indigo-700 hover:shadow-lg focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
         >
           <svg
-            v-if="loading"
+            v-if="isLoading"
             class="animate-spin h-4 w-4 text-white"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -147,7 +147,17 @@
           >
             <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
           </svg>
-          {{ loading ? 'Kaydediliyor...' : 'Kaydet' }}
+
+          <span v-if="isLoading">Kaydediliyor...</span>
+          <span v-else>
+            Kaydet
+            <span
+              v-if="annotationStore.unsavedAnnotations.length > 0"
+              class="ml-1 bg-white/20 px-1.5 py-0.5 rounded text-xs"
+            >
+              +{{ annotationStore.unsavedAnnotations.length }}
+            </span>
+          </span>
         </button>
       </div>
     </div>
@@ -227,11 +237,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, type PropType, toRef } from 'vue';
+import { ref, watch, type PropType, toRef, computed } from 'vue';
 import type { Patient } from '@/core/entities/Patient';
 import { usePatientEditor } from '@/presentation/composables/annotator/usePatientEditor';
 import { repositories } from '@/services';
-
+import { useAnnotationStore } from '@/stores/annotation';
 const props = defineProps({
   patient: {
     type: Object as PropType<Patient | null>,
@@ -239,17 +249,47 @@ const props = defineProps({
   },
 });
 
-const { loading, age, gender, disease, subtype, grade, history, savePatientChanges } =
-  usePatientEditor(toRef(props, 'patient'));
+const annotationStore = useAnnotationStore();
+
+const {
+  loading: patientLoading,
+  age,
+  gender,
+  disease,
+  subtype,
+  grade,
+  history,
+  savePatientChanges,
+} = usePatientEditor(toRef(props, 'patient'));
 
 const subtypeOptions = ref<string[]>([]);
 const isHistoryModalOpen = ref(false);
+const localSaving = ref(false);
+
+const isLoading = computed(
+  () => patientLoading.value || localSaving.value || annotationStore.actionLoading
+);
+
+async function handleSaveAll() {
+  if (isLoading.value) return;
+
+  localSaving.value = true;
+  try {
+    await savePatientChanges();
+    if (annotationStore.hasUnsavedChanges) {
+      await annotationStore.saveAllPendingAnnotations();
+    }
+  } catch (error) {
+    console.error('Kaydetme sırasında hata:', error);
+  } finally {
+    localSaving.value = false;
+  }
+}
 
 async function fetchConfig() {
   subtypeOptions.value = [];
 
   if (!props.patient || !props.patient.workspaceId) {
-    console.warn('Hasta verisi veya Workspace ID eksik, istek atlanıyor.');
     return;
   }
   try {
@@ -257,7 +297,6 @@ async function fetchConfig() {
 
     if (workspace && workspace.annotationTypeId) {
       const annotationType = await repositories.annotationType.getById(workspace.annotationTypeId);
-      console.log('Çekilen Annotation Type:', annotationType);
 
       if (annotationType) {
         const classes =
@@ -267,13 +306,8 @@ async function fetchConfig() {
 
         if (Array.isArray(classes)) {
           subtypeOptions.value = [...classes];
-          console.log('Subtype options loaded:', subtypeOptions.value);
-        } else {
-          console.warn('Annotation type found but no class list available.');
         }
       }
-    } else {
-      console.warn('Workspace has no Annotation Type configured.');
     }
   } catch (error) {
     console.error('Metadata seçenekleri yüklenemedi:', error);

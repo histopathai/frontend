@@ -35,6 +35,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const { t } = useI18n();
   const toast = useToast();
   const annotationRepo = repositories.annotation;
+  const unsavedAnnotations = ref<any[]>([]);
 
   // ===========================
   // State
@@ -54,6 +55,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
     sortDir: 'desc',
     hasMore: false,
   });
+  const hasUnsavedChanges = computed(() => unsavedAnnotations.value.length > 0);
 
   // ===========================
   // Getters
@@ -68,25 +70,61 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const selectedCount = computed(() => selectedAnnotations.value.size);
   const hasSelection = computed(() => selectedAnnotations.value.size > 0);
 
-  // Get annotation by ID
   const getAnnotationById = computed(() => {
     return (id: string) => annotations.value.find((ann) => ann.id === id);
   });
 
-  // Get annotations by image ID
   const getAnnotationsByImageId = computed(() => {
     return (imageId: string) => annotationsByImage.value.get(imageId) || [];
   });
 
-  // Get annotations with score
   const annotationsWithScore = computed(() => {
     return annotations.value.filter((ann) => ann.hasScore());
   });
 
-  // Get annotations with classification
   const annotationsWithClass = computed(() => {
     return annotations.value.filter((ann) => ann.hasClassification());
   });
+
+  function addUnsavedAnnotation(annotation: any) {
+    unsavedAnnotations.value.push(annotation);
+  }
+
+  function updateUnsavedAnnotation(tempId: string, data: any) {
+    const index = unsavedAnnotations.value.findIndex((a) => a.tempId === tempId);
+    if (index !== -1) {
+      unsavedAnnotations.value[index] = { ...unsavedAnnotations.value[index], ...data };
+    }
+  }
+
+  function removeUnsavedAnnotation(tempId: string) {
+    const index = unsavedAnnotations.value.findIndex((a) => a.tempId === tempId);
+    if (index !== -1) {
+      unsavedAnnotations.value.splice(index, 1);
+    }
+  }
+
+  async function saveAllPendingAnnotations() {
+    if (unsavedAnnotations.value.length === 0) return;
+
+    actionLoading.value = true;
+    try {
+      for (const annData of unsavedAnnotations.value) {
+        const { tempId, image_id, ...payload } = annData;
+
+        if (image_id) {
+          await createAnnotation(image_id, payload);
+        }
+      }
+
+      unsavedAnnotations.value = [];
+      toast.success(t('annotation.messages.create_success'));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      actionLoading.value = false;
+    }
+  }
 
   // ===========================
   // Helper Functions
@@ -210,7 +248,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
     try {
       const paginationParams: Pagination = {
-        limit: 100,
+        limit: 10,
         offset: 0,
         sortBy: 'created_at',
         sortDir: 'desc',
@@ -503,5 +541,13 @@ export const useAnnotationStore = defineStore('annotation', () => {
     refreshAnnotation,
     getAnnotationCount,
     resetError,
+
+    // Unsaved Annotations
+    unsavedAnnotations,
+    hasUnsavedChanges,
+    addUnsavedAnnotation,
+    updateUnsavedAnnotation,
+    removeUnsavedAnnotation,
+    saveAllPendingAnnotations,
   };
 });

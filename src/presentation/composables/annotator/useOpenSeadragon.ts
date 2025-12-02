@@ -29,6 +29,34 @@ export function useOpenSeadragon(viewerId: string) {
     }
   }
 
+  function parseAnnotationBody(annotation: any) {
+    const bodies = Array.isArray(annotation.body) ? annotation.body : [annotation.body];
+
+    const tagBody = bodies.find((b: any) => b.purpose === 'tagging');
+    const commentBody = bodies.find((b: any) => b.purpose === 'commenting');
+
+    return {
+      className: tagBody ? tagBody.value : undefined,
+      description: commentBody ? commentBody.value : undefined,
+    };
+  }
+
+  function parsePolygonPoints(selectorValue: string): Point[] {
+    const pointsStr = selectorValue.replace('xywh=polygon:', '');
+    const coords = pointsStr.split(',').map((p: string) => parseFloat(p));
+
+    const points: Point[] = [];
+    for (let i = 0; i < coords.length; i += 2) {
+      const x = coords[i];
+      const y = coords[i + 1];
+
+      if (typeof x === 'number' && typeof y === 'number' && !isNaN(x) && !isNaN(y)) {
+        points.push(Point.from({ x, y }));
+      }
+    }
+    return points;
+  }
+
   function initViewer() {
     if (viewer.value) {
       viewer.value.destroy();
@@ -53,29 +81,53 @@ export function useOpenSeadragon(viewerId: string) {
       widgets: ['COMMENT', 'TAG'],
     });
 
-    anno.value.on('createAnnotation', async (annotation: any) => {
-      const polygonPoints = annotation.target.selector.value
-        .replace('xywh=polygon:', '')
-        .split(',')
-        .map((p: string) => parseFloat(p));
+    // --- CREATE LISTENER ---
+    anno.value.on('createAnnotation', (annotation: any) => {
+      if (!currentImageId.value) return;
 
-      const points: Point[] = [];
-      for (let i = 0; i < polygonPoints.length; i += 2) {
-        points.push(Point.from({ x: polygonPoints[i], y: polygonPoints[i + 1] }));
-      }
+      const points = parsePolygonPoints(annotation.target.selector.value);
+      const { className, description } = parseAnnotationBody(annotation);
 
-      if (currentImageId.value) {
-        await annotationStore.createAnnotation(currentImageId.value, {
-          annotator_id: '',
+      annotationStore.addUnsavedAnnotation({
+        tempId: annotation.id,
+        image_id: currentImageId.value,
+        annotator_id: '',
+        polygon: points,
+        class: className,
+        description: description,
+      });
+    });
+
+    // --- UPDATE LISTENER ---
+    anno.value.on('updateAnnotation', async (annotation: any, previous: any) => {
+      if (!currentImageId.value) return;
+
+      const { className, description } = parseAnnotationBody(annotation);
+      const points = parsePolygonPoints(annotation.target.selector.value);
+
+      const isUnsaved = annotationStore.unsavedAnnotations.some((a) => a.tempId === annotation.id);
+
+      if (isUnsaved) {
+        annotationStore.updateUnsavedAnnotation(annotation.id, {
           polygon: points,
+          class: className,
+          description: description,
         });
-
-        loadAnnotations(currentImageId.value);
+      } else {
+        await annotationStore.updateAnnotation(annotation.id, {
+          class: className,
+          description: description,
+        });
       }
     });
 
+    // --- DELETE LISTENER ---
     anno.value.on('deleteAnnotation', (annotation: any) => {
-      if (currentImageId.value) {
+      const isUnsaved = annotationStore.unsavedAnnotations.some((a) => a.tempId === annotation.id);
+
+      if (isUnsaved) {
+        annotationStore.removeUnsavedAnnotation(annotation.id);
+      } else if (currentImageId.value) {
         annotationStore.deleteAnnotation(annotation.id, currentImageId.value);
       }
     });
@@ -84,23 +136,47 @@ export function useOpenSeadragon(viewerId: string) {
   async function loadAnnotations(imageId: string) {
     if (!anno.value) return;
     anno.value.clearAnnotations();
-
-    await annotationStore.fetchAnnotationsByImage(imageId);
+    try {
+      await annotationStore.fetchAnnotationsByImage(imageId, undefined, { showToast: false });
+    } catch (e) {
+      console.warn('Anotasyonlar yüklenemedi:', e);
+      return;
+    }
 
     const w3cAnnotations = annotationStore.annotations.map((ann) => {
       const polygonStr = ann.polygon.map((p) => `${p.x},${p.y}`).join(',');
+
+      const body = [];
+
+      if (ann.class) {
+        body.push({
+          type: 'TextualBody',
+          value: ann.class,
+          purpose: 'tagging',
+        });
+      }
+
+      if (ann.description) {
+        body.push({
+          type: 'TextualBody',
+          value: ann.description,
+          purpose: 'commenting',
+        });
+      }
+
+      if (ann.score !== null && ann.score !== undefined) {
+        body.push({
+          type: 'TextualBody',
+          value: `Skor: ${ann.score}`,
+          purpose: 'commenting',
+        });
+      }
 
       return {
         '@context': 'http://www.w3.org/ns/anno.jsonld',
         type: 'Annotation',
         id: ann.id,
-        body: [
-          {
-            type: 'TextualBody',
-            value: ann.class || (ann.score !== null ? `Skor: ${ann.score}` : ''),
-            purpose: 'commenting',
-          },
-        ],
+        body: body,
         target: {
           selector: {
             type: 'SvgSelector',
@@ -110,6 +186,7 @@ export function useOpenSeadragon(viewerId: string) {
       };
     });
 
+    // Ekrana çiz
     w3cAnnotations.forEach((a) => anno.value.addAnnotation(a));
   }
 
@@ -121,14 +198,22 @@ export function useOpenSeadragon(viewerId: string) {
 
     loading.value = true;
     currentImageId.value = image.id;
+    viewer.value.removeAllHandlers('open');
+
+    viewer.value.addHandler('open', async () => {
+      if (currentImageId.value !== image.id) return;
+
+      console.log('Görüntü hazır, anotasyonlar yükleniyor...', image.id);
+      await loadAnnotations(image.id);
+
+      loading.value = false;
+    });
 
     try {
       const tileSourceUrl = `${API_BASE_URL}/api/v1/proxy/${image.processedpath}/image.dzi`;
       viewer.value.open(tileSourceUrl);
-      await loadAnnotations(image.id);
     } catch (err) {
-      console.error('Görüntü yüklenirken hata:', err);
-    } finally {
+      console.error('Görüntü açma komutu hatası:', err);
       loading.value = false;
     }
   }
@@ -137,6 +222,7 @@ export function useOpenSeadragon(viewerId: string) {
 
   onUnmounted(() => {
     if (viewer.value) {
+      viewer.value.removeAllHandlers('open'); // Temizlik
       viewer.value.destroy();
     }
     if (anno.value) {

@@ -28,7 +28,8 @@ export class AnnotationRepository implements IAnnotationRepository {
 
   async create(data: CreateNewAnnotationRequest): Promise<Annotation> {
     const response = await this.apiClient.post<any>('/api/v1/proxy/annotations', data);
-    return Annotation.create(response);
+    const annotationData = response.data || response;
+    return Annotation.create(annotationData);
   }
 
   async getById(id: string): Promise<Annotation> {

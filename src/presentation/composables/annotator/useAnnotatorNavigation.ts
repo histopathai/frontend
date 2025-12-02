@@ -108,6 +108,17 @@ export function useAnnotatorNavigation() {
   });
 
   watch(
+    currentPatients,
+    (newPatients) => {
+      if (newPatients && newPatients.length > 0 && !selectedPatientId.value) {
+        const firstPatient = newPatients[0];
+        if (firstPatient) selectPatient(firstPatient);
+      }
+    },
+    { immediate: true }
+  );
+
+  watch(
     workspaces,
     (newWorkspaces) => {
       if (newWorkspaces && newWorkspaces.length > 0 && !selectedWorkspaceId.value) {

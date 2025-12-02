@@ -45,6 +45,10 @@ export class Annotation {
     return this.props.class;
   }
 
+  get description(): string | null {
+    return this.props.description;
+  }
+
   // Business logic
   hasScore(): boolean {
     return this.score !== null;
