@@ -48,6 +48,10 @@ export function useAnnotatorNavigation() {
     return currentImages.value.findIndex((img) => img.id === selectedImageId.value);
   });
 
+  const selectedPatientIndex = computed((): number => {
+    return currentPatients.value.findIndex((p) => p.id === selectedPatientId.value);
+  });
+
   function selectWorkspace(workspace: Workspace) {
     if (selectedWorkspaceId.value === workspace.id) return;
 
@@ -66,8 +70,6 @@ export function useAnnotatorNavigation() {
     }
 
     if (selectedPatientId.value === patient.id) {
-      selectedPatientId.value = undefined;
-      selectedImageId.value = undefined;
       return;
     }
 
@@ -82,20 +84,28 @@ export function useAnnotatorNavigation() {
 
   function nextImage() {
     if (selectedImageIndex.value < currentImages.value.length - 1) {
-      const nextImage = currentImages.value[selectedImageIndex.value + 1];
-      // DÜZELTME: nextImage'in undefined olmadığını kontrol ediyoruz
-      if (nextImage) {
-        selectImage(nextImage);
+      const nextImg = currentImages.value[selectedImageIndex.value + 1];
+      if (nextImg) {
+        selectImage(nextImg);
+      }
+    } else if (selectedPatientIndex.value < currentPatients.value.length - 1) {
+      const nextPatient = currentPatients.value[selectedPatientIndex.value + 1];
+      if (nextPatient) {
+        selectPatient(nextPatient);
       }
     }
   }
 
   function prevImage() {
     if (selectedImageIndex.value > 0) {
-      const prevImage = currentImages.value[selectedImageIndex.value - 1];
-      // DÜZELTME: prevImage'in undefined olmadığını kontrol ediyoruz
-      if (prevImage) {
-        selectImage(prevImage);
+      const prevImg = currentImages.value[selectedImageIndex.value - 1];
+      if (prevImg) {
+        selectImage(prevImg);
+      }
+    } else if (selectedPatientIndex.value > 0) {
+      const prevPatient = currentPatients.value[selectedPatientIndex.value - 1];
+      if (prevPatient) {
+        selectPatient(prevPatient);
       }
     }
   }
