@@ -1,8 +1,8 @@
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useAdminStore } from '@/stores/admin';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { storeToRefs } from 'pinia';
-import type { User } from '@/core/entities/User';
+import { repositories } from '@/services'; // YENİ
 
 const formatDate = (date: Date): string => {
   return date.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' });
@@ -15,13 +15,29 @@ export function useAdminDashboard() {
   const { users, loading: adminLoading } = storeToRefs(adminStore);
   const { workspaces, loading: workspaceLoading } = storeToRefs(workspaceStore);
 
-  onMounted(() => {
+  // YENİ: Global sayılar
+  const totalPatients = ref(0);
+  const totalImages = ref(0);
+
+  onMounted(async () => {
     if (!users.value || users.value.length === 0) {
       adminStore.fetchAllUsers({ limit: 100, offset: 0 });
     }
 
     if (!workspaces.value || workspaces.value.length === 0) {
       workspaceStore.fetchWorkspaces({ limit: 100, offset: 0 });
+    }
+
+    // YENİ: Toplam sayıları çek
+    try {
+      const [pCount, iCount] = await Promise.all([
+        repositories.patient.count(),
+        repositories.image.count(),
+      ]);
+      totalPatients.value = pCount;
+      totalImages.value = iCount;
+    } catch (e) {
+      console.error('İstatistikler yüklenemedi', e);
     }
   });
 
@@ -80,8 +96,10 @@ export function useAdminDashboard() {
     pendingUsersCount,
     activeUsersCount,
     totalWorkspaces,
+    totalPatients, // YENİ
+    totalImages, // YENİ
 
-    // Tablo için (Yeni)
+    // Tablo için
     pendingUsersList,
 
     // Grafik için
