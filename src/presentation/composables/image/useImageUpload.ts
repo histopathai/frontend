@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useImageStore } from '@/stores/image';
 import { useToast } from 'vue-toastification';
 import { useI18n } from 'vue-i18n';
@@ -34,7 +34,82 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
   const loading = computed(() => store.uploading);
   const microscopeError = ref<string | null>(null);
 
+  const mediaStream = ref<MediaStream | null>(null);
+
+  // Kamera listesi ve seçili kamera ID'si
+  const cameras = ref<MediaDeviceInfo[]>([]);
+  const selectedDeviceId = ref<string>('');
+
   const MICROSCOPE_URL = import.meta.env.VITE_MICROSCOPE_API_URL;
+
+  // Mod değiştiğinde
+  watch(mode, async (newMode) => {
+    if (newMode === 'microscope') {
+      await initCameraSystem();
+    } else {
+      stopWebcam();
+    }
+  });
+
+  // Seçili kamera değiştiğinde akışı yeniden başlat
+  watch(selectedDeviceId, (newId) => {
+    if (mode.value === 'microscope' && newId) {
+      startWebcam();
+    }
+  });
+
+  function stopWebcam() {
+    if (mediaStream.value) {
+      mediaStream.value.getTracks().forEach((track) => track.stop());
+      mediaStream.value = null;
+    }
+  }
+
+  // Kamera sistemini başlatma ve cihazları listeleme
+  async function initCameraSystem() {
+    microscopeError.value = null;
+    try {
+      const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      tempStream.getTracks().forEach((track) => track.stop());
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      cameras.value = devices.filter((d) => d.kind === 'videoinput');
+
+      const firstCamera = cameras.value[0];
+      if (firstCamera && !selectedDeviceId.value) {
+        selectedDeviceId.value = firstCamera.deviceId;
+      } else if (cameras.value.length === 0) {
+        microscopeError.value = 'Sistemde bağlı kamera bulunamadı.';
+      }
+
+      if (selectedDeviceId.value) {
+        await startWebcam();
+      }
+    } catch (err: any) {
+      console.error('Kamera başlatma hatası:', err);
+      microscopeError.value = 'Kameraya erişilemedi. İzinleri kontrol edin.';
+    }
+  }
+
+  async function startWebcam() {
+    stopWebcam();
+    microscopeError.value = null;
+
+    if (!selectedDeviceId.value) return;
+
+    try {
+      mediaStream.value = await navigator.mediaDevices.getUserMedia({
+        video: {
+          deviceId: { exact: selectedDeviceId.value },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+      });
+    } catch (err: any) {
+      console.error('Akış başlatma hatası:', err);
+      microscopeError.value = 'Seçilen kamera başlatılamadı.';
+    }
+  }
 
   function handleFileSelect(event: Event) {
     const target = event.target as HTMLInputElement;
@@ -67,29 +142,72 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
     }
   }
 
+  // --- GÜNCELLENEN FONKSİYON ---
   async function captureFromMicroscope() {
-    if (!MICROSCOPE_URL) {
-      microscopeError.value = 'Mikroskop IP ayarları yapılandırılmamış.';
-      return;
-    }
-
     microscopeError.value = null;
+
+    // 1. Seçili kamerayı bul
+    const currentCamera = cameras.value.find((c) => c.deviceId === selectedDeviceId.value);
+    const isPiCam = currentCamera?.label.includes('PiCam'); // Kamera adında 'PiCam' var mı?
+
+    toast.info('Görüntü yakalanıyor...');
+
     try {
-      const response = await fetch(`${MICROSCOPE_URL}/snapshot`, {
-        method: 'GET',
-      });
+      let file: File;
 
-      if (!response.ok) throw new Error('Mikroskoptan görüntü alınamadı');
+      if (isPiCam) {
+        // --- SENARYO A: PiCam (HTTP İsteği) ---
+        if (!MICROSCOPE_URL) {
+          throw new Error('Mikroskop IP ayarları (.env) yapılandırılmamış.');
+        }
 
-      const blob = await response.blob();
-      const filename = `microscope_capture_${new Date().getTime()}.jpg`;
-      const file = new File([blob], filename, { type: 'image/jpeg' });
+        // 30 saniye timeout için AbortController
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
 
+        try {
+          const response = await fetch(`${MICROSCOPE_URL}/capture`, {
+            method: 'GET',
+            signal: controller.signal, // Sinyali bağla
+          });
+
+          if (!response.ok) throw new Error(`Mikroskop hatası: ${response.statusText}`);
+
+          const blob = await response.blob();
+          const filename = `microscope_capture_${new Date().getTime()}.dng`;
+          // PiCam genellikle DNG/RAW döner
+          file = new File([blob], filename, { type: blob.type || 'image/x-adobe-dng' });
+        } finally {
+          clearTimeout(timeoutId); // İşlem biterse timeout'u iptal et
+        }
+      } else {
+        // --- SENARYO B: Normal Kamera (Yerel Yakalama) ---
+        if (!mediaStream.value) {
+          throw new Error('Kamera akışı bulunamadı.');
+        }
+
+        const videoTrack = mediaStream.value.getVideoTracks()[0];
+        // ImageCapture API'sini kullan (Modern tarayıcılarda çalışır)
+        // @ts-ignore (TypeScript tanımı eksik olabilir)
+        const imageCapture = new ImageCapture(videoTrack);
+
+        const blob = await imageCapture.takePhoto();
+        const filename = `webcam_capture_${new Date().getTime()}.jpg`;
+        // Webcam genellikle JPG/PNG döner
+        file = new File([blob], filename, { type: 'image/jpeg' });
+      }
+
+      // Sonuç dosyayı ayarla
       setFile(file);
-      toast.success('Görüntü yakalandı');
+      toast.success(isPiCam ? 'Görüntü cihazdan alındı.' : 'Görüntü yakalandı.');
     } catch (err: any) {
       console.error(err);
-      microscopeError.value = 'Mikroskoba bağlanılamadı.';
+      if (err.name === 'AbortError') {
+        microscopeError.value = 'Bağlantı zaman aşımına uğradı (30sn).';
+      } else {
+        microscopeError.value = `Hata: ${err.message}`;
+      }
+      toast.error('Görüntü yakalanamadı.');
     }
   }
 
@@ -104,6 +222,7 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
     if (result) {
       emit('uploaded');
       emit('close');
+      stopWebcam();
     }
   }
 
@@ -111,6 +230,9 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
     selectedFile.value = null;
     previewUrl.value = null;
     microscopeError.value = null;
+    if (mode.value === 'microscope') {
+      startWebcam();
+    }
   }
 
   return {
@@ -121,10 +243,15 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
     microscopeError,
     uploadProgress: computed(() => store.uploadProgress),
     MICROSCOPE_URL,
+    mediaStream,
+    cameras,
+    selectedDeviceId,
     handleFileSelect,
     handleDrop,
     captureFromMicroscope,
     upload,
     clearSelection,
+    stopWebcam,
+    initCameraSystem,
   };
 }
