@@ -12,6 +12,7 @@
         @workspace-selected="selectWorkspace"
         @patient-selected="selectPatient"
         @image-selected="selectImage"
+        @load-more="loadMorePatients"
       />
     </aside>
 
@@ -46,6 +47,7 @@ const {
   selectImage,
   nextImage,
   prevImage,
+  loadMorePatients, // Import edildi
 } = useAnnotatorNavigation();
 </script>
 
