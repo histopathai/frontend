@@ -12,10 +12,6 @@ import type {
 import type { Pagination, PaginatedResult } from '@/core/types/common';
 import type { BatchTransfer } from '@/core/repositories/common';
 
-// ===========================
-// Types & Interfaces
-// ===========================
-
 interface ImageState {
   images: Image[];
   imagesByPatient: Map<string, Image[]>;
@@ -37,19 +33,12 @@ interface UploadOptions {
   onProgress?: (percentage: number) => void;
 }
 
-// ===========================
-// Store Definition
-// ===========================
-
 export const useImageStore = defineStore('image', () => {
   const { t } = useI18n();
   const toast = useToast();
   const imageRepo = repositories.image;
 
-  // ===========================
-  // State
-  // ===========================
-
+  // --- STATE ---
   const images = shallowRef<Image[]>([]);
   const imagesByPatient = ref<Map<string, Image[]>>(new Map());
   const currentImage = ref<Image | null>(null);
@@ -58,6 +47,7 @@ export const useImageStore = defineStore('image', () => {
   const actionLoading = ref(false);
   const uploadProgress = ref(0);
   const error = ref<string | null>(null);
+
   const pagination = ref<Pagination>({
     limit: 10,
     offset: 0,
@@ -66,10 +56,7 @@ export const useImageStore = defineStore('image', () => {
     hasMore: false,
   });
 
-  // ===========================
-  // Getters
-  // ===========================
-
+  // --- GETTERS ---
   const isLoading = computed(() => loading.value);
   const isUploading = computed(() => uploading.value);
   const isActionLoading = computed(() => actionLoading.value);
@@ -78,39 +65,29 @@ export const useImageStore = defineStore('image', () => {
   const totalImages = computed(() => images.value.length);
   const hasMore = computed(() => pagination.value.hasMore ?? false);
 
-  // Get image by ID
   const getImageById = computed(() => {
     return (id: string) => images.value.find((img) => img.id === id);
   });
 
-  // Get images by patient ID
   const getImagesByPatientId = computed(() => {
     return (patientId: string) => imagesByPatient.value.get(patientId) || [];
   });
 
-  // Get processed images
   const processedImages = computed(() => {
     return images.value.filter((img) => img.isProcessed());
   });
 
-  // ===========================
-  // Helper Functions
-  // ===========================
-
+  // --- HELPER FUNCTIONS ---
   const handleError = (err: any, defaultMessage: string, showToast = true): void => {
     const errorMessage = err.response?.data?.message || err.message || defaultMessage;
     error.value = errorMessage;
     console.error(defaultMessage, err);
-
-    if (showToast) {
-      toast.error(errorMessage);
-    }
+    if (showToast) toast.error(errorMessage);
   };
 
   const resetError = (): void => {
     error.value = null;
   };
-
   const resetUploadProgress = (): void => {
     uploadProgress.value = 0;
   };
@@ -124,20 +101,17 @@ export const useImageStore = defineStore('image', () => {
         ...images.value.slice(index + 1),
       ];
     }
-
     const patientImages = imagesByPatient.value.get(updatedImage.patientId);
     if (patientImages) {
       const ptIndex = patientImages.findIndex((img) => img.id === updatedImage.id);
       if (ptIndex !== -1) {
         const newPatientImages = [...patientImages];
         newPatientImages[ptIndex] = updatedImage;
-        // Reactivity fix: Yeni Map set et
         const newMap = new Map(imagesByPatient.value);
         newMap.set(updatedImage.patientId, newPatientImages);
         imagesByPatient.value = newMap;
       }
     }
-
     if (currentImage.value?.id === updatedImage.id) {
       currentImage.value = updatedImage;
     }
@@ -145,7 +119,6 @@ export const useImageStore = defineStore('image', () => {
 
   const removeImageFromState = (imageId: string, patientId?: string): void => {
     images.value = images.value.filter((img) => img.id !== imageId);
-
     if (patientId) {
       const patientImages = imagesByPatient.value.get(patientId);
       if (patientImages) {
@@ -166,33 +139,24 @@ export const useImageStore = defineStore('image', () => {
       });
       imagesByPatient.value = newMap;
     }
-
-    if (currentImage.value?.id === imageId) {
-      currentImage.value = null;
-    }
+    if (currentImage.value?.id === imageId) currentImage.value = null;
   };
 
-  // ===========================
-  // Actions - Fetch
-  // ===========================
+  // --- ACTIONS ---
 
   const fetchImageById = async (
     imageId: string,
     options: FetchOptions = {}
   ): Promise<Image | null> => {
     const { showToast: showErrorToast = true } = options;
-
     loading.value = true;
     resetError();
-
     try {
       const image = await imageRepo.getById(imageId);
-
       if (image) {
         currentImage.value = image;
         updateImageInState(image);
       }
-
       return image;
     } catch (err: any) {
       handleError(err, t('image.messages.fetch_error'), showErrorToast);
@@ -208,7 +172,6 @@ export const useImageStore = defineStore('image', () => {
     options: FetchOptions & { append?: boolean } = {}
   ): Promise<void> => {
     const { refresh = false, showToast: showErrorToast = true, append = false } = options;
-
     if (loading.value && !refresh && !append) return;
 
     loading.value = true;
@@ -251,17 +214,11 @@ export const useImageStore = defineStore('image', () => {
 
   const loadMoreImages = async (patientId: string): Promise<void> => {
     if (!hasMore.value || loading.value) return;
-
     const currentImages = imagesByPatient.value.get(patientId) || [];
-
     await fetchImagesByPatient(patientId, {
       offset: currentImages.length,
     });
   };
-
-  // ===========================
-  // Actions - Upload
-  // ===========================
 
   const uploadImage = async (
     patientId: string,
@@ -271,7 +228,6 @@ export const useImageStore = defineStore('image', () => {
     uploading.value = true;
     resetError();
     resetUploadProgress();
-
     try {
       const createRequest: CreateNewImageRequest = {
         patient_id: patientId,
@@ -280,9 +236,7 @@ export const useImageStore = defineStore('image', () => {
         format: file.name.split('.').pop() || 'unknown',
         size: file.size,
       };
-
       const uploadPayload: ImageUploadPayload = await imageRepo.create(createRequest);
-
       const uploadParams: UploadImageParams = {
         payload: uploadPayload,
         file,
@@ -291,17 +245,11 @@ export const useImageStore = defineStore('image', () => {
           options.onProgress?.(percentage);
         },
       };
-
       await imageRepo.upload(uploadParams);
-      const paginationParams: Pagination = {
-        ...pagination.value,
-      };
-
-      // Listeyi yenile
+      const paginationParams: Pagination = { ...pagination.value };
       await fetchImagesByPatient(patientId, paginationParams, { showToast: false });
 
       toast.success(t('image.messages.upload_success'));
-
       return true;
     } catch (err: any) {
       handleError(err, t('image.messages.upload_error'));
@@ -312,19 +260,12 @@ export const useImageStore = defineStore('image', () => {
     }
   };
 
-  // ===========================
-  // Actions - Delete
-  // ===========================
-
   const deleteImage = async (imageId: string, patientId: string): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
-
     try {
       await imageRepo.delete(imageId);
-
       removeImageFromState(imageId, patientId);
-
       toast.success(t('image.messages.delete_success'));
       return true;
     } catch (err: any) {
@@ -338,12 +279,9 @@ export const useImageStore = defineStore('image', () => {
   const batchDeleteImages = async (imageIds: string[], patientId: string): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
-
     try {
       await imageRepo.batchDelete(imageIds);
-
       imageIds.forEach((id) => removeImageFromState(id, patientId));
-
       toast.success(t('image.messages.batch_delete_success'));
       return true;
     } catch (err: any) {
@@ -354,10 +292,6 @@ export const useImageStore = defineStore('image', () => {
     }
   };
 
-  // ===========================
-  // Actions - Transfer
-  // ===========================
-
   const transferImage = async (
     imageId: string,
     currentPatientId: string,
@@ -365,15 +299,11 @@ export const useImageStore = defineStore('image', () => {
   ): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
-
     try {
       await imageRepo.transfer(imageId, targetPatientId);
-
       removeImageFromState(imageId, currentPatientId);
-
       await fetchImagesByPatient(currentPatientId, undefined, { showToast: false });
       await fetchImagesByPatient(targetPatientId, undefined, { showToast: false });
-
       toast.success(t('image.messages.transfer_success'));
       return true;
     } catch (err: any) {
@@ -387,10 +317,8 @@ export const useImageStore = defineStore('image', () => {
   const batchTransferImages = async (data: BatchTransfer): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
-
     try {
       await imageRepo.batchTransfer(data);
-
       toast.success(t('image.messages.batch_transfer_success'));
       return true;
     } catch (err: any) {
@@ -401,49 +329,33 @@ export const useImageStore = defineStore('image', () => {
     }
   };
 
-  // ===========================
-  // Actions - Utility
-  // ===========================
-
   const setCurrentImage = (image: Image | null): void => {
     currentImage.value = image;
   };
-
   const clearCurrentImage = (): void => {
     currentImage.value = null;
   };
-
   const clearImages = (): void => {
     images.value = [];
     imagesByPatient.value.clear();
     currentImage.value = null;
     error.value = null;
   };
-
   const clearPatientImages = (patientId: string): void => {
     imagesByPatient.value.delete(patientId);
   };
-
   const refreshImage = async (imageId: string): Promise<void> => {
     await fetchImageById(imageId, { showToast: false });
   };
-
   const pollImageStatus = async (imageId: string, interval = 2000): Promise<void> => {
     const poll = async () => {
       const image = await fetchImageById(imageId, { showToast: false });
-
       if (!image) return;
-
-      if (image.status.isProcessed() || image.status.isFailed()) {
-        return;
-      }
-
+      if (image.status.isProcessed() || image.status.isFailed()) return;
       setTimeout(poll, interval);
     };
-
     await poll();
   };
-
   const getImageCount = async (): Promise<number> => {
     try {
       return await imageRepo.count();

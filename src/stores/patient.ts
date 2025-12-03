@@ -8,10 +8,6 @@ import type { CreateNewPatientRequest } from '@/core/repositories/IPatientReposi
 import type { Pagination, PaginatedResult } from '@/core/types/common';
 import type { BatchTransfer } from '@/core/repositories/common';
 
-// ===========================
-// Types & Interfaces
-// ===========================
-
 interface PatientState {
   patients: Patient[];
   patientsByWorkspace: Map<string, Patient[]>;
@@ -25,39 +21,31 @@ interface PatientState {
 interface FetchOptions {
   refresh?: boolean;
   showToast?: boolean;
+  append?: boolean; // YENİ: Ekleme modu için
 }
-
-// ===========================
-// Store Definition
-// ===========================
 
 export const usePatientStore = defineStore('patient', () => {
   const { t } = useI18n();
   const toast = useToast();
   const patientRepo = repositories.patient;
 
-  // ===========================
-  // State
-  // ===========================
-
+  // --- STATE ---
   const patients = shallowRef<Patient[]>([]);
   const patientsByWorkspace = ref<Map<string, Patient[]>>(new Map());
   const currentPatient = ref<Patient | null>(null);
   const loading = ref(false);
   const actionLoading = ref(false);
   const error = ref<string | null>(null);
+
   const pagination = ref<Pagination>({
-    limit: 10,
+    limit: 20, // Varsayılan limiti biraz artırdık
     offset: 0,
     sortBy: 'created_at',
     sortDir: 'desc',
     hasMore: false,
   });
 
-  // ===========================
-  // Getters
-  // ===========================
-
+  // --- GETTERS ---
   const isLoading = computed(() => loading.value);
   const isActionLoading = computed(() => actionLoading.value);
   const hasError = computed(() => !!error.value);
@@ -65,28 +53,20 @@ export const usePatientStore = defineStore('patient', () => {
   const totalPatients = computed(() => patients.value.length);
   const hasMore = computed(() => pagination.value.hasMore ?? false);
 
-  // Get patient by ID
   const getPatientById = computed(() => {
     return (id: string) => patients.value.find((p) => p.id === id);
   });
 
-  // Get patients by workspace ID
   const getPatientsByWorkspaceId = computed(() => {
     return (workspaceId: string) => patientsByWorkspace.value.get(workspaceId) || [];
   });
 
-  // ===========================
-  // Helper Functions
-  // ===========================
-
+  // --- HELPER FUNCTIONS ---
   const handleError = (err: any, defaultMessage: string, showToast = true): void => {
     const errorMessage = err.response?.data?.message || err.message || defaultMessage;
     error.value = errorMessage;
     console.error(defaultMessage, err);
-
-    if (showToast) {
-      toast.error(errorMessage);
-    }
+    if (showToast) toast.error(errorMessage);
   };
 
   const resetError = (): void => {
@@ -94,7 +74,6 @@ export const usePatientStore = defineStore('patient', () => {
   };
 
   const updatePatientInState = (updatedPatient: Patient): void => {
-    // Update in main patients array
     const index = patients.value.findIndex((p) => p.id === updatedPatient.id);
     if (index !== -1) {
       patients.value = [
@@ -103,8 +82,6 @@ export const usePatientStore = defineStore('patient', () => {
         ...patients.value.slice(index + 1),
       ];
     }
-
-    // Update in workspace-specific patients
     const workspacePatients = patientsByWorkspace.value.get(updatedPatient.workspaceId);
     if (workspacePatients) {
       const wsIndex = workspacePatients.findIndex((p) => p.id === updatedPatient.id);
@@ -114,18 +91,13 @@ export const usePatientStore = defineStore('patient', () => {
         patientsByWorkspace.value.set(updatedPatient.workspaceId, newWorkspacePatients);
       }
     }
-
-    // Update current patient if it matches
     if (currentPatient.value?.id === updatedPatient.id) {
       currentPatient.value = updatedPatient;
     }
   };
 
   const removePatientFromState = (patientId: string, workspaceId?: string): void => {
-    // Remove from main patients array
     patients.value = patients.value.filter((p) => p.id !== patientId);
-
-    // Remove from workspace-specific patients
     if (workspaceId) {
       const workspacePatients = patientsByWorkspace.value.get(workspaceId);
       if (workspacePatients) {
@@ -135,7 +107,6 @@ export const usePatientStore = defineStore('patient', () => {
         );
       }
     } else {
-      // Remove from all workspaces if workspaceId not provided
       patientsByWorkspace.value.forEach((patients, wsId) => {
         patientsByWorkspace.value.set(
           wsId,
@@ -143,34 +114,24 @@ export const usePatientStore = defineStore('patient', () => {
         );
       });
     }
-
-    // Clear current patient if it matches
-    if (currentPatient.value?.id === patientId) {
-      currentPatient.value = null;
-    }
+    if (currentPatient.value?.id === patientId) currentPatient.value = null;
   };
 
-  // ===========================
-  // Actions - Fetch
-  // ===========================
+  // --- ACTIONS ---
 
   const fetchPatientById = async (
     patientId: string,
     options: FetchOptions = {}
   ): Promise<Patient | null> => {
     const { showToast: showErrorToast = true } = options;
-
     loading.value = true;
     resetError();
-
     try {
       const patient = await patientRepo.getById(patientId);
-
       if (patient) {
         currentPatient.value = patient;
         updatePatientInState(patient);
       }
-
       return patient;
     } catch (err: any) {
       handleError(err, t('patient.messages.fetch_error'), showErrorToast);
@@ -185,20 +146,22 @@ export const usePatientStore = defineStore('patient', () => {
     paginationOptions?: Partial<Pagination>,
     options: FetchOptions = {}
   ): Promise<void> => {
-    const { refresh = false, showToast: showErrorToast = true } = options;
+    const { refresh = false, showToast: showErrorToast = true, append = false } = options;
 
-    if (loading.value && !refresh) return;
+    // Eğer zaten yükleniyorsa ve refresh/append değilse durdur
+    if (loading.value && !refresh && !append) return;
 
     loading.value = true;
     resetError();
 
     try {
       const paginationParams: Pagination = {
-        limit: 10,
+        limit: 20, // Varsayılan
         offset: 0,
         sortBy: 'created_at',
         sortDir: 'desc',
-        ...paginationOptions,
+        ...pagination.value, // Mevcut pagination state'ini koru
+        ...paginationOptions, // Yeni gelenleri üstüne yaz
       };
 
       const result: PaginatedResult<Patient> = await patientRepo.getByWorkspaceId(
@@ -206,13 +169,18 @@ export const usePatientStore = defineStore('patient', () => {
         paginationParams
       );
 
-      // Store in workspace-specific map
-      patientsByWorkspace.value.set(workspaceId, result.data);
+      // --- DÜZELTME BAŞLANGICI: Append Mantığı ---
+      const currentList = patientsByWorkspace.value.get(workspaceId) || [];
+      const newList = append ? [...currentList, ...result.data] : result.data;
 
-      // Also update main patients array
-      patients.value = result.data;
+      // Workspace Map'ini güncelle
+      patientsByWorkspace.value.set(workspaceId, newList);
 
-      // Update pagination
+      // Ana listeyi güncelle
+      patients.value = newList;
+      // --- DÜZELTME BİTİŞİ ---
+
+      // Pagination durumunu güncelle
       pagination.value = {
         ...paginationParams,
         ...result.pagination,
@@ -231,26 +199,22 @@ export const usePatientStore = defineStore('patient', () => {
 
     const currentPatients = patientsByWorkspace.value.get(workspaceId) || [];
 
-    await fetchPatientsByWorkspace(workspaceId, {
-      offset: currentPatients.length,
-    });
+    // Mevcut sayı kadar offset vererek sıradaki partiyi istiyoruz
+    // Ve append: true gönderiyoruz
+    await fetchPatientsByWorkspace(
+      workspaceId,
+      { offset: currentPatients.length },
+      { append: true }
+    );
   };
-
-  // ===========================
-  // Actions - Create
-  // ===========================
 
   const createPatient = async (data: CreateNewPatientRequest): Promise<Patient | null> => {
     actionLoading.value = true;
     resetError();
-
     try {
       const newPatient = await patientRepo.create(data);
-
-      // Add to main patients array
+      // Listeyi başa ekle
       patients.value = [newPatient, ...patients.value];
-
-      // Add to workspace-specific patients
       const workspacePatients = patientsByWorkspace.value.get(data.workspace_id) || [];
       patientsByWorkspace.value.set(data.workspace_id, [newPatient, ...workspacePatients]);
 
@@ -264,27 +228,16 @@ export const usePatientStore = defineStore('patient', () => {
     }
   };
 
-  // ===========================
-  // Actions - Update
-  // ===========================
-
   const updatePatient = async (
     patientId: string,
     data: Partial<CreateNewPatientRequest>
   ): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
-
     try {
       await patientRepo.update(patientId, data);
-
-      // Fetch updated patient
       const updatedPatient = await patientRepo.getById(patientId);
-
-      if (updatedPatient) {
-        updatePatientInState(updatedPatient);
-      }
-
+      if (updatedPatient) updatePatientInState(updatedPatient);
       toast.success(t('patient.messages.update_success'));
       return true;
     } catch (err: any) {
@@ -295,19 +248,12 @@ export const usePatientStore = defineStore('patient', () => {
     }
   };
 
-  // ===========================
-  // Actions - Delete
-  // ===========================
-
   const deletePatient = async (patientId: string, workspaceId: string): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
-
     try {
       await patientRepo.delete(patientId);
-
       removePatientFromState(patientId, workspaceId);
-
       toast.success(t('patient.messages.delete_success'));
       return true;
     } catch (err: any) {
@@ -321,12 +267,9 @@ export const usePatientStore = defineStore('patient', () => {
   const cascadeDeletePatient = async (patientId: string, workspaceId: string): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
-
     try {
       await patientRepo.cascadeDelete(patientId);
-
       removePatientFromState(patientId, workspaceId);
-
       toast.success(t('patient.messages.delete_success'));
       return true;
     } catch (err: any) {
@@ -343,13 +286,9 @@ export const usePatientStore = defineStore('patient', () => {
   ): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
-
     try {
       await patientRepo.batchDelete(patientIds);
-
-      // Remove all deleted patients from state
       patientIds.forEach((id) => removePatientFromState(id, workspaceId));
-
       toast.success(t('patient.messages.batch_delete_success'));
       return true;
     } catch (err: any) {
@@ -360,10 +299,6 @@ export const usePatientStore = defineStore('patient', () => {
     }
   };
 
-  // ===========================
-  // Actions - Transfer
-  // ===========================
-
   const transferPatient = async (
     patientId: string,
     currentWorkspaceId: string,
@@ -371,17 +306,11 @@ export const usePatientStore = defineStore('patient', () => {
   ): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
-
     try {
       await patientRepo.transfer(patientId, targetWorkspaceId);
-
-      // Remove from current workspace
       removePatientFromState(patientId, currentWorkspaceId);
-
-      // Refresh both workspaces
-      await fetchPatientsByWorkspace(currentWorkspaceId, undefined, { showToast: false });
-      await fetchPatientsByWorkspace(targetWorkspaceId, undefined, { showToast: false });
-
+      // Transfer sonrası listeleri tazelemek iyi olabilir, ancak append modunu bozmamak için
+      // sadece mevcut listeden siliyoruz.
       toast.success(t('patient.messages.transfer_success'));
       return true;
     } catch (err: any) {
@@ -395,10 +324,8 @@ export const usePatientStore = defineStore('patient', () => {
   const batchTransferPatients = async (data: BatchTransfer): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
-
     try {
       await patientRepo.batchTransfer(data);
-
       toast.success(t('patient.messages.batch_transfer_success'));
       return true;
     } catch (err: any) {
@@ -408,10 +335,6 @@ export const usePatientStore = defineStore('patient', () => {
       actionLoading.value = false;
     }
   };
-
-  // ===========================
-  // Actions - Utility
-  // ===========================
 
   const setCurrentPatient = (patient: Patient | null): void => {
     currentPatient.value = patient;
@@ -445,12 +368,7 @@ export const usePatientStore = defineStore('patient', () => {
     }
   };
 
-  // ===========================
-  // Return
-  // ===========================
-
   return {
-    // State
     patients,
     patientsByWorkspace,
     currentPatient,
@@ -458,8 +376,6 @@ export const usePatientStore = defineStore('patient', () => {
     actionLoading,
     error,
     pagination,
-
-    // Getters
     isLoading,
     isActionLoading,
     hasError,
@@ -468,28 +384,16 @@ export const usePatientStore = defineStore('patient', () => {
     hasMore,
     getPatientById,
     getPatientsByWorkspaceId,
-
-    // Actions - Fetch
     fetchPatientById,
     fetchPatientsByWorkspace,
     loadMorePatients,
-
-    // Actions - Create
     createPatient,
-
-    // Actions - Update
     updatePatient,
-
-    // Actions - Delete
     deletePatient,
     cascadeDeletePatient,
     batchDeletePatients,
-
-    // Actions - Transfer
     transferPatient,
     batchTransferPatients,
-
-    // Actions - Utility
     setCurrentPatient,
     clearCurrentPatient,
     clearPatients,
