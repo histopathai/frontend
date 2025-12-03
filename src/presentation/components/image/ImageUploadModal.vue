@@ -1,14 +1,14 @@
 <template>
   <div
     class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-    @click.self="$emit('close')"
+    @click.self="handleClose"
   >
     <div class="card w-full max-w-2xl shadow-xl rounded-xl bg-white overflow-hidden">
       <div class="card-header px-6 py-4 border-b border-gray-200 flex justify-between items-center">
         <h3 class="text-xl font-semibold text-gray-900">
           {{ t('image.upload.title') }}
         </h3>
-        <button @click="$emit('close')" class="text-gray-400 hover:text-gray-500">
+        <button @click="handleClose" class="text-gray-400 hover:text-gray-500">
           <span class="sr-only">Kapat</span>
           <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
@@ -24,10 +24,7 @@
       <div class="border-b border-gray-200">
         <nav class="flex -mb-px" aria-label="Tabs">
           <button
-            @click="
-              mode = 'local';
-              clearSelection();
-            "
+            @click="switchMode('local')"
             :class="[
               mode === 'local'
                 ? 'border-indigo-500 text-indigo-600'
@@ -38,10 +35,7 @@
             Dosya Yükle
           </button>
           <button
-            @click="
-              mode = 'microscope';
-              clearSelection();
-            "
+            @click="switchMode('microscope')"
             :class="[
               mode === 'microscope'
                 ? 'border-indigo-500 text-indigo-600'
@@ -93,40 +87,50 @@
                 </label>
                 <p class="pl-1">veya sürükleyip bırakın</p>
               </div>
-              <p class="text-xs text-gray-500">
-                {{
-                  t('image.upload.file_types') || 'Desteklenenler: JPG, PNG, TIFF, SVS, NDPI vb.'
-                }}
-              </p>
+              <p class="text-xs text-gray-500">{{ t('image.upload.file_types') }}</p>
             </div>
           </div>
         </div>
 
         <div v-if="mode === 'microscope'" class="space-y-4">
+          <div v-if="!selectedFile && cameras.length > 0" class="flex items-center gap-2">
+            <label class="text-sm font-medium text-gray-700 whitespace-nowrap">Kaynak:</label>
+            <select v-model="selectedDeviceId" class="form-input py-1.5 text-sm">
+              <option v-for="camera in cameras" :key="camera.deviceId" :value="camera.deviceId">
+                {{ camera.label || `Kamera ${camera.deviceId.substring(0, 5)}...` }}
+              </option>
+            </select>
+          </div>
+
           <div
             v-if="!selectedFile"
-            class="relative bg-black rounded-lg aspect-video flex items-center justify-center overflow-hidden"
+            class="relative bg-black rounded-lg aspect-video flex items-center justify-center overflow-hidden border border-gray-300"
           >
-            <img
-              v-if="MICROSCOPE_URL"
-              :src="`${MICROSCOPE_URL}/stream`"
+            <video
+              v-if="mediaStream"
+              ref="videoRef"
+              autoplay
+              playsinline
+              muted
               class="w-full h-full object-contain"
-              alt="Microscope Stream"
-              @error="microscopeError = 'Stream bağlantısı kurulamadı'"
-            />
+            ></video>
+
             <div v-else class="text-gray-400 flex flex-col items-center">
-              <span class="text-3xl mb-2">🔬</span>
-              <span>Mikroskop Bağlantısı Bekleniyor...</span>
+              <span v-if="!microscopeError" class="text-3xl mb-2 animate-pulse">📷</span>
+              <span v-if="!microscopeError">Kamera Başlatılıyor...</span>
             </div>
 
             <div
               v-if="microscopeError"
-              class="absolute inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4"
+              class="absolute inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-10"
             >
               <div class="text-center text-red-400">
                 <p class="font-bold">Bağlantı Hatası</p>
-                <p class="text-sm">{{ microscopeError }}</p>
-                <button @click="microscopeError = null" class="mt-2 text-white underline text-sm">
+                <p class="text-sm mb-2">{{ microscopeError }}</p>
+                <button
+                  @click="initCameraSystem"
+                  class="text-white underline text-sm hover:text-gray-200"
+                >
                   Tekrar Dene
                 </button>
               </div>
@@ -134,7 +138,11 @@
           </div>
 
           <div v-if="!selectedFile" class="flex justify-center">
-            <button @click="captureFromMicroscope" class="btn btn-primary flex items-center gap-2">
+            <button
+              @click="captureFromMicroscope"
+              class="btn btn-primary flex items-center gap-2"
+              :disabled="!mediaStream"
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 class="h-5 w-5"
@@ -182,7 +190,7 @@
                   @click="clearSelection"
                   class="mt-2 text-sm text-red-600 hover:text-red-800 font-medium"
                 >
-                  Seçimi Kaldır
+                  Seçimi Kaldır (Kameraya Dön)
                 </button>
               </div>
             </div>
@@ -198,7 +206,7 @@
       </div>
 
       <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
-        <button type="button" @click="$emit('close')" class="btn btn-outline" :disabled="loading">
+        <button type="button" @click="handleClose" class="btn btn-outline" :disabled="loading">
           {{ t('image.actions.cancel') }}
         </button>
         <button
@@ -216,6 +224,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useImageUpload } from '@/presentation/composables/image/useImageUpload';
 
@@ -234,10 +243,41 @@ const {
   uploadProgress,
   microscopeError,
   MICROSCOPE_URL,
+  mediaStream,
+  cameras,
+  selectedDeviceId,
   handleFileSelect,
   handleDrop,
   captureFromMicroscope,
   upload,
   clearSelection,
+  stopWebcam,
+  initCameraSystem,
 } = useImageUpload(props.patientId, emit);
+
+const videoRef = ref<HTMLVideoElement | null>(null);
+
+watch(
+  mediaStream,
+  (newStream) => {
+    if (videoRef.value && newStream) {
+      videoRef.value.srcObject = newStream;
+    }
+  },
+  { flush: 'post' }
+);
+
+function switchMode(newMode: 'local' | 'microscope') {
+  mode.value = newMode;
+  clearSelection();
+}
+
+function handleClose() {
+  stopWebcam();
+  emit('close');
+}
+
+onUnmounted(() => {
+  stopWebcam();
+});
 </script>
