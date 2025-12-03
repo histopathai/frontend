@@ -95,11 +95,91 @@
         <div v-if="mode === 'microscope'" class="space-y-4">
           <div v-if="!selectedFile && cameras.length > 0" class="flex items-center gap-2">
             <label class="text-sm font-medium text-gray-700 whitespace-nowrap">Kaynak:</label>
-            <select v-model="selectedDeviceId" class="form-input py-1.5 text-sm">
+            <select v-model="selectedDeviceId" class="form-input py-1.5 text-sm flex-1">
               <option v-for="camera in cameras" :key="camera.deviceId" :value="camera.deviceId">
                 {{ camera.label || `Kamera ${camera.deviceId.substring(0, 5)}...` }}
               </option>
             </select>
+          </div>
+
+          <!-- Kamera Kontrol Parametreleri -->
+          <div
+            v-if="!selectedFile && isPiCam"
+            class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3"
+          >
+            <div class="flex items-center justify-between">
+              <h4 class="text-sm font-semibold text-gray-700">Kamera Ayarları</h4>
+              <button
+                @click="resetCameraSettings"
+                class="text-xs text-indigo-600 hover:text-indigo-800"
+              >
+                Varsayılana Dön
+              </button>
+            </div>
+
+            <!-- Exposure Time -->
+            <div class="space-y-1">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-medium text-gray-700">
+                  Poz Süresi (Exposure Time)
+                </label>
+                <span class="text-xs text-gray-500">
+                  {{ exposureTime ? `${exposureTime} μs` : 'Otomatik' }}
+                </span>
+              </div>
+              <input
+                type="range"
+                v-model.number="exposureTime"
+                min="0"
+                max="100000"
+                step="1000"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+              <div class="flex justify-between text-xs text-gray-500">
+                <span>Otomatik</span>
+                <span>1ms</span>
+                <span>10ms</span>
+                <span>100ms</span>
+              </div>
+            </div>
+
+            <!-- Gain (ISO) -->
+            <div class="space-y-1">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-medium text-gray-700">Gain (ISO)</label>
+                <span class="text-xs text-gray-500">
+                  {{ gain ? `${gain.toFixed(1)}x` : 'Otomatik' }}
+                </span>
+              </div>
+              <input
+                type="range"
+                v-model.number="gain"
+                min="0"
+                max="16"
+                step="0.1"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+              <div class="flex justify-between text-xs text-gray-500">
+                <span>Auto</span>
+                <span>2x</span>
+                <span>4x</span>
+                <span>8x</span>
+                <span>16x</span>
+              </div>
+            </div>
+
+            <div class="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded p-2">
+              <strong>💡 İpucu:</strong>
+              {{
+                exposureTime > 0 && gain > 0
+                  ? 'Tam manuel mod aktif'
+                  : exposureTime > 0
+                    ? 'Poz sabit, gain otomatik'
+                    : gain > 0
+                      ? 'Gain sabit, poz otomatik'
+                      : 'Tam otomatik mod'
+              }}
+            </div>
           </div>
 
           <div
@@ -141,7 +221,7 @@
             <button
               @click="captureFromMicroscope"
               class="btn btn-primary flex items-center gap-2"
-              :disabled="!mediaStream"
+              :disabled="!mediaStream && !isPiCam"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -224,7 +304,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useImageUpload } from '@/presentation/composables/image/useImageUpload';
 
@@ -246,6 +326,8 @@ const {
   mediaStream,
   cameras,
   selectedDeviceId,
+  exposureTime,
+  gain,
   handleFileSelect,
   handleDrop,
   captureFromMicroscope,
@@ -253,9 +335,15 @@ const {
   clearSelection,
   stopWebcam,
   initCameraSystem,
+  resetCameraSettings,
 } = useImageUpload(props.patientId, emit);
 
 const videoRef = ref<HTMLVideoElement | null>(null);
+
+const isPiCam = computed(() => {
+  const currentCamera = cameras.value.find((c) => c.deviceId === selectedDeviceId.value);
+  return currentCamera?.label.toLowerCase().includes('picam') || false;
+});
 
 watch(
   mediaStream,

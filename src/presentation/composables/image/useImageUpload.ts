@@ -40,6 +40,10 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
   const cameras = ref<MediaDeviceInfo[]>([]);
   const selectedDeviceId = ref<string>('');
 
+  // Kamera Kontrol Parametreleri
+  const exposureTime = ref<number>(0); // 0 = Otomatik, >0 = Mikrosaniye cinsinden
+  const gain = ref<number>(0); // 0 = Otomatik, >0 = Gain çarpanı
+
   const MICROSCOPE_URL = import.meta.env.VITE_MICROSCOPE_API_URL;
 
   // Mod değiştiğinde
@@ -142,13 +146,18 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
     }
   }
 
-  // --- GÜNCELLENEN FONKSİYON ---
+  function resetCameraSettings() {
+    exposureTime.value = 0;
+    gain.value = 0;
+  }
+
+  // --- GÜNCELLENEN FONKSİYON: Parametrelerle ---
   async function captureFromMicroscope() {
     microscopeError.value = null;
 
     // 1. Seçili kamerayı bul
     const currentCamera = cameras.value.find((c) => c.deviceId === selectedDeviceId.value);
-    const isPiCam = currentCamera?.label.includes('PiCam'); // Kamera adında 'PiCam' var mı?
+    const isPiCam = currentCamera?.label.toLowerCase().includes('picam');
 
     toast.info('Görüntü yakalanıyor...');
 
@@ -161,24 +170,36 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
           throw new Error('Mikroskop IP ayarları (.env) yapılandırılmamış.');
         }
 
+        // URL parametrelerini oluştur
+        const params = new URLSearchParams();
+        if (exposureTime.value > 0) {
+          params.append('exposure', exposureTime.value.toString());
+        }
+        if (gain.value > 0) {
+          params.append('gain', gain.value.toString());
+        }
+
+        const url = `${MICROSCOPE_URL}/capture${params.toString() ? '?' + params.toString() : ''}`;
+
+        console.log('PiCam capture URL:', url);
+
         // 30 saniye timeout için AbortController
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
 
         try {
-          const response = await fetch(`${MICROSCOPE_URL}/capture`, {
+          const response = await fetch(url, {
             method: 'GET',
-            signal: controller.signal, // Sinyali bağla
+            signal: controller.signal,
           });
 
           if (!response.ok) throw new Error(`Mikroskop hatası: ${response.statusText}`);
 
           const blob = await response.blob();
           const filename = `microscope_capture_${new Date().getTime()}.dng`;
-          // PiCam genellikle DNG/RAW döner
           file = new File([blob], filename, { type: blob.type || 'image/x-adobe-dng' });
         } finally {
-          clearTimeout(timeoutId); // İşlem biterse timeout'u iptal et
+          clearTimeout(timeoutId);
         }
       } else {
         // --- SENARYO B: Normal Kamera (Yerel Yakalama) ---
@@ -187,13 +208,12 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
         }
 
         const videoTrack = mediaStream.value.getVideoTracks()[0];
-        // ImageCapture API'sini kullan (Modern tarayıcılarda çalışır)
-        // @ts-ignore (TypeScript tanımı eksik olabilir)
+        // ImageCapture API'sini kullan
+        // @ts-ignore
         const imageCapture = new ImageCapture(videoTrack);
 
         const blob = await imageCapture.takePhoto();
         const filename = `webcam_capture_${new Date().getTime()}.jpg`;
-        // Webcam genellikle JPG/PNG döner
         file = new File([blob], filename, { type: 'image/jpeg' });
       }
 
@@ -246,6 +266,8 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
     mediaStream,
     cameras,
     selectedDeviceId,
+    exposureTime,
+    gain,
     handleFileSelect,
     handleDrop,
     captureFromMicroscope,
@@ -253,5 +275,6 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
     clearSelection,
     stopWebcam,
     initCameraSystem,
+    resetCameraSettings,
   };
 }
