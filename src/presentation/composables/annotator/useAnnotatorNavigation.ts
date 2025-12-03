@@ -110,6 +110,13 @@ export function useAnnotatorNavigation() {
     }
   }
 
+  // Yeni Fonksiyon: Daha fazla hasta yükle
+  function loadMorePatients() {
+    if (selectedWorkspaceId.value) {
+      patientStore.loadMorePatients(selectedWorkspaceId.value);
+    }
+  }
+
   watch(currentImages, (newImages) => {
     const firstImage = newImages[0];
     if (firstImage && !selectedImageId.value) {
@@ -161,5 +168,7 @@ export function useAnnotatorNavigation() {
     selectImage,
     nextImage,
     prevImage,
+
+    loadMorePatients, // Dışarı aktarıldı
   };
 }
