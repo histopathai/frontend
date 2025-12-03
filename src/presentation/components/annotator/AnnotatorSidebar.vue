@@ -20,21 +20,22 @@
       </div>
 
       <transition name="fade">
-        <div
-          v-if="currentWorkspace"
-          class="mt-3 flex items-center gap-2 text-xs text-gray-500 bg-white p-2 rounded border border-gray-100"
-        >
-          <span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-medium">{{
-            currentWorkspace.organType
-          }}</span>
-          <span class="truncate">{{ currentWorkspace.organization }}</span>
+        <div v-if="currentWorkspace" class="mt-3">
+          <div
+            class="flex items-center gap-2 text-xs text-gray-500 bg-white p-2 rounded border border-gray-100"
+          >
+            <span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-medium">{{
+              currentWorkspace.organType
+            }}</span>
+            <span class="truncate">{{ currentWorkspace.organization }}</span>
+          </div>
         </div>
       </transition>
     </div>
 
-    <div class="flex-1 overflow-y-auto custom-scrollbar">
+    <div class="flex-1 overflow-y-auto custom-scrollbar" @scroll="handleScroll">
       <div
-        v-if="loading"
+        v-if="loading && patients.length === 0"
         class="flex flex-col items-center justify-center h-32 text-gray-400 text-sm"
       >
         <div
@@ -230,6 +231,14 @@
             </div>
           </transition>
         </div>
+
+        <div
+          v-if="loading && patients.length > 0"
+          class="py-3 text-center text-xs text-gray-400 flex items-center justify-center gap-2"
+        >
+          <div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+          Daha fazla yükleniyor...
+        </div>
       </div>
     </div>
   </div>
@@ -252,7 +261,8 @@ const props = defineProps({
   loading: Boolean,
 });
 
-const emit = defineEmits(['workspace-selected', 'patient-selected', 'image-selected']);
+// 'load-more' eventi eklendi
+const emit = defineEmits(['workspace-selected', 'patient-selected', 'image-selected', 'load-more']);
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -287,6 +297,19 @@ function getThumbnailUrl(image: any): string {
   }
 
   return `${API_BASE_URL}/api/v1/proxy/${image.processedpath}/thumbnail.jpg`;
+}
+
+// Scroll Handler
+function handleScroll(event: Event) {
+  const element = event.target as HTMLElement;
+
+  if (props.loading) return;
+
+  // Listenin sonuna 50px kala tetikle
+  const bottomThreshold = 50;
+  if (element.scrollTop + element.clientHeight >= element.scrollHeight - bottomThreshold) {
+    emit('load-more');
+  }
 }
 </script>
 
