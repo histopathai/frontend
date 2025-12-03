@@ -3,7 +3,6 @@ import type {
   CreateNewImageRequest,
   UploadImageParams,
   IImageRepository,
-  OnUploadProgress,
 } from '@/core/repositories/IImageRepository';
 import type { PaginatedResult, Pagination } from '@/core/types/common';
 
@@ -12,19 +11,16 @@ import { Image } from '@/core/entities/Image';
 import axios, { type AxiosProgressEvent } from 'axios';
 import type { BatchTransfer } from '@/core/repositories/common';
 
-// BackendUploadResponse -> { "data": ImageUploadPayload, ... }
 interface BackendUploadResponse {
   data: ImageUploadPayload & { message: string };
   [key: string]: any;
 }
 
-// ImageDataResponse -> { "data": ImageResponse }
 interface BackendImageResponse {
-  data: any; // Backend'den gelen ham resim verisi
+  data: any;
   [key: string]: any;
 }
 
-// ImageListResponse -> { "data": [ImageResponse], "pagination": ... }
 interface BackendImageListResponse {
   data: any[];
   pagination: Pagination;

@@ -35,6 +35,7 @@ export class PatientRepository implements IPatientRepository {
         sort_dir: pagination.sortDir,
       }
     );
+
     return {
       data: response.data.map((item: any) =>
         Patient.create({ ...item, workspace_id: item.workspace_id || workspaceId })
@@ -60,6 +61,7 @@ export class PatientRepository implements IPatientRepository {
   async transfer(id: string, newWorkspaceId: string): Promise<void> {
     await this.apiClient.put(`/api/v1/proxy/patients/${id}/transfer/${newWorkspaceId}`, {});
   }
+
   async count(): Promise<number> {
     const response = await this.apiClient.get<{ count: number }>(`/api/v1/proxy/patients/count-v1`);
     return response.count;
@@ -68,9 +70,11 @@ export class PatientRepository implements IPatientRepository {
   async batchDelete(ids: string[]): Promise<void> {
     await this.apiClient.post(`/api/v1/proxy/patients/batch-delete`, { ids });
   }
+
   async batchTransfer(data: BatchTransfer): Promise<void> {
     await this.apiClient.put(`/api/v1/proxy/patients/batch-transfer`, data);
   }
+
   async cascadeDelete(id: string): Promise<void> {
     await this.apiClient.delete(`/api/v1/proxy/patients/${id}/cascade-delete`);
   }
