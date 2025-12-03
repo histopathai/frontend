@@ -20,6 +20,7 @@ export type OnUploadProgress = (percentage: number) => void;
 
 export interface UploadImageParams {
   payload: ImageUploadPayload;
+  contentType?: string;
   file: File;
   onUploadProgress?: OnUploadProgress; // Optional progress callback to track upload progress
 }

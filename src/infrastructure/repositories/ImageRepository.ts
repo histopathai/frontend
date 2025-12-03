@@ -36,12 +36,12 @@ export class ImageRepository implements IImageRepository {
   }
 
   async upload(params: UploadImageParams): Promise<void> {
-    const { payload, file, onUploadProgress } = params;
-
+    const { payload, file, contentType, onUploadProgress } = params;
+    const finalContentType = contentType || file.type;
     await axios.put(payload.upload_url, file, {
       headers: {
         ...payload.headers,
-        'Content-Type': file.type,
+        'Content-Type': finalContentType,
       },
 
       onUploadProgress: (progressEvent: AxiosProgressEvent) => {

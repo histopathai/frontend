@@ -33,6 +33,23 @@ interface UploadOptions {
   onProgress?: (percentage: number) => void;
 }
 
+const MIME_TYPES: Record<string, string> = {
+  svs: 'image/x-aperio-svs',
+  tif: 'image/tiff',
+  tiff: 'image/tiff',
+  ndpi: 'image/x-ndpi',
+  vms: 'image/x-vms',
+  vmu: 'image/x-vmu',
+  scn: 'image/x-scn',
+  mrz: 'image/x-mirax',
+  bif: 'image/x-bif',
+  dng: 'image/x-adobe-dng',
+  bmp: 'image/bmp',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  png: 'image/png',
+};
+
 export const useImageStore = defineStore('image', () => {
   const { t } = useI18n();
   const toast = useToast();
@@ -229,9 +246,19 @@ export const useImageStore = defineStore('image', () => {
     resetError();
     resetUploadProgress();
     try {
+      const extension = file.name.split('.').pop()?.toLowerCase() || 'unknown';
+
+      let contentType = file.type;
+      if (!contentType && MIME_TYPES[extension]) {
+        contentType = MIME_TYPES[extension];
+      }
+
+      if (!contentType) {
+        contentType = 'application/octet-stream';
+      }
       const createRequest: CreateNewImageRequest = {
         patient_id: patientId,
-        content_type: file.type,
+        content_type: contentType,
         name: file.name,
         format: file.name.split('.').pop() || 'unknown',
         size: file.size,
@@ -240,6 +267,7 @@ export const useImageStore = defineStore('image', () => {
       const uploadParams: UploadImageParams = {
         payload: uploadPayload,
         file,
+        contentType,
         onUploadProgress: (percentage: number) => {
           uploadProgress.value = percentage;
           options.onProgress?.(percentage);
