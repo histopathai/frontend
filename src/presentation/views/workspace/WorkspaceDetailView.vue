@@ -41,14 +41,21 @@
     <div class="flex justify-between items-center">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">{{ t('patient.list.title') }}</h1>
-        <p class="text-sm text-gray-500 mt-1" v-if="workspace">
-          {{ workspace.organization }} <span class="mx-2">•</span>
+        <div class="flex items-center gap-3 mt-1" v-if="workspace">
+          <p class="text-sm text-gray-500">
+            {{ workspace.organization }} <span class="mx-2">•</span>
+            <span
+              class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+            >
+              {{ workspace.organType }}
+            </span>
+          </p>
           <span
-            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200"
           >
-            {{ workspace.organType }}
+            {{ patientStore.totalPatients }} Hasta
           </span>
-        </p>
+        </div>
       </div>
       <div class="flex gap-3">
         <button
@@ -120,6 +127,7 @@ import { repositories } from '@/services';
 import { useI18n } from 'vue-i18n';
 import { useToast } from 'vue-toastification';
 import type { Workspace } from '@/core/entities/Workspace';
+import { usePatientStore } from '@/stores/patient';
 
 import PatientList from '@/presentation/components/patient/PatientList.vue';
 import AnnotationSettingsModal from '@/presentation/components/workspace/AnnotationSettingsModal.vue';
@@ -134,6 +142,7 @@ const toast = useToast();
 const workspace = ref<Workspace | null>(null);
 const isAnnotationSettingsModalOpen = ref(false);
 const isCreatePatientModalOpen = ref(false);
+const patientStore = usePatientStore();
 
 const patientListRef = ref<InstanceType<typeof PatientList> | null>(null);
 
