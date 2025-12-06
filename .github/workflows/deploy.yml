@@ -148,6 +148,10 @@ jobs:
             -var="image_tag=${{ needs.build-and-push.outputs.image_tag }}" \
             -var="api_base_url=${{ needs.build-and-push.outputs.api_base_url }}" \
             -var="tf_state_bucket=${{ env.TF_STATE_BUCKET }}" \
+            -var="project_id=${{ env.PROJECT_ID }}" \
+            -var="region=${{ env.REGION }}" \
+            -var="artifact_registry_repo=${{ env.ARTIFACT_REGISTRY_REPO_NAME }}" \
+            -var="environment=${{ steps.env-select.outputs.env }}" \
             -out=tfplan
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
