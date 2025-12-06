@@ -135,6 +135,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  function forceLogout() {
+    clearAuthData();
+    router.push('/auth/login');
+  }
+
   async function logout(): Promise<void> {
     loading.value = true;
     error.value = null;
@@ -244,5 +249,6 @@ export const useAuthStore = defineStore('auth', () => {
     listSessions,
     revokeSession,
     clearAuthData,
+    forceLogout,
   };
 });

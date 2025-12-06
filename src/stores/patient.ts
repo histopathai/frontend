@@ -3,7 +3,7 @@ import { ref, computed, shallowRef } from 'vue';
 import { repositories } from '@/services';
 import { useToast } from 'vue-toastification';
 import { useI18n } from 'vue-i18n';
-import type { Patient } from '@/core/entities/Patient';
+import { Patient } from '@/core/entities/Patient';
 import type { CreateNewPatientRequest } from '@/core/repositories/IPatientRepository';
 import type { Pagination, PaginatedResult } from '@/core/types/common';
 import type { BatchTransfer } from '@/core/repositories/common';
@@ -148,7 +148,6 @@ export const usePatientStore = defineStore('patient', () => {
   ): Promise<void> => {
     const { refresh = false, showToast: showErrorToast = true, append = false } = options;
 
-    // Eğer zaten yükleniyorsa ve refresh/append değilse durdur
     if (loading.value && !refresh && !append) return;
 
     loading.value = true;
@@ -156,12 +155,10 @@ export const usePatientStore = defineStore('patient', () => {
 
     try {
       const paginationParams: Pagination = {
-        limit: 20, // Varsayılan
+        limit: 20,
         offset: 0,
         sortBy: 'created_at',
         sortDir: 'desc',
-        ...pagination.value, // Mevcut pagination state'ini koru
-        ...paginationOptions, // Yeni gelenleri üstüne yaz
       };
 
       const result: PaginatedResult<Patient> = await patientRepo.getByWorkspaceId(
@@ -169,18 +166,22 @@ export const usePatientStore = defineStore('patient', () => {
         paginationParams
       );
 
-      // --- DÜZELTME BAŞLANGICI: Append Mantığı ---
+      // 1. Gelen veriyi Class Instance'ına çevir
+      const mappedPatients = result.data.map((item: any) => Patient.create(item));
+
+      // 2. Mevcut listeyi al
       const currentList = patientsByWorkspace.value.get(workspaceId) || [];
-      const newList = append ? [...currentList, ...result.data] : result.data;
+
+      // 3. Listeleri birleştir ve SONUNA 'as Patient[]' EKLE
+      // Bu 'as Patient[]' ifadesi TypeScript'i susturan kısımdır.
+      const newList = (append ? [...currentList, ...mappedPatients] : mappedPatients) as Patient[];
 
       // Workspace Map'ini güncelle
       patientsByWorkspace.value.set(workspaceId, newList);
 
       // Ana listeyi güncelle
       patients.value = newList;
-      // --- DÜZELTME BİTİŞİ ---
 
-      // Pagination durumunu güncelle
       pagination.value = {
         ...paginationParams,
         ...result.pagination,
