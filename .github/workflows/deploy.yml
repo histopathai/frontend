@@ -91,7 +91,7 @@ jobs:
             --build-arg VITE_FIREBASE_MESSAGING_SENDER_ID="${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}" \
             --build-arg VITE_FIREBASE_APP_ID="${{ secrets.FIREBASE_APP_ID }}" \
             --build-arg VITE_FIREBASE_MEASUREMENT_ID="${{ secrets.FIREBASE_MEASUREMENT_ID }}" .
-            -t "$FULL_IMAGE"
+            
           docker push "$FULL_IMAGE"
 
           echo "image_tag=$TAG_SUFFIX" >> $GITHUB_OUTPUT
