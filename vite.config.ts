@@ -3,23 +3,49 @@ import fs from 'fs';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueDevTools from 'vite-plugin-vue-devtools';
-import { configDefaults } from 'vitest/config';
-import { dot } from 'node:test/reporters';
-
 import dotenv from 'dotenv';
+
+// .env dosyasını yükle
 dotenv.config();
-export default defineConfig({
-  plugins: [vue(), vueDevTools()],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+
+export default defineConfig(({ command, mode }) => {
+  // HTTPS konfigürasyonunu hazırlayalım
+  let httpsConfig = undefined;
+
+  // Sadece key ve cert yolları tanımlıysa VE dosyalar diskte mevcutsa HTTPS'i aktif et
+  const keyPath = process.env.VITE_TLS_KEY_PATH;
+  const certPath = process.env.VITE_TLS_CERT_PATH;
+
+  if (keyPath && certPath && fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    httpsConfig = {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath),
+    };
+    console.log('🔒 HTTPS (SSL) aktif edildi.');
+  } else {
+    // Docker build sırasında veya sertifika yoksa burası çalışır
+    // console.log('⚠️ SSL sertifikaları bulunamadı veya tanımlı değil, HTTP modunda devam ediliyor.');
+  }
+
+  return {
+    plugins: [vue(), vueDevTools()],
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+      },
     },
-  },
-  server: {
-    https: {
-      key: fs.readFileSync(process.env.KEY_PATH as string),
-      cert: fs.readFileSync(process.env.CERT_PATH as string),
+    server: {
+      // Dinamik https ayarı
+      https: httpsConfig,
+      port: 5173,
+      proxy: {
+        '/microscope-proxy': {
+          target: 'http://192.168.7.2:8080',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/microscope-proxy/, ''),
+        },
+      },
     },
-    port: 5173,
-  },
+  };
 });
