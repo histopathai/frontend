@@ -3,27 +3,24 @@ import type {
   CreateNewImageRequest,
   UploadImageParams,
   IImageRepository,
-  OnUploadProgress,
 } from '@/core/repositories/IImageRepository';
 import type { PaginatedResult, Pagination } from '@/core/types/common';
 
 import { ApiClient } from '../api/ApiClient';
 import { Image } from '@/core/entities/Image';
 import axios, { type AxiosProgressEvent } from 'axios';
+import type { BatchTransfer } from '@/core/repositories/common';
 
-// BackendUploadResponse -> { "data": ImageUploadPayload, ... }
 interface BackendUploadResponse {
   data: ImageUploadPayload & { message: string };
   [key: string]: any;
 }
 
-// ImageDataResponse -> { "data": ImageResponse }
 interface BackendImageResponse {
-  data: any; // Backend'den gelen ham resim verisi
+  data: any;
   [key: string]: any;
 }
 
-// ImageListResponse -> { "data": [ImageResponse], "pagination": ... }
 interface BackendImageListResponse {
   data: any[];
   pagination: Pagination;
@@ -39,12 +36,12 @@ export class ImageRepository implements IImageRepository {
   }
 
   async upload(params: UploadImageParams): Promise<void> {
-    const { payload, file, onUploadProgress } = params;
-
-    await axios.put(payload.uploadUrl, file, {
+    const { payload, file, contentType, onUploadProgress } = params;
+    const finalContentType = contentType || file.type;
+    await axios.put(payload.upload_url, file, {
       headers: {
         ...payload.headers,
-        'Content-Type': file.type,
+        'Content-Type': finalContentType,
       },
 
       onUploadProgress: (progressEvent: AxiosProgressEvent) => {
@@ -73,9 +70,13 @@ export class ImageRepository implements IImageRepository {
     const response = await this.apiClient.get<BackendImageListResponse>(
       `/api/v1/proxy/patients/${patientId}/images`,
       {
-        params: pagination,
+        limit: pagination.limit,
+        offset: pagination.offset,
+        sort_by: pagination.sortBy,
+        sort_dir: pagination.sortDir,
       }
     );
+
     return {
       data: response.data.map(Image.create),
       pagination: response.pagination,
@@ -83,6 +84,19 @@ export class ImageRepository implements IImageRepository {
   }
 
   async transfer(imageId: string, newPatientId: string): Promise<void> {
-    await this.apiClient.post(`/api/v1/proxy/images/${imageId}/transfer/${newPatientId}`, {});
+    await this.apiClient.put(`/api/v1/proxy/images/${imageId}/transfer/${newPatientId}`, {});
+  }
+
+  async batchTransfer(data: BatchTransfer): Promise<void> {
+    await this.apiClient.put(`/api/v1/proxy/images/batch-transfer`, data);
+  }
+
+  async count(): Promise<number> {
+    const response = await this.apiClient.get<{ count: number }>(`/api/v1/proxy/images/count-v1`);
+    return response.count;
+  }
+
+  async batchDelete(ids: string[]): Promise<void> {
+    await this.apiClient.post(`/api/v1/proxy/images/batch-delete`, { ids });
   }
 }

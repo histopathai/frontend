@@ -2,7 +2,7 @@ export interface Pagination {
   limit: number;
   offset: number;
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortDir?: 'asc' | 'desc';
   hasMore?: boolean;
 }
 
@@ -15,4 +15,5 @@ export interface ApiError {
   errorType: string;
   message: string;
   details?: Record<string, any>;
+  errors?: Record<string, string[]>;
 }

@@ -15,8 +15,8 @@ export class WorkspaceRepository implements IWorkspaceRepository {
     const response = await this.apiClient.get<any>('/api/v1/proxy/workspaces', {
       limit: pagination.limit,
       offset: pagination.offset,
-      sortBy: pagination.sortBy,
-      sortOrder: pagination.sortOrder,
+      sort_by: pagination.sortBy,
+      sort_dir: pagination.sortDir,
     });
     return {
       data: response.data.map((item: any) => Workspace.create(item)),
@@ -26,12 +26,12 @@ export class WorkspaceRepository implements IWorkspaceRepository {
 
   async getById(id: string): Promise<Workspace | null> {
     const response = await this.apiClient.get<any>(`/api/v1/proxy/workspaces/${id}`);
-    return response ? Workspace.create(response) : null;
+    return response ? Workspace.create(response.data) : null;
   }
 
   async create(data: CreateNewWorkspaceRequest): Promise<Workspace> {
     const response = await this.apiClient.post<any>('/api/v1/proxy/workspaces', data);
-    return Workspace.create(response);
+    return Workspace.create(response.data);
   }
 
   async update(id: string, data: UpdateWorkspaceRequest): Promise<void> {
@@ -40,5 +40,18 @@ export class WorkspaceRepository implements IWorkspaceRepository {
 
   async delete(id: string): Promise<void> {
     await this.apiClient.delete(`/api/v1/proxy/workspaces/${id}`);
+  }
+
+  async count(): Promise<number> {
+    const response = await this.apiClient.get<{ count: number }>('/api/v1/proxy/workspaces/count');
+    return response.count;
+  }
+
+  async batchDelete(ids: string[]): Promise<void> {
+    await this.apiClient.post('/api/v1/proxy/workspaces/batch-delete', { ids });
+  }
+
+  async cascadeDelete(id: string): Promise<void> {
+    await this.apiClient.delete(`/api/v1/proxy/workspaces/${id}/cascade-delete`);
   }
 }

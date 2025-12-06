@@ -1,0 +1,73 @@
+{
+  "list": {
+    "title": "Anotasyonlar",
+    "empty": "Henüz anotasyon bulunmuyor",
+    "loading": "Anotasyonlar yükleniyor...",
+    "search_placeholder": "Anotasyon ara..."
+  },
+  "detail": {
+    "title": "Anotasyon Detayı",
+    "info": "Bilgiler",
+    "polygon": "Poligon",
+    "score": "Skor",
+    "class": "Sınıf",
+    "description": "Açıklama"
+  },
+  "editor": {
+    "title": "Anotasyon Editörü",
+    "tools": "Araçlar",
+    "draw": "Çiz",
+    "select": "Seç",
+    "delete": "Sil",
+    "clear": "Temizle",
+    "zoom_in": "Yakınlaştır",
+    "zoom_out": "Uzaklaştır",
+    "fit": "Sığdır",
+    "save": "Kaydet"
+  },
+  "form": {
+    "create_title": "Yeni Anotasyon Oluştur",
+    "edit_title": "Anotasyon Düzenle",
+    "polygon": "Poligon",
+    "score": "Skor",
+    "score_placeholder": "Skor girin",
+    "class": "Sınıf",
+    "class_placeholder": "Sınıf seçin",
+    "description": "Açıklama",
+    "description_placeholder": "Açıklama girin"
+  },
+  "actions": {
+    "create": "Oluştur",
+    "edit": "Düzenle",
+    "delete": "Sil",
+    "cancel": "İptal",
+    "save": "Kaydet",
+    "view": "Görüntüle",
+    "export": "Dışa Aktar"
+  },
+  "messages": {
+    "create_success": "Anotasyon başarıyla oluşturuldu",
+    "create_error": "Anotasyon oluşturulamadı",
+    "update_success": "Anotasyon başarıyla güncellendi",
+    "update_error": "Anotasyon güncellenemedi",
+    "delete_success": "Anotasyon başarıyla silindi",
+    "delete_error": "Anotasyon silinemedi",
+    "fetch_error": "Anotasyonlar yüklenemedi",
+    "delete_confirm": "Bu anotasyonu silmek istediğinizden emin misiniz?",
+    "batch_delete_success": "Anotasyonlar başarıyla silindi",
+    "batch_delete_error": "Anotasyonlar silinemedi",
+    "export_success": "Anotasyonlar başarıyla dışa aktarıldı",
+    "export_error": "Anotasyonlar dışa aktarılamadı",
+    "image_required": "Anotasyon kaydetmek için bir görüntü seçili olmalı",
+    "polygon_required": "Poligon çizilmelidir",
+    "score_out_of_range": "Skor {min} ile {max} arasında olmalıdır"
+  },
+  "validation": {
+    "polygon_required": "Poligon zorunludur",
+    "polygon_min_points": "Poligon en az 3 nokta içermelidir",
+    "score_required": "Skor zorunludur",
+    "score_invalid": "Geçersiz skor değeri",
+    "class_required": "Sınıf zorunludur",
+    "image_required": "Görüntü seçilmelidir"
+  }
+}

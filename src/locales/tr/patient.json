@@ -1,0 +1,81 @@
+{
+  "list": {
+    "title": "Hastalar",
+    "empty": "Henüz hasta bulunmuyor",
+    "loading": "Hastalar yükleniyor...",
+    "search_placeholder": "Hasta ara...",
+    "selected_count": "{count} hasta seçildi"
+  },
+  "detail": {
+    "title": "Hasta Detayı",
+    "info": "Bilgiler",
+    "images": "Görüntüler",
+    "demographics": "Demografik Bilgiler",
+    "medical_info": "Tıbbi Bilgiler"
+  },
+  "form": {
+    "create_title": "Yeni Hasta Oluştur",
+    "edit_title": "Hasta Düzenle",
+    "name": "Hasta Adı",
+    "name_placeholder": "Hasta adını girin",
+    "age": "Yaş",
+    "age_placeholder": "Yaş girin",
+    "gender": "Cinsiyet",
+    "gender_placeholder": "Cinsiyet seçin",
+    "race": "Irk",
+    "race_placeholder": "Irk girin",
+    "disease": "Hastalık",
+    "disease_placeholder": "Hastalık girin",
+    "subtype": "Alt Tip",
+    "subtype_placeholder": "Alt tip girin",
+    "grade": "Derece",
+    "grade_placeholder": "Derece girin",
+    "history": "Geçmiş",
+    "history_placeholder": "Hasta geçmişini girin",
+    "target_workspace": "Hedef Çalışma Alanı"
+  },
+  "actions": {
+    "create": "Oluştur",
+    "edit": "Düzenle",
+    "delete": "Sil",
+    "delete_selected": "Seçilenleri Sil",
+    "transfer": "Taşı",
+    "transfer_selected": "Seçilenleri Taşı",
+    "cancel": "İptal",
+    "save": "Kaydet",
+    "view": "Görüntüle",
+    "upload_image": "Görüntü Yükle"
+  },
+  "messages": {
+    "create_success": "Hasta başarıyla oluşturuldu",
+    "create_error": "Hasta oluşturulamadı",
+    "update_success": "Hasta başarıyla güncellendi",
+    "update_error": "Hasta güncellenemedi",
+    "delete_success": "Hasta başarıyla silindi",
+    "delete_error": "Hasta silinemedi",
+    "transfer_success": "Hasta başarıyla transfer edildi",
+    "transfer_error": "Hasta transfer edilemedi",
+    "fetch_error": "Hastalar yüklenemedi",
+    "delete_confirm": "Bu hastayı silmek istediğinizden emin misiniz?",
+    "batch_delete_confirm": "{count} adet hastayı silmek istediğinizden emin misiniz?",
+    "cascade_delete_warning": "Bu işlem tüm görüntüleri ve anotasyonları da silecektir!",
+    "batch_delete_success": "Hastalar başarıyla silindi",
+    "batch_delete_error": "Hastalar silinemedi",
+    "batch_transfer_success": "Hastalar başarıyla transfer edildi",
+    "batch_transfer_error": "Hastalar transfer edilemedi",
+    "transfer_confirm": "<strong>{name}</strong> adlı hastayı taşımak istediğiniz hedef çalışma alanını seçin.",
+    "batch_transfer_confirm": "Seçili <strong>{count}</strong> hastayı taşımak istediğiniz hedef çalışma alanını seçin."
+  },
+  "validation": {
+    "name_required": "Hasta adı zorunludur",
+    "name_min": "Hasta adı en az 2 karakter olmalıdır",
+    "age_min": "Yaş 0'dan büyük olmalıdır",
+    "age_max": "Yaş 150'den küçük olmalıdır",
+    "workspace_required": "Veri seti seçilmelidir"
+  },
+  "genders": {
+    "male": "Erkek",
+    "female": "Kadın",
+    "other": "Diğer"
+  }
+}

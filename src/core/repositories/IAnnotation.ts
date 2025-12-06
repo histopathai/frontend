@@ -3,8 +3,8 @@ import type { PaginatedResult, Pagination } from '../types/common';
 import { Point } from '../value-objects/Point';
 
 export interface CreateNewAnnotationRequest {
-  imageId: string;
-  annotatorId: string;
+  image_id: string;
+  annotator_id: string;
   polygon: Point[];
   score?: number;
   class?: string;
@@ -17,4 +17,6 @@ export interface IAnnotationRepository {
   getById(id: string): Promise<Annotation>;
   update(id: string, data: Partial<CreateNewAnnotationRequest>): Promise<void>;
   delete(id: string): Promise<void>;
+  count(): Promise<number>;
+  batchDelete(ids: string[]): Promise<void>;
 }

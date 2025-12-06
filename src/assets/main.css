@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Temel stil ayarları */
+@layer base {
+  body {
+    @apply bg-gray-100 text-gray-900 font-sans; /* Arka planı çok hafif bir gri yaptım */
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-semibold text-gray-900;
+  }
+}
+
+/* Global Component Stilleri */
+@layer components {
+  /* Ana Buton Stili */
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md border border-transparent px-4 py-2 text-sm font-medium shadow-sm transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Buton Boyutları */
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+  .btn-xs {
+    @apply px-2.5 py-1 text-xs;
+  }
+
+  /* Buton Varyantları */
+  .btn-primary {
+    @apply bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500;
+  }
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+  }
+  .btn-outline {
+    @apply border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-indigo-500;
+  }
+  .btn-ghost {
+    @apply border-transparent bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:ring-indigo-500;
+  }
+  .btn-ghost-danger {
+    @apply border-transparent bg-transparent text-red-600 hover:bg-red-100 hover:text-red-800 focus:ring-red-500;
+  }
+
+  /* Form Elemanları */
+  .form-input {
+    @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm;
+  }
+  .form-label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+  .form-input-sm {
+    @apply py-1.5 px-2.5 text-xs;
+  }
+
+  /* Kart Yapısı */
+  .card {
+    @apply bg-white overflow-hidden shadow-lg rounded-xl;
+  }
+  .card-header {
+    @apply px-6 py-5 border-b border-gray-200;
+  }
+  .card-body {
+    @apply p-6;
+  }
+
+  .router-link-exact-active {
+    @apply text-indigo-600 font-semibold;
+  }
+}

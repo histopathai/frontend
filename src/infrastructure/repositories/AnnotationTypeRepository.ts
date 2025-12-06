@@ -1,6 +1,7 @@
 import type {
   CreateNewAnnotationTypeRequest,
   IAnnotationType,
+  UpdateAnnotationTypeRequest,
 } from '@/core/repositories/IAnnotationType';
 import type { PaginatedResult, Pagination } from '@/core/types/common';
 
@@ -14,8 +15,8 @@ export class AnnotationTypeRepository implements IAnnotationType {
     const response = await this.apiClient.get<any>('/api/v1/proxy/annotation-types', {
       limit: pagination.limit,
       offset: pagination.offset,
-      sortBy: pagination.sortBy,
-      sortOrder: pagination.sortOrder,
+      sort_by: pagination.sortBy,
+      sort_dir: pagination.sortDir,
     });
     return {
       data: response.data.map((item: any) => AnnotationType.create(item)),
@@ -25,19 +26,29 @@ export class AnnotationTypeRepository implements IAnnotationType {
 
   async getById(id: string): Promise<AnnotationType> {
     const response = await this.apiClient.get<any>(`/api/v1/proxy/annotation-types/${id}`);
-    return AnnotationType.create(response);
+    return AnnotationType.create(response.data);
   }
 
   async create(data: CreateNewAnnotationTypeRequest): Promise<AnnotationType> {
     const response = await this.apiClient.post<any>('/api/v1/proxy/annotation-types', data);
-    return AnnotationType.create(response);
+    return AnnotationType.create(response.data);
   }
 
-  async update(id: string, data: Partial<CreateNewAnnotationTypeRequest>): Promise<void> {
+  async update(id: string, data: UpdateAnnotationTypeRequest): Promise<void> {
     await this.apiClient.put(`/api/v1/proxy/annotation-types/${id}`, data);
   }
 
   async delete(id: string): Promise<void> {
     await this.apiClient.delete(`/api/v1/proxy/annotation-types/${id}`);
+  }
+  async batchDelete(ids: string[]): Promise<void> {
+    await this.apiClient.post(`/api/v1/proxy/annotation-types/batch-delete`, { ids });
+  }
+
+  async count(): Promise<number> {
+    const response = await this.apiClient.get<{ count: number }>(
+      `/api/v1/proxy/annotation-types/count-v1`
+    );
+    return response.count;
   }
 }

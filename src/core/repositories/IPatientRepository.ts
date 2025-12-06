@@ -1,8 +1,9 @@
 import { Patient } from '../entities/Patient';
 import type { PaginatedResult, Pagination } from '../types/common';
+import type { BatchTransfer } from './common';
 
 export interface CreateNewPatientRequest {
-  workspaceId: string;
+  workspace_id: string;
   name: string;
   age?: number;
   gender?: string;
@@ -20,4 +21,10 @@ export interface IPatientRepository {
   update(id: string, data: Partial<CreateNewPatientRequest>): Promise<void>;
   delete(id: string): Promise<void>;
   transfer(id: string, newWorkspaceId: string): Promise<void>;
+  count(): Promise<number>;
+  batchDelete(ids: string[]): Promise<void>;
+  batchTransfer(data: BatchTransfer): Promise<void>;
+  cascadeDelete(id: string): Promise<void>;
 }
+
+export type UpdatePatientRequest = Partial<CreateNewPatientRequest>;
