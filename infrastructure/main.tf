@@ -52,7 +52,7 @@ provider "google" {
 # ----------------------------------------------------------
 # CLOUD RUN SERVICE
 # ----------------------------------------------------------
-resource "google_cloud_run_v2_service" "frontend" {
+resource "google_cloud_run_v2_service" "frontend-service" {
     name = local.service_name
     location = local.region
     ingress  = var.allow_public_access ? "INGRESS_TRAFFIC_ALL" : "INGRESS_TRAFFIC_INTERNAL_ONLY"
@@ -96,9 +96,9 @@ resource "google_cloud_run_v2_service" "frontend" {
 # ----------------------------------------------------------
 resource "google_cloud_run_v2_service_iam_member" "public_access" {
   count     = var.allow_public_access ? 1 : 0
-  project   = google_cloud_run_v2_service.frontend.project
-  location  = google_cloud_run_v2_service.frontend.location
-  name      = google_cloud_run_v2_service.frontend.name
+  project   = google_cloud_run_v2_service.frontend-service.project
+  location  = google_cloud_run_v2_service.frontend-service.location
+  name      = google_cloud_run_v2_service.frontend-service.name
   role      = "roles/run.invoker"
   member    = "allUsers"
 }
