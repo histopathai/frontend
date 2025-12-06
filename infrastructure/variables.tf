@@ -1,6 +1,7 @@
 variable "image_tag" {
   description = "Docker image tag to deploy"
   type        = string
+  default = "latest"
 }
 
 variable "api_base_url" {
