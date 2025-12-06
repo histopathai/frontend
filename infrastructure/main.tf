@@ -35,12 +35,12 @@ locals {
     region         = data.terraform_remote_state.platform.outputs.region
 
     # Service info
-    service_account        = data.terraform_remote_state.platform.outputs.main_service_account_email
+    service_account        = data.terraform_remote_state.platform.outputs.frontend_service_account
     artifact_repository_id = data.terraform_remote_state.platform.outputs.artifact_repository_id
-    service_name           = var.environment == "prod" ? "main-service" : "main-service-${var.environment}"
+    service_name           = var.environment == "prod" ? "frontend-service" : "frontend-service-${var.environment}"
   
     # Construct the full image path
-    image_name = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_repo}/main-service:${var.image_tag}"
+    image_name = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_repo}/frontend-service:${var.image_tag}"
 
 }
 
