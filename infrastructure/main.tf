@@ -29,64 +29,76 @@ data "terraform_remote_state" "platform" {
 # LOCALS & PROVIDERS
 # ----------------------------------------------------------
 locals {
-    project_id      = data.terraform_remote_state.platform.outputs.project_id
-    region          = data.terraform_remote_state.platform.outputs.region
-    repo_url        = data.terraform_remote_state.platform.outputs.artifact_repository_url
-    service_account = data.terraform_remote_state.platform.outputs.frontend_service_account_email
-    
-    image_name      = "${local.repo_url}/frontend:${var.image_tag}"
+    # GCP project and region info
+    project_id     = data.terraform_remote_state.platform.outputs.project_id
+    project_number = data.terraform_remote_state.platform.outputs.project_number
+    region         = data.terraform_remote_state.platform.outputs.region
+
+    # Service info
+    service_account        = data.terraform_remote_state.platform.outputs.main_service_account_email
+    artifact_repository_id = data.terraform_remote_state.platform.outputs.artifact_repository_id
+    service_name           = var.environment == "prod" ? "main-service" : "main-service-${var.environment}"
+  
+    # Construct the full image path
+    image_name = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_repo}/main-service:${var.image_tag}"
+
 }
 
 provider "google" {
-    project = data.terraform_remote_state.platform.outputs.project_id
-    region  = data.terraform_remote_state.platform.outputs.region
+  project = local.project_id
+  region  = local.region
 }
 
 # ----------------------------------------------------------
 # CLOUD RUN SERVICE
 # ----------------------------------------------------------
-resource "google_cloud_run_service" "frontend" {
-    name = "frontend"
+resource "google_cloud_run_v2_service" "frontend" {
+    name = local.service_name
     location = local.region
+    ingress  = var.allow_public_access ? "INGRESS_TRAFFIC_ALL" : "INGRESS_TRAFFIC_INTERNAL_ONLY"
 
     template {
-      spec {
-        service_account_name = local.service_account
-        containers {
-          image = local.image_name
-          ports {
-            container_port = 8080  
+      service_account = local.service_account
+      scaling {
+          min_instance_count = var.min_instances
+          max_instance_count = var.max_instances
+        }
+      containers {
+        image = local.image_name
+        resources {
+          limits = {
+            memory = var.memory_limit
+            cpu    = var.cpu_limit
           }
+          cpu_idle = true
+        }
 
-          env {
-            name  = "VITE_API_BASE_URL"
-            value = var.api_base_url
-          }
+        ports {
+          container_port = 8080
         }
       }
     }
 
     traffic {
-      percent         = 100
-      latest_revision = true
+      type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+      percent = 100
+    }
+      
+    labels = {
+      environment = var.environment
+      service = "frontend"
+      managed_by = "terraform"
     }
 }
 
 # ----------------------------------------------------------
 # PUBLIC ACCESS (Frontend is Public)
 # ----------------------------------------------------------
-data "google_iam_policy" "noauth" {
-    binding {
-      role = "roles/run.invoker"
-      members = [
-        "allUsers",
-      ]
-    }
-}
-
-resource "google_cloud_run_service_iam_policy" "noauth" {
-  location    = google_cloud_run_service.frontend.location
-  project     = google_cloud_run_service.frontend.project
-  service     = google_cloud_run_service.frontend.name
-  policy_data = data.google_iam_policy.noauth.policy_data
+resource "google_cloud_run_v2_service_iam_member" "public_access" {
+  count     = var.allow_public_access ? 1 : 0
+  project   = google_cloud_run_v2_service.frontend.project
+  location  = google_cloud_run_v2_service.frontend.location
+  name      = google_cloud_run_v2_service.frontend.name
+  role      = "roles/run.invoker"
+  member    = "allUsers"
 }
