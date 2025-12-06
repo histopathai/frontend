@@ -1,6 +1,6 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
-import Toast, { type PluginOptions } from 'vue-toastification';
+import Toast, { type PluginOptions, POSITION } from 'vue-toastification';
 import './assets/main.css';
 import 'vue-toastification/dist/index.css';
 import { initializeApp } from 'firebase/app';
@@ -34,7 +34,7 @@ app.use(i18n);
 
 const toastOptions: PluginOptions = {
   timeout: 3000,
-  position: 'top-right',
+  position: POSITION.TOP_RIGHT,
 };
 app.use(Toast, toastOptions);
 app.mount('#app');

@@ -44,7 +44,7 @@ export class ApiClient {
         // 401 Unauthorized
         if (error.response?.status === 401) {
           const authStore = useAuthStore();
-          authStore.handleUnauthorized();
+          authStore.forceLogout();
 
           // Custom error mesajı
           return Promise.reject({
