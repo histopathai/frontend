@@ -96,9 +96,9 @@ resource "google_cloud_run_v2_service" "frontend-service" {
 # ----------------------------------------------------------
 resource "google_cloud_run_v2_service_iam_member" "public_access" {
   count     = var.allow_public_access ? 1 : 0
-  project   = google_cloud_run_v2_service.frontend.project
-  location  = google_cloud_run_v2_service.frontend.location
-  name      = google_cloud_run_v2_service.frontend.name
+  project   = google_cloud_run_v2_service.frontend-service.project
+  location  = google_cloud_run_v2_service.frontend-service.location
+  name      = google_cloud_run_v2_service.frontend-service.name
   role      = "roles/run.invoker"
   member    = "allUsers"
 }
