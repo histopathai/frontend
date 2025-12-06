@@ -17,7 +17,7 @@ on:
 
 env:
   TF_VERSION: '1.5.0'
-  REPO_NAME: 'frontend'
+  REPO_NAME: 'frontend-service'
   WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
   WIF_SERVICE_ACCOUNT: ${{ secrets.WIF_SERVICE_ACCOUNT }}
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
