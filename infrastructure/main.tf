@@ -8,7 +8,7 @@ terraform {
     }
   }
   backend "gcs" {
-    prefix = "service/frontend"
+    prefix = "service/frontend-service"
   }
 }
 
@@ -35,7 +35,7 @@ locals {
     region         = data.terraform_remote_state.platform.outputs.region
 
     # Service info
-    service_account        = data.terraform_remote_state.platform.outputs.frontend_service_account
+    service_account        = data.terraform_remote_state.platform.outputs.frontend_service_account_email
     artifact_repository_id = data.terraform_remote_state.platform.outputs.artifact_repository_id
     service_name           = var.environment == "prod" ? "frontend-service" : "frontend-service-${var.environment}"
   
@@ -86,7 +86,7 @@ resource "google_cloud_run_v2_service" "frontend" {
       
     labels = {
       environment = var.environment
-      service = "frontend"
+      service = "frontend-service"
       managed_by = "terraform"
     }
 }
