@@ -48,7 +48,8 @@ provider "google" {
   project = local.project_id
   region  = local.region
 }
-
+## Handled by Firebase Hosting
+/*
 # ----------------------------------------------------------
 # CLOUD RUN SERVICE
 # ----------------------------------------------------------
@@ -102,3 +103,4 @@ resource "google_cloud_run_v2_service_iam_member" "public_access" {
   role      = "roles/run.invoker"
   member    = "allUsers"
 }
+*/
