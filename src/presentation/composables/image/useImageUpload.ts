@@ -166,9 +166,6 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
 
       if (isPiCam) {
         // --- SENARYO A: PiCam (HTTP İsteği) ---
-        if (!MICROSCOPE_URL) {
-          throw new Error('Mikroskop IP ayarları (.env) yapılandırılmamış.');
-        }
 
         // URL parametrelerini oluştur
         const params = new URLSearchParams();
