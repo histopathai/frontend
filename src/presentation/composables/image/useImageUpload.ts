@@ -179,7 +179,7 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
           params.append('gain', gain.value.toString());
         }
 
-        const url = `/microscope-proxy/capture${params.toString() ? '?' + params.toString() : ''}`;
+        const url = `https://192.168.7.2/capture${params.toString() ? '?' + params.toString() : ''}`;
         console.log('PiCam capture URL:', url);
 
         // 30 saniye timeout için AbortController
