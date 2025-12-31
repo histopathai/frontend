@@ -1,334 +1,395 @@
 <template>
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm"
     @click.self="$emit('close')"
   >
-    <div class="card w-full max-w-2xl shadow-lg rounded-xl bg-white">
-      <form @submit.prevent="handleSubmit">
-        <div class="card-header px-6 py-4 border-b border-gray-200">
-          <h3 class="text-xl font-semibold text-gray-900">
-            {{
-              isEditMode
-                ? t('annotation_type.form.edit_title')
-                : t('annotation_type.form.create_title')
-            }}
-          </h3>
-          <p class="text-sm text-gray-500 mt-1">
-            {{ t('annotation_type.detail.info') }}
-          </p>
+    <div
+      class="bg-white w-full max-w-5xl h-[80vh] rounded-2xl shadow-2xl flex overflow-hidden flex-col md:flex-row"
+    >
+      <div class="w-full md:w-1/3 bg-gray-50 border-r border-gray-200 flex flex-col">
+        <div class="p-4 border-b border-gray-200 bg-white">
+          <h3 class="font-bold text-gray-800 text-lg">Veri Alanları</h3>
         </div>
 
-        <div class="card-body p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-          <div v-if="initialLoading" class="text-center py-10">
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"
-            ></div>
-            <p class="text-gray-500 mt-2">{{ t('annotation_type.list.loading') }}</p>
+        <div class="flex-1 overflow-y-auto p-3 space-y-2">
+          <div
+            v-for="(field, index) in fields"
+            :key="index"
+            @click="selectField(index)"
+            :class="[
+              'p-3 rounded-lg border cursor-pointer transition-all flex justify-between items-center group',
+              selectedIndex === index
+                ? 'bg-indigo-50 border-indigo-500 shadow-sm ring-1 ring-indigo-200'
+                : 'bg-white border-gray-200 hover:border-indigo-300 hover:shadow-sm',
+            ]"
+          >
+            <div class="flex items-center gap-3">
+              <span
+                class="p-2 rounded-md bg-white border border-gray-100 text-gray-500 text-xs font-mono font-bold uppercase w-10 text-center"
+              >
+                {{ getTypeLabelShort(field.inputType) }}
+              </span>
+              <div class="flex flex-col">
+                <span class="font-medium text-gray-700 text-sm truncate max-w-[120px]">{{
+                  field.name || 'İsimsiz Alan'
+                }}</span>
+                <span class="text-[10px] text-gray-400">{{
+                  field.required ? 'Zorunlu' : 'Opsiyonel'
+                }}</span>
+              </div>
+            </div>
+
+            <button
+              @click.stop="removeField(index)"
+              class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-opacity"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            </button>
           </div>
 
-          <div v-else class="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-            <div class="space-y-4">
+          <button
+            @click="addNewField"
+            class="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all font-medium text-sm flex items-center justify-center gap-2"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            Yeni Alan Ekle
+          </button>
+        </div>
+      </div>
+
+      <div class="w-full md:w-2/3 bg-white flex flex-col h-full">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+          <h4 class="font-semibold text-gray-700">Alan Ayarları</h4>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              @click="$emit('close')"
+              class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+            >
+              İptal
+            </button>
+            <button
+              type="button"
+              @click="handleSaveAll"
+              :disabled="loading"
+              class="px-6 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-sm transition-colors flex items-center gap-2"
+            >
+              <span
+                v-if="loading"
+                class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
+              ></span>
+              {{ loading ? 'Kaydediliyor...' : 'Tümünü Kaydet' }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="selectedField" class="flex-1 overflow-y-auto p-8">
+          <div class="max-w-xl mx-auto space-y-6">
+            <div class="grid grid-cols-1 gap-6">
               <div>
-                <label class="form-label text-sm font-medium text-gray-700">
-                  {{ t('annotation_type.form.name') }}
-                </label>
+                <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >Alan Adı (Etiket)</label
+                >
                 <input
+                  v-model="selectedField.name"
                   type="text"
-                  v-model="name"
-                  class="form-input bg-white"
-                  :placeholder="t('annotation_type.form.name_placeholder')"
-                  required
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
+                  placeholder="Örn: Gleason Skoru"
                 />
               </div>
 
-              <div>
-                <label class="form-label text-sm font-medium text-gray-700 mb-1">
-                  Mod Seçimi (*)
-                </label>
-                <div class="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    @click="mode = 'classification'"
-                    :class="[
-                      'btn btn-sm border transition-all',
-                      mode === 'classification'
-                        ? 'bg-whiteQH border-indigo-500 text-indigo-700 ring-1 ring-indigo-500 shadow-sm font-medium'
-                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-white',
-                    ]"
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Veri Tipi</label>
+                  <select
+                    v-model="selectedField.inputType"
+                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
                   >
-                    {{ t('annotation_type.features.classification') }}
-                  </button>
-                  <button
-                    type="button"
-                    @click="mode = 'score'"
-                    :class="[
-                      'btn btn-sm border transition-all',
-                      mode === 'score'
-                        ? 'bg-white border-indigo-500 text-indigo-700 ring-1 ring-indigo-500 shadow-sm font-medium'
-                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-white',
-                    ]"
-                  >
-                    {{ t('annotation_type.features.scoring') }}
-                  </button>
-                  <button
-                    type="button"
-                    @click="mode = 'both'"
-                    :class="[
-                      'btn btn-sm border transition-all',
-                      mode === 'both'
-                        ? 'bg-white border-indigo-500 text-indigo-700 ring-1 ring-indigo-500 shadow-sm font-medium'
-                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-white',
-                    ]"
-                  >
-                    Her İkisi
-                  </button>
+                    <option value="select">Tekli Seçim (Select)</option>
+                    <option value="multi_select">Çoklu Seçim (Tags)</option>
+                    <option value="number">Sayısal Değer (Skor)</option>
+                    <option value="text">Serbest Metin</option>
+                    <option value="boolean">Evet / Hayır</option>
+                  </select>
+                </div>
+
+                <div class="flex items-end pb-2">
+                  <label class="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      v-model="selectedField.required"
+                      class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 h-5 w-5"
+                    />
+                    <span class="text-sm text-gray-700 font-medium">Zorunlu Alan</span>
+                  </label>
                 </div>
               </div>
+            </div>
 
-              <div
-                v-if="mode === 'classification' || mode === 'both'"
-                class="animate-fade-in p-4 bg-whiteQH rounded-md border border-gray-200 shadow-sm"
-              >
-                <label class="form-label text-xs font-bold text-gray-700 mb-2 flex justify-between">
-                  <span>{{ t('annotation_type.form.class_list') }} (*)</span>
-                  <span class="text-gray-400 font-normal">
-                    {{ addedClasses.length }} sınıf eklendi
-                  </span>
-                </label>
+            <hr class="border-gray-100" />
 
-                <div class="flex gap-2 mb-3">
+            <div
+              v-if="['select', 'multi_select'].includes(selectedField.inputType)"
+              class="space-y-4 animate-fade-in"
+            >
+              <label class="block text-sm font-medium text-gray-700">Seçenekler</label>
+              <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">
+                <div
+                  v-for="(opt, oIndex) in selectedField.options"
+                  :key="oIndex"
+                  class="flex gap-2"
+                >
                   <input
-                    type="text"
-                    v-model="newClassInput"
-                    @keydown.enter.prevent="addNewClass"
-                    class="form-input flex-1 text-sm"
-                    :placeholder="t('annotation_type.form.class_list_placeholder')"
+                    v-model="selectedField.options[oIndex]"
+                    placeholder="Seçenek adı (örn: Luminal A)"
+                    class="flex-1 rounded-md border-gray-300 shadow-sm text-sm p-2 border"
                   />
                   <button
-                    type="button"
-                    @click="addNewClass"
-                    class="btn btn-sm bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
-                    :disabled="!newClassInput.trim()"
+                    @click="removeOption(oIndex)"
+                    class="text-gray-400 hover:text-red-500 px-2"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
+                      class="h-5 w-5"
                       viewBox="0 0 20 20"
                       fill="currentColor"
-                      class="w-4 h-4 mr-1"
                     >
                       <path
-                        d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"
+                        fill-rule="evenodd"
+                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                        clip-rule="evenodd"
                       />
                     </svg>
-                    {{ t('annotation_type.form.add_class') }}
                   </button>
                 </div>
-
-                <div
-                  class="flex flex-wrap gap-2 min-h-[40px] p-2 bg-gray-50 roundedQH border border-gray-100"
+                <button
+                  @click="addOption"
+                  class="text-sm text-indigo-600 font-medium hover:text-indigo-800 flex items-center gap-1"
                 >
-                  <div
-                    v-if="addedClasses.length === 0"
-                    class="w-full text-center text-gray-400 text-xs italic py-2"
-                  >
-                    Sınıf listesi boş.
-                  </div>
+                  <span class="text-lg">+</span> Seçenek Ekle
+                </button>
+              </div>
+            </div>
 
-                  <span
-                    v-for="(tag, index) in addedClasses"
-                    :key="index"
-                    class="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-medium bg-white text-indigo-700 border border-indigo-200 shadow-sm transition-all hover:border-indigo-300"
-                  >
-                    {{ tag }}
-                    <button
-                      type="button"
-                      @click="removeClass(index)"
-                      class="ml-1.5 h-4 w-4 rounded-full inline-flex items-center justify-center text-indigo-400 hover:bg-red-100 hover:text-red-600 focus:outline-none transition-colors"
-                      :title="t('annotation_type.form.remove_class')"
-                    >
-                      <svg
-                        class="h-3 w-3"
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"
-                        />
-                      </svg>
-                    </button>
-                  </span>
+            <div v-if="selectedField.inputType === 'number'" class="space-y-4 animate-fade-in">
+              <label class="block text-sm font-medium text-gray-700">Değer Aralığı</label>
+              <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div>
+                  <span class="text-xs text-gray-500">Minimum</span>
+                  <input
+                    v-model.number="selectedField.min"
+                    type="number"
+                    class="w-full mt-1 rounded-md border-gray-300 shadow-sm text-sm p-2 border"
+                  />
+                </div>
+                <div>
+                  <span class="text-xs text-gray-500">Maximum</span>
+                  <input
+                    v-model.number="selectedField.max"
+                    type="number"
+                    class="w-full mt-1 rounded-md border-gray-300 shadow-sm text-sm p-2 border"
+                  />
                 </div>
               </div>
-
-              <div
-                v-if="mode === 'score' || mode === 'both'"
-                class="animate-fade-in p-4 bg-white rounded-md border border-gray-200 shadow-sm"
-              >
-                <label class="form-label text-xs font-bold text-gray-700 mb-2">
-                  {{ t('annotation_type.detail.score_config') }} (*)
-                </label>
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label class="form-label text-xs text-gray-500">
-                      {{ t('annotation_type.form.score_min') }}
-                    </label>
-                    <input type="number" v-model.number="scoreMin" class="form-input" />
-                  </div>
-                  <div>
-                    <label class="form-label text-xs text-gray-500">
-                      {{ t('annotation_type.form.score_max') }}
-                    </label>
-                    <input type="number" v-model.number="scoreMax" class="form-input" />
-                  </div>
-                </div>
-              </div>
+              <p class="text-xs text-gray-500 italic">
+                Örn: Gleason skoru için Min: 6, Max: 10 girebilirsiniz.
+              </p>
             </div>
           </div>
         </div>
 
-        <div
-          class="card-footer px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 rounded-b-xl"
-        >
-          <button type="button" @click="$emit('close')" class="btn btn-outline">
-            {{ t('annotation_type.actions.cancel') }}
-          </button>
-          <button type="submit" :disabled="actionLoading || initialLoading" class="btn btn-primary">
-            {{
-              actionLoading
-                ? t('annotation_type.list.loading')
-                : isEditMode
-                  ? t('annotation_type.actions.save')
-                  : t('annotation_type.actions.create')
-            }}
-          </button>
+        <div v-else class="flex-1 flex flex-col items-center justify-center text-gray-400">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-16 w-16 mb-4 text-gray-200"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+            />
+          </svg>
+          <p>Düzenlemek için soldan bir alan seçin veya yeni ekleyin.</p>
         </div>
-      </form>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useToast } from 'vue-toastification';
+import { ref } from 'vue';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
-import { useWorkspaceStore } from '@/stores/workspace';
-import type { CreateNewAnnotationTypeRequest } from '@/core/repositories/IAnnotationType';
+import { useToast } from 'vue-toastification';
 
 const props = defineProps({
   workspaceId: { type: String, required: true },
-  workspaceName: { type: String, default: '' },
-  currentAnnotationTypeId: { type: String, default: undefined },
 });
-
 const emit = defineEmits(['close', 'saved']);
 
-const { t } = useI18n();
-const toast = useToast();
 const store = useAnnotationTypeStore();
-const workspaceStore = useWorkspaceStore();
+const toast = useToast();
+const loading = ref(false);
 
-const initialLoading = ref(false);
-const actionLoading = computed(() => store.actionLoading);
+type InputType = 'text' | 'number' | 'select' | 'multi_select' | 'boolean';
 
-const name = ref(`${props.workspaceName} - Etiketleme Tipi`);
-const mode = ref<'classification' | 'score' | 'both'>('classification');
-const addedClasses = ref<string[]>([]);
-const newClassInput = ref('');
-const scoreMin = ref(0);
-const scoreMax = ref(5);
-
-const isEditMode = computed(() => !!props.currentAnnotationTypeId);
-
-function addNewClass() {
-  const val = newClassInput.value.trim();
-  if (!val) return;
-
-  if (addedClasses.value.some((c) => c.toLowerCase() === val.toLowerCase())) {
-    toast.warning(t('annotation_type.validation.class_duplicate'));
-    return;
-  }
-
-  addedClasses.value.push(val);
-  newClassInput.value = '';
+interface FieldConfig {
+  name: string;
+  inputType: InputType;
+  required: boolean;
+  options: string[];
+  min: number | null;
+  max: number | null;
 }
 
-function removeClass(index: number) {
-  addedClasses.value.splice(index, 1);
-}
+const fields = ref<FieldConfig[]>([
+  {
+    name: 'Tanı',
+    inputType: 'select',
+    required: true,
+    options: ['Benign', 'Malign'],
+    min: null,
+    max: null,
+  },
+]);
 
-onMounted(async () => {
-  if (isEditMode.value && props.currentAnnotationTypeId) {
-    initialLoading.value = true;
-    try {
-      const existingType = await store.fetchAnnotationTypeById(props.currentAnnotationTypeId);
+const selectedIndex = ref<number>(0);
 
-      if (existingType) {
-        name.value = existingType.name;
+// Değişiklik 1: 'undefined' olabilir olarak işaretledik
+const selectedField = ref<FieldConfig | undefined>(fields.value[0]);
 
-        if (existingType.classificationEnabled && existingType.scoreEnabled) {
-          mode.value = 'both';
-        } else if (existingType.scoreEnabled) {
-          mode.value = 'score';
-        } else {
-          mode.value = 'classification';
-        }
-
-        if (existingType.classList) {
-          addedClasses.value = [...existingType.classList];
-        }
-
-        const range = existingType.scoreRange();
-        if (range) {
-          scoreMin.value = range.min;
-          scoreMax.value = range.max;
-        }
-      }
-    } finally {
-      initialLoading.value = false;
-    }
-  }
-});
-
-async function handleSubmit() {
-  const isClassification = mode.value === 'classification' || mode.value === 'both';
-  const isScore = mode.value === 'score' || mode.value === 'both';
-
-  if (isClassification && addedClasses.value.length === 0) {
-    toast.error(t('annotation_type.validation.class_list_required'));
-    return;
-  }
-
-  const payload: CreateNewAnnotationTypeRequest = {
-    creator_id: '', // Backend handles this
-    name: name.value,
-    description: `Workspace: ${props.workspaceName}`,
-    score_enabled: isScore,
-    classification_enabled: isClassification,
-    score_name: isScore ? 'Skor' : undefined,
-    score_min: isScore ? scoreMin.value : undefined,
-    score_max: isScore ? scoreMax.value : undefined,
-    class_list: isClassification ? addedClasses.value : undefined,
+function addNewField() {
+  const newField: FieldConfig = {
+    name: '',
+    inputType: 'text',
+    required: false,
+    options: [],
+    min: null,
+    max: null,
   };
+  fields.value.push(newField);
+  selectField(fields.value.length - 1);
+}
 
-  let success = false;
-
-  if (isEditMode.value && props.currentAnnotationTypeId) {
-    success = await store.updateAnnotationType(props.currentAnnotationTypeId, payload);
-  } else {
-    const newType = await store.createAnnotationType(payload);
-    if (newType) {
-      // Yeni oluşturulan tipi workspace'e bağla
-      await workspaceStore.updateWorkspace(props.workspaceId, {
-        annotation_type_id: newType.id,
-      });
-      success = true;
-    }
+function removeField(index: number) {
+  fields.value.splice(index, 1);
+  if (fields.value.length === 0) {
+    addNewField();
+  } else if (selectedIndex.value >= index) {
+    selectField(Math.max(0, index - 1));
   }
+}
 
-  if (success) {
+function selectField(index: number) {
+  selectedIndex.value = index;
+  // Değişiklik 2: Artık güvenle atama yapabiliriz
+  selectedField.value = fields.value[index];
+}
+
+// Değişiklik 3: Seçenek eklerken kontrol ekledik
+function addOption() {
+  if (selectedField.value) {
+    selectedField.value.options.push('');
+  }
+}
+
+// Değişiklik 4: Seçenek silerken kontrol ekledik
+function removeOption(idx: number) {
+  if (selectedField.value) {
+    selectedField.value.options.splice(idx, 1);
+  }
+}
+
+function getTypeLabelShort(type: InputType) {
+  const map: Record<string, string> = {
+    text: 'ABC',
+    number: '123',
+    select: 'LIST',
+    multi_select: 'TAGS',
+    boolean: 'BOOL',
+  };
+  return map[type] || '???';
+}
+
+async function handleSaveAll() {
+  loading.value = true;
+  try {
+    const validFields = fields.value.filter((f) => f.name.trim().length > 0);
+
+    if (validFields.length === 0) {
+      toast.warning('En az bir isimlendirilmiş alan girmelisiniz.');
+      loading.value = false;
+      return;
+    }
+
+    for (const field of validFields) {
+      await store.createAnnotationType({
+        workspace_id: props.workspaceId,
+        name: field.name,
+        input_type: field.inputType as any,
+        required: field.required,
+        description: `${field.inputType} field created via builder`,
+
+        class_list: ['select', 'multi_select'].includes(field.inputType)
+          ? field.options.filter((o) => o.trim())
+          : undefined,
+
+        score_min: field.inputType === 'number' ? (field.min ?? undefined) : undefined,
+        score_max: field.inputType === 'number' ? (field.max ?? undefined) : undefined,
+      });
+    }
+
+    toast.success('Veri yapısı başarıyla oluşturuldu.');
     emit('saved');
+    emit('close');
+  } catch (err) {
+    console.error(err);
+    toast.error('Kaydetme işlemi sırasında hata oluştu.');
+  } finally {
+    loading.value = false;
   }
 }
 </script>
+
+<style scoped>
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-in-out;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
