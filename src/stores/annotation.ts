@@ -407,8 +407,15 @@ export const useAnnotationStore = defineStore('annotation', () => {
   // Actions - Selection
   // ===========================
 
-  const selectAnnotation = (annotationId: string): void => {
-    selectedAnnotations.value.add(annotationId);
+  const selectAnnotation = (annotationId: string | null) => {
+    if (!annotationId) {
+      currentAnnotation.value = null;
+      return;
+    }
+    const found = annotations.value.find((a) => a.id === annotationId);
+    if (found) {
+      currentAnnotation.value = found;
+    }
   };
 
   const deselectAnnotation = (annotationId: string): void => {
