@@ -1,28 +1,30 @@
 import { AnnotationType } from '../entities/AnnotationType';
-import type { AnnotationInputType } from '../entities/AnnotationType';
 import type { PaginatedResult, Pagination } from '../types/common';
+import type { TagType } from '../types/tags';
+
+export interface TagRequest {
+  name: string;
+  type: TagType | string;
+  options?: string[];
+  global?: boolean;
+  min?: number;
+  max?: number;
+  color?: string;
+}
 
 export interface CreateNewAnnotationTypeRequest {
-  workspace_id: string;
   name: string;
-  input_type: AnnotationInputType;
-  description?: string;
-  required?: boolean;
-
-  // Tip spesifik alanlar
-  class_list?: string[]; // Seçenekler için (Select/MultiSelect)
-  score_min?: number; // Sayısal aralık için
-  score_max?: number;
-
-  // Görsel ve hiyerarşi (opsiyonel)
   parent_id?: string;
+  description?: string;
   color?: string;
+  tags: TagRequest[];
 
-  // Legacy support (eski kodların patlamaması için opsiyonel bırakıldı)
-  creator_id?: string;
-  score_enabled?: boolean;
-  classification_enabled?: boolean;
-  score_name?: string;
+  // Eski uyumluluk için
+  workspace_id?: string;
+  input_type?: any;
+  class_list?: string[];
+  score_min?: number;
+  score_max?: number;
 }
 
 export interface UpdateAnnotationTypeRequest {
@@ -30,7 +32,7 @@ export interface UpdateAnnotationTypeRequest {
   description?: string;
   parent_id?: string;
   color?: string;
-  required?: boolean;
+  tags?: TagRequest[];
 
   score_name?: string;
   score_min?: number;
@@ -38,8 +40,11 @@ export interface UpdateAnnotationTypeRequest {
   class_list?: string[];
 }
 
-export interface IAnnotationType {
+export interface IAnnotationTypeRepository {
   list(pagination: Pagination): Promise<PaginatedResult<AnnotationType>>;
+
+  getByParentId(parentId: string, pagination: Pagination): Promise<PaginatedResult<AnnotationType>>;
+
   getById(id: string): Promise<AnnotationType>;
   create(data: CreateNewAnnotationTypeRequest): Promise<AnnotationType>;
   update(id: string, data: UpdateAnnotationTypeRequest): Promise<void>;
