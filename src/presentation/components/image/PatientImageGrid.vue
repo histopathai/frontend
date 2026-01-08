@@ -232,7 +232,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useImageList } from '@/presentation/composables/image/useImageList';
 import { useImageStore } from '@/stores/image';
 import DeleteConfirmationModal from '@/presentation/components/common/DeleteConfirmationModal.vue';
@@ -259,7 +259,41 @@ const {
   transferSingle,
 } = useImageList(props.patientId, emit);
 
-// --- Silme İşlemleri (Modal Entegrasyonu) ---
+let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+const hasProcessingImages = computed(() => {
+  return images.value.some(
+    (img) =>
+      img.status.toString() === 'PROCESSING' ||
+      (!img.processedpath && !img.status.toString().includes('FAILED'))
+  );
+});
+
+watch(
+  hasProcessingImages,
+  (isProcessing) => {
+    if (isProcessing) {
+      if (!pollInterval) {
+        console.log('İşlenen görüntüler tespit edildi, otomatik kontrol başlatılıyor...');
+        pollInterval = setInterval(() => {
+          loadImages(true);
+        }, 3000);
+      }
+    } else {
+      if (pollInterval) {
+        console.log('Tüm görüntüler hazır, otomatik kontrol durduruldu.');
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    }
+  },
+  { immediate: true }
+);
+
+onUnmounted(() => {
+  if (pollInterval) clearInterval(pollInterval);
+});
+
 const isDeleteModalOpen = ref(false);
 const isDeleting = ref(false);
 const imageToDelete = ref<any>(null);
@@ -300,25 +334,29 @@ async function confirmDelete() {
   isDeleting.value = true;
   let success = false;
 
-  if (isBatchDelete.value) {
-    success = await imageStore.batchDeleteImages(selectedIds.value, props.patientId);
-    if (success) {
-      selectedIds.value = [];
-      await loadImages(true);
-    }
-  } else {
-    if (imageToDelete.value) {
-      success = await imageStore.deleteImage(imageToDelete.value.id, props.patientId);
+  try {
+    if (isBatchDelete.value) {
+      success = await imageStore.batchDeleteImages(selectedIds.value, props.patientId);
       if (success) {
-        selectedIds.value = selectedIds.value.filter((id) => id !== imageToDelete.value.id);
+        selectedIds.value = [];
         await loadImages(true);
       }
+    } else {
+      if (imageToDelete.value) {
+        success = await imageStore.deleteImage(imageToDelete.value.id, props.patientId);
+        if (success) {
+          selectedIds.value = selectedIds.value.filter((id) => id !== imageToDelete.value.id);
+          await loadImages(true);
+        }
+      }
     }
-  }
-
-  isDeleting.value = false;
-  if (success) {
-    closeDeleteModal();
+  } catch (error) {
+    console.error('Silme hatası:', error);
+  } finally {
+    isDeleting.value = false;
+    if (success) {
+      closeDeleteModal();
+    }
   }
 }
 
