@@ -65,17 +65,19 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
   const totalAnnotationTypes = computed(() => annotationTypes.value.length);
   const hasMore = computed(() => pagination.value.hasMore ?? false);
 
-  // Get annotation type by ID
+  // ID'ye göre Annotation Type getir
   const getAnnotationTypeById = computed(() => {
     return (id: string) => annotationTypes.value.find((at) => at.id === id);
   });
 
-  // Get annotation type options for select/dropdown (Simplified)
+  // Select/Dropdown bileşenleri için seçenek formatında veri getir
   const annotationTypeOptions = computed(() => {
     return annotationTypes.value.map((at) => ({
       value: at.id,
       label: at.name,
       parentId: at.parentId,
+      // Gerekirse burada 'tags' bilgisi de frontend'de filtreleme için taşınabilir
+      // tags: at.tags
     }));
   });
 
@@ -101,6 +103,7 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     const index = annotationTypes.value.findIndex((at) => at.id === updatedAnnotationType.id);
 
     if (index !== -1) {
+      // Shallow ref güncellemesi için array spread operatörü kullanıyoruz
       annotationTypes.value = [
         ...annotationTypes.value.slice(0, index),
         updatedAnnotationType,
@@ -108,6 +111,7 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
       ];
     }
 
+    // Eğer güncellenen tip şu an seçili olan ise, onu da güncelle
     if (currentAnnotationType.value?.id === updatedAnnotationType.id) {
       currentAnnotationType.value = updatedAnnotationType;
     }
@@ -205,14 +209,11 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     resetError();
 
     try {
-      // Basic validation
       if (!data.name) {
         throw new Error(t('annotation_type.validation.name_required') || 'Name is required');
       }
 
       const newAnnotationType = await annotationTypeRepo.create(data);
-
-      // Add to beginning of list
       annotationTypes.value = [newAnnotationType, ...annotationTypes.value];
 
       toast.success(t('annotation_type.messages.create_success'));
@@ -238,8 +239,6 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
 
     try {
       await annotationTypeRepo.update(annotationTypeId, data);
-
-      // Fetch updated annotation type
       const updatedAnnotationType = await annotationTypeRepo.getById(annotationTypeId);
 
       if (updatedAnnotationType) {
@@ -286,7 +285,7 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     try {
       await annotationTypeRepo.batchDelete(annotationTypeIds);
 
-      // Remove all deleted annotation types from state
+      // Silinenleri state'den kaldır
       annotationTypes.value = annotationTypes.value.filter(
         (at) => !annotationTypeIds.includes(at.id)
       );
