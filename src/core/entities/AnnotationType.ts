@@ -1,4 +1,4 @@
-import type { TagDefinition, TagResponseDTO } from '@/core/types/tags';
+import type { TagDefinition, TagResponseDTO, TagType } from '@/core/types/tags';
 
 export interface ParentRef {
   id: string;
@@ -10,7 +10,12 @@ export interface AnnotationTypeProps {
   creatorId: string;
   name: string;
   description: string | null;
-
+  type: TagType; // 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT' | 'MULTI_SELECT'
+  options: string[];
+  global: boolean;
+  required: boolean;
+  min?: number;
+  max?: number;
   tags: TagDefinition[];
   parent: ParentRef | null;
 
@@ -24,17 +29,6 @@ export class AnnotationType {
   private constructor(private props: AnnotationTypeProps) {}
 
   static create(data: any): AnnotationType {
-    const mappedTags: TagDefinition[] = (data.tags || []).map((t: TagResponseDTO) => ({
-      name: t.name,
-      type: t.type as any, // 'NUMBER' | 'TEXT' etc.
-      options: t.options || [],
-      global: t.global || false,
-      required: t.required || false,
-      min: t.min,
-      max: t.max,
-      color: t.color,
-    }));
-
     let parentRef: ParentRef | null = null;
     if (data.parent) {
       parentRef = {
@@ -54,13 +48,19 @@ export class AnnotationType {
       name: data.name,
       description: data.description ?? null,
 
-      tags: mappedTags,
+      type: data.type,
+      options: data.options || [],
+      global: data.global || false,
+      required: data.required || false,
+      min: data.min,
+      max: data.max,
 
       parent: parentRef,
       color: data.color ?? null,
 
       createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,
       updatedAt: typeof data.updated_at === 'string' ? new Date(data.updated_at) : data.updated_at,
+      tags: [],
     };
 
     return new AnnotationType(props);
@@ -75,9 +75,6 @@ export class AnnotationType {
   get description(): string | null {
     return this.props.description;
   }
-  get tags(): TagDefinition[] {
-    return this.props.tags;
-  }
   get color(): string | null {
     return this.props.color;
   }
@@ -87,7 +84,24 @@ export class AnnotationType {
   get createdAt(): Date {
     return this.props.createdAt;
   }
-
+  get type(): TagType {
+    return this.props.type;
+  }
+  get options(): string[] {
+    return this.props.options;
+  }
+  get global(): boolean {
+    return this.props.global;
+  }
+  get required(): boolean {
+    return this.props.required;
+  }
+  get min(): number | undefined {
+    return this.props.min;
+  }
+  get max(): number | undefined {
+    return this.props.max;
+  }
   get parent(): ParentRef | null {
     return this.props.parent;
   }
@@ -99,16 +113,6 @@ export class AnnotationType {
       return this.props.parent.id;
     }
     return '';
-  }
-
-  get isRoot(): boolean {
-    return !this.props.parent;
-  }
-
-  // --- Tag Helper ---
-
-  getTagDefinition(tagName: string): TagDefinition | undefined {
-    return this.props.tags.find((t) => t.name === tagName);
   }
 
   toJSON() {

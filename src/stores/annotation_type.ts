@@ -26,6 +26,7 @@ interface AnnotationTypeState {
 interface FetchOptions {
   refresh?: boolean;
   showToast?: boolean;
+  parentId?: string; // Belirli bir workspace'e göre filtrelemek için eklendi
 }
 
 // ===========================
@@ -65,19 +66,15 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
   const totalAnnotationTypes = computed(() => annotationTypes.value.length);
   const hasMore = computed(() => pagination.value.hasMore ?? false);
 
-  // ID'ye göre Annotation Type getir
   const getAnnotationTypeById = computed(() => {
     return (id: string) => annotationTypes.value.find((at) => at.id === id);
   });
 
-  // Select/Dropdown bileşenleri için seçenek formatında veri getir
   const annotationTypeOptions = computed(() => {
     return annotationTypes.value.map((at) => ({
       value: at.id,
       label: at.name,
       parentId: at.parentId,
-      // Gerekirse burada 'tags' bilgisi de frontend'de filtreleme için taşınabilir
-      // tags: at.tags
     }));
   });
 
@@ -103,7 +100,6 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     const index = annotationTypes.value.findIndex((at) => at.id === updatedAnnotationType.id);
 
     if (index !== -1) {
-      // Shallow ref güncellemesi için array spread operatörü kullanıyoruz
       annotationTypes.value = [
         ...annotationTypes.value.slice(0, index),
         updatedAnnotationType,
@@ -111,7 +107,6 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
       ];
     }
 
-    // Eğer güncellenen tip şu an seçili olan ise, onu da güncelle
     if (currentAnnotationType.value?.id === updatedAnnotationType.id) {
       currentAnnotationType.value = updatedAnnotationType;
     }
@@ -133,7 +128,7 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     paginationOptions?: Partial<Pagination>,
     options: FetchOptions = {}
   ): Promise<void> => {
-    const { refresh = false, showToast: showErrorToast = true } = options;
+    const { refresh = false, showToast: showErrorToast = true, parentId } = options;
 
     if (loading.value && !refresh) return;
 
@@ -146,8 +141,14 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
         ...paginationOptions,
       };
 
-      const result: PaginatedResult<AnnotationType> =
-        await annotationTypeRepo.list(paginationParams);
+      let result: PaginatedResult<AnnotationType>;
+
+      // Eğer parentId verilmişse ona göre filtrele, yoksa hepsini getir
+      if (parentId) {
+        result = await annotationTypeRepo.getByParentId(parentId, paginationParams);
+      } else {
+        result = await annotationTypeRepo.list(paginationParams);
+      }
 
       annotationTypes.value = result.data;
 
@@ -190,12 +191,16 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     }
   };
 
-  const loadMore = async (): Promise<void> => {
+  const loadMore = async (options: FetchOptions = {}): Promise<void> => {
     if (!hasMore.value || loading.value) return;
 
-    await fetchAnnotationTypes({
-      offset: pagination.value.offset + pagination.value.limit,
-    });
+    // ParentId varsa loadMore yaparken de korunmalı
+    await fetchAnnotationTypes(
+      {
+        offset: pagination.value.offset + pagination.value.limit,
+      },
+      options
+    );
   };
 
   // ===========================
@@ -213,10 +218,15 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
         throw new Error(t('annotation_type.validation.name_required') || 'Name is required');
       }
 
+      // Repository çağrısı
       const newAnnotationType = await annotationTypeRepo.create(data);
+
+      // State güncelleme (Listenin başına ekle)
       annotationTypes.value = [newAnnotationType, ...annotationTypes.value];
 
       toast.success(t('annotation_type.messages.create_success'));
+
+      // Oluşturulan nesneyi döndür (ID'sine erişim için önemli)
       return newAnnotationType;
     } catch (err: any) {
       handleError(err, t('annotation_type.messages.create_error'));
@@ -239,6 +249,8 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
 
     try {
       await annotationTypeRepo.update(annotationTypeId, data);
+
+      // Güncel halini çekip state'i güncelle
       const updatedAnnotationType = await annotationTypeRepo.getById(annotationTypeId);
 
       if (updatedAnnotationType) {

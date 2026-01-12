@@ -159,6 +159,7 @@ export const usePatientStore = defineStore('patient', () => {
         offset: 0,
         sortBy: 'created_at',
         sortDir: 'desc',
+        ...paginationOptions,
       };
 
       const result: PaginatedResult<Patient> = await patientRepo.getByWorkspaceId(

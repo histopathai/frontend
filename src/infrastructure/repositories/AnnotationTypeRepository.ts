@@ -1,6 +1,6 @@
 import type {
   CreateNewAnnotationTypeRequest,
-  IAnnotationType,
+  IAnnotationTypeRepository,
   UpdateAnnotationTypeRequest,
 } from '@/core/repositories/IAnnotationType';
 import type { PaginatedResult, Pagination } from '@/core/types/common';
@@ -8,7 +8,7 @@ import type { PaginatedResult, Pagination } from '@/core/types/common';
 import { AnnotationType } from '@/core/entities/AnnotationType';
 import { ApiClient } from '../api/ApiClient';
 
-export class AnnotationTypeRepository implements IAnnotationType {
+export class AnnotationTypeRepository implements IAnnotationTypeRepository {
   constructor(private apiClient: ApiClient) {}
 
   async list(pagination: Pagination): Promise<PaginatedResult<AnnotationType>> {
@@ -18,6 +18,24 @@ export class AnnotationTypeRepository implements IAnnotationType {
       sort_by: pagination.sortBy,
       sort_dir: pagination.sortDir,
     });
+    return {
+      data: response.data.map((item: any) => AnnotationType.create(item)),
+      pagination: response.pagination,
+    };
+  }
+
+  async getByParentId(
+    parentId: string,
+    pagination: Pagination
+  ): Promise<PaginatedResult<AnnotationType>> {
+    const response = await this.apiClient.get<any>('/api/v1/proxy/annotation-types', {
+      limit: pagination.limit,
+      offset: pagination.offset,
+      sort_by: pagination.sortBy,
+      sort_dir: pagination.sortDir,
+      parent_id: parentId,
+    });
+
     return {
       data: response.data.map((item: any) => AnnotationType.create(item)),
       pagination: response.pagination,

@@ -1,7 +1,7 @@
 export interface WorkspaceProps {
   id: string;
   creatorId: string;
-  annotationTypeId: string | null;
+  annotationTypeIds: string[];
   name: string;
   organType: string;
   organization: string;
@@ -20,7 +20,7 @@ export class Workspace {
     return new Workspace({
       id: data.id,
       creatorId: data.creator_id,
-      annotationTypeId: data.annotation_type_id ?? null,
+      annotationTypeIds: data.annotation_types || [],
       name: data.name,
       organType: data.organ_type,
       organization: data.organization,
@@ -45,8 +45,8 @@ export class Workspace {
     return this.props.creatorId;
   }
 
-  get annotationTypeId(): string | null {
-    return this.props.annotationTypeId;
+  get annotationTypeIds(): string[] {
+    return this.props.annotationTypeIds;
   }
 
   get organType(): string {
@@ -83,7 +83,7 @@ export class Workspace {
 
   // Business logic
   hasAnnotationType(): boolean {
-    return this.annotationTypeId !== null;
+    return this.annotationTypeIds.length > 0;
   }
 
   canCreatePatient(): boolean {
