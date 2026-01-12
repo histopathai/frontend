@@ -21,7 +21,7 @@ interface PatientState {
 interface FetchOptions {
   refresh?: boolean;
   showToast?: boolean;
-  append?: boolean; // YENİ: Ekleme modu için
+  append?: boolean;
 }
 
 export const usePatientStore = defineStore('patient', () => {
@@ -38,7 +38,7 @@ export const usePatientStore = defineStore('patient', () => {
   const error = ref<string | null>(null);
 
   const pagination = ref<Pagination>({
-    limit: 20, // Varsayılan limiti biraz artırdık
+    limit: 20,
     offset: 0,
     sortBy: 'created_at',
     sortDir: 'desc',
@@ -61,7 +61,6 @@ export const usePatientStore = defineStore('patient', () => {
     return (workspaceId: string) => patientsByWorkspace.value.get(workspaceId) || [];
   });
 
-  // --- HELPER FUNCTIONS ---
   const handleError = (err: any, defaultMessage: string, showToast = true): void => {
     const errorMessage = err.response?.data?.message || err.message || defaultMessage;
     error.value = errorMessage;
@@ -161,26 +160,23 @@ export const usePatientStore = defineStore('patient', () => {
         sortDir: 'desc',
         ...paginationOptions,
       };
-
+      console.log(
+        'Fetching patients with params:',
+        paginationParams,
+        'for workspace:',
+        workspaceId
+      );
       const result: PaginatedResult<Patient> = await patientRepo.getByWorkspaceId(
         workspaceId,
         paginationParams
       );
 
-      // 1. Gelen veriyi Class Instance'ına çevir
+      console.log('Fetched patients result:', result);
+
       const mappedPatients = result.data.map((item: any) => Patient.create(item));
-
-      // 2. Mevcut listeyi al
       const currentList = patientsByWorkspace.value.get(workspaceId) || [];
-
-      // 3. Listeleri birleştir ve SONUNA 'as Patient[]' EKLE
-      // Bu 'as Patient[]' ifadesi TypeScript'i susturan kısımdır.
       const newList = (append ? [...currentList, ...mappedPatients] : mappedPatients) as Patient[];
-
-      // Workspace Map'ini güncelle
       patientsByWorkspace.value.set(workspaceId, newList);
-
-      // Ana listeyi güncelle
       patients.value = newList;
 
       pagination.value = {
@@ -201,8 +197,6 @@ export const usePatientStore = defineStore('patient', () => {
 
     const currentPatients = patientsByWorkspace.value.get(workspaceId) || [];
 
-    // Mevcut sayı kadar offset vererek sıradaki partiyi istiyoruz
-    // Ve append: true gönderiyoruz
     await fetchPatientsByWorkspace(
       workspaceId,
       { offset: currentPatients.length },
@@ -215,10 +209,11 @@ export const usePatientStore = defineStore('patient', () => {
     resetError();
     try {
       const newPatient = await patientRepo.create(data);
-      // Listeyi başa ekle
       patients.value = [newPatient, ...patients.value];
-      const workspacePatients = patientsByWorkspace.value.get(data.workspace_id) || [];
-      patientsByWorkspace.value.set(data.workspace_id, [newPatient, ...workspacePatients]);
+      const workspaceId = data.parent.id;
+
+      const workspacePatients = patientsByWorkspace.value.get(workspaceId) || [];
+      patientsByWorkspace.value.set(workspaceId, [newPatient, ...workspacePatients]);
 
       toast.success(t('patient.messages.create_success'));
       return newPatient;
@@ -311,8 +306,6 @@ export const usePatientStore = defineStore('patient', () => {
     try {
       await patientRepo.transfer(patientId, targetWorkspaceId);
       removePatientFromState(patientId, currentWorkspaceId);
-      // Transfer sonrası listeleri tazelemek iyi olabilir, ancak append modunu bozmamak için
-      // sadece mevcut listeden siliyoruz.
       toast.success(t('patient.messages.transfer_success'));
       return true;
     } catch (err: any) {

@@ -8,7 +8,7 @@ export interface PatientProps {
   race: string | null;
   disease: string | null;
   subtype: string | null;
-  grade: string | null;
+  grade: number | null;
   history: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -21,7 +21,7 @@ export class Patient {
     return new Patient({
       id: data.id,
       creatorId: data.creator_id,
-      workspaceId: data.workspace_id,
+      workspaceId: data.parent?.id || data.workspace_id,
       name: data.name,
       age: data.age ?? null,
       gender: data.gender ?? null,
@@ -38,6 +38,7 @@ export class Patient {
   get id(): string {
     return this.props.id;
   }
+
   get creatorId(): string {
     return this.props.creatorId;
   }
@@ -57,6 +58,7 @@ export class Patient {
   get gender(): string | null {
     return this.props.gender;
   }
+
   get race(): string | null {
     return this.props.race;
   }
@@ -69,7 +71,7 @@ export class Patient {
     return this.props.subtype;
   }
 
-  get grade(): string | null {
+  get grade(): number | null {
     return this.props.grade;
   }
 
@@ -85,7 +87,6 @@ export class Patient {
     return this.props.updatedAt;
   }
 
-  // Business logic
   hasDemographics(): boolean {
     return this.age !== null || this.gender !== null || this.race !== null;
   }

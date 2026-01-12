@@ -15,7 +15,6 @@ export function usePatientForm(
   const loading = computed(() => patientStore.isActionLoading);
   const isEditMode = computed(() => !!props.patientToEdit);
 
-  // Form verisi
   const form = reactive({
     name: '',
     age: null as number | null,
@@ -27,7 +26,6 @@ export function usePatientForm(
     history: '',
   });
 
-  // Düzenleme modundaysa mevcut verileri doldur
   watch(
     () => props.patientToEdit,
     (newVal) => {
@@ -45,17 +43,14 @@ export function usePatientForm(
     { immediate: true }
   );
 
-  // NOT: Artık AnnotationType üzerinden 'scoreEnabled' vb. kontrol etmiyoruz
-  // çünkü yapı dinamik 'tags' yapısına geçti.
-  // Gerekirse ileride 'tags' içinden 'Grade' alanı var mı diye kontrol edilebilir
-  // ama basit hasta yaratma formu için buna gerek yok.
-
   async function handleSubmit() {
-    // Backend'e gidecek veri
     const payload: CreateNewPatientRequest = {
-      workspace_id: props.workspaceId,
+      parent: {
+        id: props.workspaceId,
+        type: 'workspace',
+      },
+
       name: form.name,
-      // Formda değer varsa gönder, yoksa undefined (Backend nullable kabul etmeli)
       age: form.age || undefined,
       gender: form.gender || undefined,
       race: form.race || undefined,

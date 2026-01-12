@@ -2,8 +2,13 @@ import { Patient } from '../entities/Patient';
 import type { PaginatedResult, Pagination } from '../types/common';
 import type { BatchTransfer } from './common';
 
+export interface ParentRef {
+  id: string;
+  type: string;
+}
+
 export interface CreateNewPatientRequest {
-  workspace_id: string;
+  parent: ParentRef;
   name: string;
   age?: number;
   gender?: string;

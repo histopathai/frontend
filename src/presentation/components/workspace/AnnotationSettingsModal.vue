@@ -167,6 +167,21 @@
             >
               Kapat
             </button>
+
+            <button
+              v-if="isImportMode"
+              type="button"
+              @click="handleLinkExisting"
+              :disabled="loading"
+              class="px-4 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-lg transition-colors shadow-sm flex items-center gap-2"
+            >
+              <span
+                v-if="loading"
+                class="animate-spin h-4 w-4 border-2 border-indigo-600 border-t-transparent rounded-full"
+              ></span>
+              Mevcut Tipi Ekle
+            </button>
+
             <button
               type="button"
               @click="handleSave"
@@ -201,10 +216,12 @@
                 />
               </svg>
               <div>
-                <h4 class="text-sm font-bold text-blue-800">Şablon Kullanılıyor</h4>
+                <h4 class="text-sm font-bold text-blue-800">İçe Aktarma Seçenekleri</h4>
                 <p class="text-xs text-blue-600 mt-1">
-                  Seçilen tipin özellikleri kopyalandı. Kaydettiğinizde, bu veri seti için
-                  <strong>yeni ve bağımsız</strong> bir kopyası oluşturulacaktır.
+                  <strong>Mevcut Tipi Ekle:</strong> Bu tipi değiştirmeden olduğu gibi kullanır
+                  (Önerilen).<br />
+                  <strong>Kopyasını Oluştur:</strong> Bu tipin yeni ve bağımsız bir kopyasını
+                  oluşturur.
                 </p>
               </div>
             </div>
@@ -364,7 +381,6 @@
 </template>
 
 <script setup lang="ts">
-// YENİ: shallowRef eklendi
 import { ref, reactive, onMounted, computed, watch, shallowRef } from 'vue';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { useWorkspaceStore } from '@/stores/workspace';
@@ -386,8 +402,6 @@ const loadingTypes = ref(false);
 const activeTab = ref<'workspace' | 'library'>('workspace');
 const searchQuery = ref('');
 
-// YENİ: ref yerine shallowRef kullanıldı.
-// Bu sayede class instance'ları proxy edilmez ve private property hatası oluşmaz.
 const libraryTypes = shallowRef<AnnotationType[]>([]);
 
 const currentTypeId = ref<string | null>(null);
@@ -432,7 +446,7 @@ const getHeaderSubtitle = computed(() => {
 
 const getSaveButtonText = computed(() => {
   if (loading.value) return 'İşleniyor...';
-  if (isImportMode.value) return 'Kopyasını Oluştur & Bağla';
+  if (isImportMode.value) return 'Kopyasını Oluştur';
   if (isEditingMode.value) return 'Değişiklikleri Kaydet';
   return 'Oluştur & Kaydet';
 });
@@ -547,6 +561,47 @@ function getShortType(type: string) {
   return map[type] || type;
 }
 
+// YARDIMCI FONKSİYON: Workspace'e ID ekleme işini ayırdık
+async function addTypeToWorkspace(typeId: string) {
+  const currentAnnotationIds = workspaceStore.currentWorkspace?.annotationTypeIds || [];
+
+  // Zaten ekli mi kontrolü
+  if (currentAnnotationIds.includes(typeId)) {
+    return;
+  }
+
+  const updatedIds = [...currentAnnotationIds, typeId];
+  await workspaceStore.updateWorkspace(props.workspaceId, {
+    annotation_types: updatedIds,
+  });
+}
+
+// YENİ FONKSİYON: Mevcut tipi kopyalamadan bağlar
+async function handleLinkExisting() {
+  if (!currentTypeId.value) return;
+
+  loading.value = true;
+  try {
+    // 1. Mevcut ID'yi workspace listesine ekle
+    await addTypeToWorkspace(currentTypeId.value);
+
+    toast.success('Tip başarıyla veri setine eklendi.');
+
+    // 2. UI'ı güncelle
+    if (activeTab.value === 'library') {
+      activeTab.value = 'workspace';
+    }
+    await fetchWorkspaceTypes();
+    startNewType();
+    emit('saved');
+  } catch (error) {
+    console.error(error);
+    toast.error('Bağlama sırasında hata oluştu.');
+  } finally {
+    loading.value = false;
+  }
+}
+
 async function handleSave() {
   if (!form.name.trim()) {
     toast.warning('İsim gerekli.');
@@ -587,15 +642,9 @@ async function handleSave() {
 
       // Workspace'i güncelle (Bağla)
       if (createdOrUpdatedType && createdOrUpdatedType.id) {
-        const currentAnnotationIds = workspaceStore.currentWorkspace?.annotationTypeIds || [];
-        if (!currentAnnotationIds.includes(createdOrUpdatedType.id)) {
-          const updatedIds = [...currentAnnotationIds, createdOrUpdatedType.id];
-          await workspaceStore.updateWorkspace(props.workspaceId, {
-            annotation_types: updatedIds,
-          });
-        }
+        await addTypeToWorkspace(createdOrUpdatedType.id);
         toast.success(
-          isImportMode.value ? 'İçe aktarıldı ve oluşturuldu.' : 'Başarıyla oluşturuldu.'
+          isImportMode.value ? 'Kopya oluşturuldu ve eklendi.' : 'Başarıyla oluşturuldu.'
         );
       }
     }
