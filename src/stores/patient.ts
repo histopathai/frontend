@@ -160,22 +160,17 @@ export const usePatientStore = defineStore('patient', () => {
         sortDir: 'desc',
         ...paginationOptions,
       };
-      console.log(
-        'Fetching patients with params:',
-        paginationParams,
-        'for workspace:',
-        workspaceId
-      );
       const result: PaginatedResult<Patient> = await patientRepo.getByWorkspaceId(
         workspaceId,
         paginationParams
       );
+      console.log('Repository result:', result);
+      const mappedPatients = result.data;
+      // -----------------------
 
-      console.log('Fetched patients result:', result);
-
-      const mappedPatients = result.data.map((item: any) => Patient.create(item));
       const currentList = patientsByWorkspace.value.get(workspaceId) || [];
       const newList = (append ? [...currentList, ...mappedPatients] : mappedPatients) as Patient[];
+
       patientsByWorkspace.value.set(workspaceId, newList);
       patients.value = newList;
 
