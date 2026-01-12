@@ -1,6 +1,7 @@
 import { Image } from '../entities/Image';
 import type { PaginatedResult, Pagination } from '../types/common';
 import type { BatchTransfer } from './common';
+import type { ParentRef } from './IPatientRepository';
 
 export interface ImageUploadPayload {
   upload_url: string;
@@ -8,7 +9,7 @@ export interface ImageUploadPayload {
 }
 
 export interface CreateNewImageRequest {
-  patient_id: string;
+  parent: ParentRef;
   content_type: string;
   name: string;
   format: string;
