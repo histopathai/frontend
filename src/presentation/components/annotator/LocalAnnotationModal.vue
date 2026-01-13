@@ -130,9 +130,9 @@
           <button
             @click="handleSave"
             :disabled="!isValid"
-            class="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-40 disabled:grayscale transition-all shadow-md hover:shadow-indigo-200"
+            class="px-8 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-40 disabled:grayscale transition-all shadow-md hover:shadow-indigo-200"
           >
-            Tümünü Kaydet
+            Tamam
           </button>
         </div>
       </div>
@@ -142,7 +142,6 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import type { AnnotationType } from '@/core/entities/AnnotationType';
 
 const props = defineProps<{ isOpen: boolean; annotationTypes: any[] }>();
 const emit = defineEmits(['save', 'cancel']);
@@ -151,7 +150,7 @@ const formValues = ref<Record<string, any>>({});
 const localTypes = computed(() => props.annotationTypes.filter((t) => !t.global));
 
 const isValid = computed(() => {
-  return Object.values(formValues.value).some((v) => v !== null && v !== '');
+  return Object.values(formValues.value).some((v) => v !== null && v !== undefined && v !== '');
 });
 
 watch(
@@ -165,7 +164,7 @@ watch(
 
 function handleSave() {
   const results = Object.entries(formValues.value)
-    .filter(([_, value]) => value !== null && value !== '')
+    .filter(([_, value]) => value !== null && value !== undefined && value !== '')
     .map(([id, value]) => {
       const typeInfo = localTypes.value.find((t) => t.id === id);
       return { type: typeInfo, value };
@@ -185,7 +184,7 @@ function handleCancel() {
   @apply w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all;
 }
 .form-select-custom {
-  @apply w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all cursor-pointer;
+  @apply w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all cursor-pointer;
 }
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;

@@ -74,6 +74,9 @@ import { useOpenSeadragon } from '@/presentation/composables/annotator/useOpenSe
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { useAnnotationStore } from '@/stores/annotation';
 import LocalAnnotationModal from './LocalAnnotationModal.vue';
+import { useToast } from 'vue-toastification';
+
+const toast = useToast();
 
 const props = defineProps({
   selectedImage: { type: Object as PropType<Image | null>, default: null },
@@ -126,35 +129,53 @@ onMounted(() => {
 async function handleModalSave(results: Array<{ type: any; value: any }>) {
   if (!currentDrawingData.value || !props.selectedImage || results.length === 0) return;
 
-  try {
-    const rawPoints = convertAnnotoriousToPoints(currentDrawingData.value);
-    const points = rawPoints.map((p) => Point.from(p));
+  const rawPoints = convertAnnotoriousToPoints(currentDrawingData.value);
+  const points = rawPoints.map((p) => Point.from(p));
 
-    // KRİTİK DEĞİŞİKLİK: Her bir lokal etiket sonucunu ayrı birer anotasyon olarak kaydediyoruz.
-    // Poligon kopyalanmış oluyor, böylece DB'de her bir tip için bağımsız bir girdi oluşur.
-    const savePromises = results.map((res) => {
-      const payload = {
-        polygon: points, // Aynı poligonu kullanıyoruz
-        tag: {
-          tag_type: res.type.type,
-          tag_name: res.type.name, // Anotasyon tipinin adını doğrudan buraya yazıyoruz
-          value: res.value,
-          color: res.type.color || '#ec4899',
-          global: false,
+  // Her sonucu store'a GEÇİCİ olarak ekle
+  results.forEach((res) => {
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
+
+    const newAnnotation = {
+      id: tempId,
+      polygon: points,
+      tag: {
+        tag_type: res.type.type,
+        tag_name: res.type.name,
+        value: res.value,
+        color: res.type.color || '#ec4899',
+        global: false,
+      },
+    };
+
+    annotationStore.annotations.push(newAnnotation as any);
+    if (anno.value) {
+      anno.value.addAnnotation({
+        id: tempId,
+        type: 'Annotation',
+        body: [
+          {
+            type: 'TextualBody',
+            value: `${res.type.name}: ${res.value}`,
+            purpose: 'tagging',
+          },
+        ],
+        target: {
+          selector: {
+            type: 'SvgSelector',
+            value: `<svg><polygon points="${rawPoints.map((p) => `${p.x},${p.y}`).join(' ')}"></polygon></svg>`,
+          },
         },
-      };
-      return annotationStore.createAnnotation(props.selectedImage.id, payload);
-    });
+      });
+    }
+  });
 
-    await Promise.all(savePromises);
+  if (anno.value) anno.value.cancelSelected();
 
-    if (anno.value) anno.value.cancelSelected();
-    await loadAnnotations(props.selectedImage.id);
-    isModalOpen.value = false;
-    currentDrawingData.value = null;
-  } catch (error) {
-    console.error('Çoklu kayıt hatası:', error);
-  }
+  isModalOpen.value = false;
+  currentDrawingData.value = null;
+
+  toast.info('Etiketler hazırlandı, üstteki Kaydet butonuna basarak onaylayın.');
 }
 
 function handleModalCancel() {

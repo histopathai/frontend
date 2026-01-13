@@ -37,21 +37,15 @@
           <div class="grid grid-cols-2 gap-3">
             <div class="flex flex-col gap-1">
               <label class="text-[11px] font-medium text-gray-600">Yaş</label>
-              <input type="number" v-model.number="age" class="form-input-sm" placeholder="-" />
+              <input type="number" v-model.number="age" class="form-input-sm" />
             </div>
             <div class="flex flex-col gap-1">
               <label class="text-[11px] font-medium text-gray-600">Cinsiyet</label>
               <select v-model="gender" class="form-select-sm">
-                <option value="" disabled>-</option>
                 <option value="Male">Erkek</option>
                 <option value="Female">Kadın</option>
-                <option value="Other">Diğer</option>
               </select>
             </div>
-          </div>
-          <div class="flex flex-col gap-1 mt-3">
-            <label class="text-[11px] font-medium text-gray-600">Irk / Etnik Köken</label>
-            <input type="text" v-model="race" class="form-input-sm" placeholder="Opsiyonel..." />
           </div>
           <div class="pt-2 border-t border-gray-50 flex justify-end mt-2">
             <button
@@ -86,8 +80,9 @@
               clip-rule="evenodd"
             />
           </svg>
-          <span v-if="hasFilledMetadata">{{ getFirstFilledMetadataSummary() }}</span>
-          <span v-else class="italic opacity-50">Global Etiketler</span>
+          <span>{{
+            hasFilledMetadata ? getFirstFilledMetadataSummary() : 'Global Etiketler'
+          }}</span>
         </button>
 
         <div
@@ -132,10 +127,10 @@
                 <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
               </select>
             </div>
-            <div class="pt-2 border-t border-gray-50 flex justify-end">
+            <div class="pt-2 border-t border-gray-50 flex justify-end mt-2">
               <button
                 @click="activePopover = null"
-                class="text-xs text-indigo-600 font-semibold hover:text-indigo-800"
+                class="w-full py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg"
               >
                 Tamam
               </button>
@@ -176,10 +171,15 @@
       <button
         @click="handleSaveAll"
         :disabled="isLoading"
-        class="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg font-semibold text-xs shadow-md hover:bg-black transition-all"
+        class="flex items-center gap-2 px-5 py-2 bg-gray-900 text-white rounded-lg font-bold text-xs shadow-md hover:bg-black transition-all"
       >
-        <span v-if="isLoading">Kaydediliyor...</span>
-        <span v-else>Kaydet</span>
+        <span>Kaydet</span>
+        <span
+          v-if="unsavedCount > 0"
+          class="bg-indigo-500 text-white px-1.5 py-0.5 rounded text-[10px]"
+        >
+          +{{ unsavedCount }}
+        </span>
       </button>
     </div>
 
@@ -189,25 +189,20 @@
 
 <script setup lang="ts">
 import { ref, type PropType, toRef, computed, reactive, watch } from 'vue';
-import type { Patient } from '@/core/entities/Patient';
-import type { Image } from '@/core/entities/Image';
-import type { AnnotationType } from '@/core/entities/AnnotationType';
-import type { TagDefinition } from '@/core/types/tags';
-import { usePatientEditor } from '@/presentation/composables/annotator/usePatientEditor';
 import { useAnnotationStore } from '@/stores/annotation';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { usePatientStore } from '@/stores/patient';
+import { usePatientEditor } from '@/presentation/composables/annotator/usePatientEditor';
 import { useToast } from 'vue-toastification';
 
 const props = defineProps({
-  patient: { type: Object as PropType<Patient | null>, default: null },
-  image: { type: Object as PropType<Image | null>, default: null },
+  patient: { type: Object as PropType<any>, default: null },
+  image: { type: Object as PropType<any>, default: null },
   isDrawingMode: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['startDrawing', 'stopDrawing']);
-
 const annotationStore = useAnnotationStore();
 const annotationTypeStore = useAnnotationTypeStore();
 const workspaceStore = useWorkspaceStore();
@@ -215,34 +210,54 @@ const patientStore = usePatientStore();
 const toast = useToast();
 
 const activePopover = ref<string | null>(null);
-const race = ref('');
 const localMetadata = reactive<Record<string, any>>({});
 
-const { loading: patientLoading, age, gender, history } = usePatientEditor(toRef(props, 'patient'));
+const {
+  loading: patientLoading,
+  age,
+  gender,
+  race,
+  history,
+} = usePatientEditor(toRef(props, 'patient'));
 
 const isLoading = computed(() => patientLoading.value || annotationStore.actionLoading);
 
+// 1. HATA DÜZELTME: Hasta değiştiğinde localMetadata'yı doldur
 watch(
   () => props.patient,
   (newPatient) => {
     Object.keys(localMetadata).forEach((k) => delete localMetadata[k]);
-    if (newPatient) {
-      race.value = newPatient.race || '';
-      if (newPatient.metadata) Object.assign(localMetadata, newPatient.metadata);
+    if (newPatient && newPatient.metadata) {
+      Object.assign(localMetadata, newPatient.metadata);
     }
   },
   { immediate: true, deep: true }
 );
 
-// HATA ALDIĞINIZ DEĞİŞKEN BURADA TANIMLANDI
+// Sayaç: Global'de değişen değerler + Store'daki bekleyen lokal anotasyonlar
+const unsavedCount = computed(() => {
+  // Sadece başlangıçtaki metadata'dan farklı olan veya yeni girilen global değerleri say
+  const currentMetadata = props.patient?.metadata || {};
+  const changedGlobals = Object.entries(localMetadata).filter(([key, val]) => {
+    return val !== currentMetadata[key] && val !== '' && val !== undefined && val !== null;
+  }).length;
+
+  const pendingLocals = annotationStore.annotations.filter((a) =>
+    String(a.id).startsWith('temp-')
+  ).length;
+
+  return changedGlobals + pendingLocals;
+});
+
 const activeAnnotationTypes = computed(() => {
   const ids = workspaceStore.currentWorkspace?.annotationTypeIds || [];
   return ids
     .map((id) => annotationTypeStore.getAnnotationTypeById(id))
-    .filter((t): t is AnnotationType => !!t);
+    .filter((t): t is any => !!t);
 });
 
-const dynamicFields = computed<TagDefinition[]>(() =>
+// dynamicFields içine 'global: true' eklendi (Tip hatası için)
+const dynamicFields = computed(() =>
   activeAnnotationTypes.value
     .filter((t) => t.global)
     .map((t) => ({
@@ -254,16 +269,9 @@ const dynamicFields = computed<TagDefinition[]>(() =>
     }))
 );
 
-const hasFilledMetadata = computed(() =>
-  dynamicFields.value.some(
-    (f) => localMetadata[f.name] !== undefined && localMetadata[f.name] !== ''
-  )
-);
-
+const hasFilledMetadata = computed(() => dynamicFields.value.some((f) => localMetadata[f.name]));
 const getFirstFilledMetadataSummary = () => {
-  const f = dynamicFields.value.find(
-    (f) => localMetadata[f.name] !== undefined && localMetadata[f.name] !== ''
-  );
+  const f = dynamicFields.value.find((f) => localMetadata[f.name]);
   return f ? `${f.name}: ${localMetadata[f.name]}` : '';
 };
 
@@ -273,66 +281,54 @@ function togglePopover(name: string) {
 
 async function handleSaveAll() {
   if (!props.patient || isLoading.value) return;
-
   try {
-    // 1. Hasta Demografik Bilgilerini Güncelle
+    // 1. Sadece Temel Hasta Bilgilerini Güncelle (Yaş, Cinsiyet vb.)
+    // Metadata'yı buradan kaldırdık çünkü bu bilgiler Anotasyon olarak tutuluyor.
     await patientStore.updatePatient(props.patient.id, {
       age: age.value,
       gender: gender.value,
-      history: history.value,
       race: race.value,
+      history: history.value,
     });
 
-    // 2. Global Etiketleri Kaydet
-    const globalTagEntries = Object.entries(localMetadata).filter(
-      ([_, value]) => value !== undefined && value !== null && value !== ''
-    );
+    // 2. Global Etiketleri (Gleason vb.) Anotasyon Olarak Kaydet
+    // localMetadata içindeki her bir anahtar-değer çiftini ayrı birer global anotasyona dönüştürür.
+    const globalPromises = Object.entries(localMetadata).map(([tagName, value]) => {
+      // Değer boşsa veya geçerli bir görüntü ID'si yoksa işlem yapma
+      if (value === undefined || value === null || value === '' || !props.image?.id) return;
 
-    if (globalTagEntries.length > 0) {
-      const globalPromises = globalTagEntries.map(async ([tagName, value]) => {
-        const typeDef = activeAnnotationTypes.value.find(
-          (t) => t.name === tagName && t.global === true
-        );
+      const typeDef = activeAnnotationTypes.value.find((t) => t.name === tagName && t.global);
+      if (!typeDef) return;
 
-        if (typeDef && props.image?.id) {
-          return annotationStore.createAnnotation(props.image.id, {
-            tag: {
-              tag_type: typeDef.type,
-              tag_name: tagName,
-              value: value,
-              color: typeDef.color || '#4f46e5',
-              global: true,
-            },
-            polygon: undefined,
-          });
-        }
+      return annotationStore.createAnnotation(props.image.id, {
+        tag: {
+          tag_type: typeDef.type,
+          tag_name: tagName,
+          value,
+          color: typeDef.color || '#4f46e5',
+          global: true, // Sistemin bunun global olduğunu anlamasını sağlar
+        },
+        polygon: undefined, // Global olduğu için poligon (çizim) yok
       });
+    });
 
-      await Promise.all(globalPromises);
-    }
+    // Tüm global kayıt isteklerinin tamamlanmasını bekle
+    await Promise.all(globalPromises);
 
-    // 3. Store'daki tüm bekleyen değişiklikleri (Lokal poligonlar dahil) DB'ye yaz
-    if (annotationStore.hasUnsavedChanges) {
-      await annotationStore.saveAllPendingAnnotations();
-    }
+    // 3. Lokal (Çizimli) Bekleyen Anotasyonları Kaydet
+    // Store'da id'si 'temp-' ile başlayan poligonlu çizimleri toplu gönderir.
+    await annotationStore.saveAllPendingAnnotations();
 
+    toast.success('Tüm değişiklikler (Hasta bilgileri, Global ve Lokal etiketler) kaydedildi.');
     activePopover.value = null;
-    toast.success('Tüm bilgiler ve etiketler başarıyla kaydedildi.');
-  } catch (error) {
-    console.error('Kaydetme hatası:', error);
-    toast.error('Veriler kaydedilirken bir hata oluştu.');
+  } catch (e) {
+    toast.error('Kaydetme hatası oluştu.');
+    console.error('Save Error:', e);
   }
 }
 </script>
 
 <style scoped>
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #e5e7eb;
-  border-radius: 4px;
-}
 .form-input-sm {
   @apply w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-indigo-100;
 }
