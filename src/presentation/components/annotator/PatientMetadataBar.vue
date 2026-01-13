@@ -2,20 +2,6 @@
   <div
     class="bg-white/90 backdrop-blur-md border-b border-gray-200 px-4 h-14 shadow-sm z-30 relative flex items-center justify-between transition-all duration-300"
   >
-    <div v-if="patient" class="flex items-center gap-3 min-w-[200px] border-r border-gray-100 pr-4">
-      <div
-        class="h-8 w-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-md shadow-indigo-200"
-      >
-        {{ getInitials(patient.name) }}
-      </div>
-      <div class="flex flex-col leading-none justify-center">
-        <h2 class="text-sm font-bold text-gray-800 mb-1">{{ patient.name }}</h2>
-        <span class="text-[10px] text-gray-500 font-medium truncate max-w-[150px]">
-          {{ image?.name || 'Görüntü Yok' }}
-        </span>
-      </div>
-    </div>
-
     <div v-if="patient" class="flex items-center gap-2 flex-1 px-4">
       <div class="relative group">
         <button
@@ -38,15 +24,15 @@
             />
           </svg>
           <span v-if="age || gender">
-            {{ age ? `${age} Yaş` : '' }}{{ age && gender ? ', ' : ''
-            }}{{ gender === 'Male' ? 'Erkek' : gender === 'Female' ? 'Kadın' : gender }}
+            {{ age ? `${age} Yaş` : '' }}{{ age && gender ? ', ' : '' }}
+            {{ gender === 'Male' ? 'Erkek' : gender === 'Female' ? 'Kadın' : gender }}
           </span>
           <span v-else class="italic opacity-50">Demografi Ekle</span>
         </button>
 
         <div
           v-if="activePopover === 'demographics'"
-          class="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-gray-100 p-4 z-50 animate-fade-in origin-top-left"
+          class="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-100 p-4 z-50 animate-fade-in origin-top-left"
         >
           <div class="grid grid-cols-2 gap-3">
             <div class="flex flex-col gap-1">
@@ -80,10 +66,10 @@
 
       <div class="relative group">
         <button
-          @click="togglePopover('clinical')"
+          @click="togglePopover('global_tags')"
           class="flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all text-xs font-medium"
           :class="
-            activePopover === 'clinical'
+            activePopover === 'global_tags'
               ? 'bg-indigo-50 border-indigo-200 text-indigo-700 ring-2 ring-indigo-100'
               : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
           "
@@ -96,7 +82,7 @@
           >
             <path
               fill-rule="evenodd"
-              d="M5.502 2.766a.75.75 0 0 1 .715-.516h3.566a.75.75 0 0 1 .715.516l.497 1.739h-5.99l.497-1.74ZM3.456 5.25h9.088a2.25 2.25 0 0 1 2.162 2.87l-1.396 4.883a2.25 2.25 0 0 1-2.161 1.632H4.85a2.25 2.25 0 0 1-2.16-1.632l-1.397-4.883A2.25 2.25 0 0 1 3.456 5.25ZM2 8.572a.75.75 0 0 1 .75-.752h10.5a.75.75 0 0 1 0 1.504H2.75a.75.75 0 0 1-.75-.752Z"
+              d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14Zm.75-10.25v2.5h2.5a.75.75 0 0 1 0 1.5h-2.5v2.5a.75.75 0 0 1-1.5 0v-2.5h-2.5a.75.75 0 0 1 0-1.5h2.5v-2.5a.75.75 0 0 1 1.5 0Z"
               clip-rule="evenodd"
             />
           </svg>
@@ -104,76 +90,26 @@
           <span v-if="hasFilledMetadata">
             {{ getFirstFilledMetadataSummary() }}
           </span>
-          <span v-else class="italic opacity-50">Klinik Bilgiler</span>
+          <span v-else class="italic opacity-50">Global Etiketler</span>
         </button>
 
         <div
-          v-if="activePopover === 'clinical'"
-          class="absolute top-full left-0 mt-2 w-80 bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-gray-100 p-4 z-50 animate-fade-in origin-top-left max-h-[400px] overflow-y-auto custom-scrollbar"
+          v-if="activePopover === 'global_tags'"
+          class="absolute top-full left-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-100 p-4 z-50 animate-fade-in origin-top-left max-h-[400px] overflow-y-auto custom-scrollbar"
         >
           <div class="flex flex-col gap-3">
             <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-              Klinik Tanı & Bulgular
+              Görüntü Global Etiketleri
             </h3>
 
             <div
-              v-if="activeAnnotationTypes.length > 0"
-              class="flex flex-wrap gap-2 mb-1 pb-3 border-b border-gray-50"
-            >
-              <div
-                v-for="type in activeAnnotationTypes"
-                :key="type.id"
-                class="flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-bold shadow-sm select-none"
-                :style="{
-                  backgroundColor: type.color ? `${type.color}10` : '#f9fafb',
-                  borderColor: type.color ? `${type.color}40` : '#e5e7eb',
-                  color: type.color || '#374151',
-                }"
-              >
-                <span
-                  class="w-1.5 h-1.5 rounded-full"
-                  :style="{ backgroundColor: type.color || '#9ca3af' }"
-                ></span>
-                {{ type.name }}
-              </div>
-            </div>
-            <div
-              v-if="activeAnnotationTypes.length === 0"
+              v-if="dynamicFields.length === 0"
               class="text-xs text-gray-500 py-3 text-center bg-gray-50 rounded"
             >
-              <div v-if="typeIds.length === 0" class="text-red-500 font-medium">
-                Bu çalışma alanına ait tanımlı bir anotasyon tipi bulunamadı.
-              </div>
-              <div v-else class="flex flex-col items-center gap-2">
-                <svg
-                  class="animate-spin h-4 w-4 text-indigo-500"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    class="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="4"
-                  ></circle>
-                  <path
-                    class="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                <span>Veriler yükleniyor...</span>
-              </div>
-            </div>
-
-            <div
-              v-else-if="dynamicFields.length === 0"
-              class="text-xs text-orange-500 py-2 bg-orange-50 px-2 rounded"
-            >
-              ⚠ Tanımlı anotasyon tiplerinde ek hasta veri alanı bulunamadı.
+              <span v-if="typeIds.length === 0"
+                >Bu çalışma alanına ait global etiket tanımlanmamış.</span
+              >
+              <span v-else>Etiketler yükleniyor...</span>
             </div>
 
             <div
@@ -192,25 +128,21 @@
                 type="text"
                 v-model="localMetadata[field.name]"
                 class="form-input-sm"
-                :placeholder="field.name + '...'"
               />
-
               <input
                 v-else-if="field.type === 'NUMBER'"
                 type="number"
                 v-model.number="localMetadata[field.name]"
                 class="form-input-sm"
               />
-
               <select
                 v-else-if="['SELECT', 'MULTI_SELECT'].includes(field.type)"
                 v-model="localMetadata[field.name]"
                 class="form-select-sm"
               >
-                <option :value="undefined" disabled>Seçiniz</option>
+                <option :value="undefined">Seçiniz</option>
                 <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
               </select>
-
               <div v-else-if="field.type === 'BOOLEAN'" class="flex items-center gap-2 mt-1">
                 <button
                   @click="localMetadata[field.name] = !localMetadata[field.name]"
@@ -221,10 +153,6 @@
                       : 'bg-gray-50 border-gray-200 text-gray-500'
                   "
                 >
-                  <span
-                    class="w-1.5 h-1.5 rounded-full"
-                    :class="localMetadata[field.name] ? 'bg-indigo-500' : 'bg-gray-400'"
-                  ></span>
                   {{ localMetadata[field.name] ? 'EVET' : 'HAYIR' }}
                 </button>
               </div>
@@ -246,9 +174,8 @@
     <div v-if="patient" class="flex items-center gap-2 flex-shrink-0">
       <button
         @click="isHistoryModalOpen = true"
-        class="h-9 w-9 rounded-full flex items-center justify-center transition-all relative hover:bg-gray-100"
-        :class="history ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100' : 'text-gray-400'"
-        title="Hasta Geçmişi / Notlar"
+        class="h-9 w-9 rounded-full flex items-center justify-center transition-all hover:bg-gray-100"
+        :class="history ? 'text-indigo-600 bg-indigo-50' : 'text-gray-400'"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -264,82 +191,64 @@
             d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
           />
         </svg>
-        <span
-          v-if="history"
-          class="absolute top-2 right-2.5 w-1.5 h-1.5 bg-indigo-500 rounded-full border border-white"
-        ></span>
       </button>
       <div class="w-px h-6 bg-gray-200 mx-1"></div>
       <button
         @click="handleSaveAll"
         :disabled="isLoading"
-        class="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg font-semibold text-xs shadow-md hover:bg-black transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg font-semibold text-xs shadow-md hover:bg-black transition-all"
       >
         <span v-if="isLoading">Kaydediliyor...</span>
         <span v-else>Kaydet</span>
-        <span
-          v-if="!isLoading && annotationStore.unsavedAnnotations.length > 0"
-          class="bg-gray-700 text-gray-100 px-1.5 py-0.5 rounded text-[10px] min-w-[18px] text-center"
-        >
-          {{ annotationStore.unsavedAnnotations.length }}
-        </span>
       </button>
     </div>
-
-    <div
-      v-if="activePopover"
-      class="fixed inset-0 z-40 bg-transparent"
-      @click="activePopover = null"
-    ></div>
-
-    <Teleport to="body">
-      <div
-        v-if="isHistoryModalOpen"
-        class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-[2px]"
-        @click.self="isHistoryModalOpen = false"
-      >
-        <div
-          class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in mx-4 border border-gray-100"
+    <div class="absolute top-4 right-4 z-20 flex flex-col gap-3 w-64">
+      <div class="bg-white/90 backdrop-blur rounded-lg shadow-lg p-1.5 flex gap-2 justify-center">
+        <button
+          @click="startDrawing"
+          class="p-2 rounded hover:bg-indigo-50 text-gray-700 hover:text-indigo-600 transition-colors group relative"
+          title="Çizim Yap (Poligon)"
         >
-          <div
-            class="px-5 py-3 border-b border-gray-100 flex justify-between items-center bg-gray-50/80"
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+            class="size-6"
           >
-            <h3 class="font-bold text-gray-800 text-sm">Hasta Geçmişi / Notlar</h3>
-            <button
-              @click="isHistoryModalOpen = false"
-              class="text-gray-400 hover:text-gray-600 transition-colors p-1"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                class="w-5 h-5"
-              >
-                <path
-                  d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"
-                />
-              </svg>
-            </button>
-          </div>
-          <div class="p-5">
-            <textarea
-              v-model="history"
-              rows="6"
-              class="w-full form-input-sm min-h-[150px] resize-none"
-              placeholder="Klinik notlar..."
-            ></textarea>
-          </div>
-          <div class="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
-            <button
-              @click="isHistoryModalOpen = false"
-              class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50"
-            >
-              Kapat
-            </button>
-          </div>
-        </div>
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M9.53 16.122a3 3 0 0 0-5.78 1.128 2.25 2.25 0 0 1-2.4 2.245 4.5 4.5 0 0 0 8.4-2.245c0-.399-.078-.78-.22-1.128Zm0 0a15.998 15.998 0 0 0 3.388-1.62m-5.043-.025a15.994 15.994 0 0 1 1.622-3.395m3.42 3.42a15.995 15.995 0 0 0 4.764-4.648l3.876-5.814a1.151 1.151 0 0 0-1.597-1.597L14.146 6.32a15.996 15.996 0 0 0-4.649 4.763m3.42 3.42a6.776 6.776 0 0 0-3.42-3.42"
+            />
+          </svg>
+        </button>
+
+        <button
+          @click="stopDrawing"
+          class="p-2 rounded hover:bg-indigo-50 text-gray-700 hover:text-indigo-600 transition-colors"
+          title="Seç / Düzenle"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+            class="w-6 h-6"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.227 7.917-3.286-.672ZM12 2.25V4.5m5.834.166-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243-1.59-1.59"
+            />
+          </svg>
+        </button>
       </div>
-    </Teleport>
+    </div>
+
+    <div v-if="activePopover" class="fixed inset-0 z-40" @click="activePopover = null"></div>
   </div>
 </template>
 

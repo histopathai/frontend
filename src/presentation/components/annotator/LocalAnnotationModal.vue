@@ -2,117 +2,137 @@
   <Teleport to="body">
     <div
       v-if="isOpen"
-      class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      @click.self="handleCancel"
+      class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
     >
       <div
-        class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in mx-4"
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in flex flex-col max-h-[90vh]"
       >
         <div
-          class="px-5 py-3 border-b border-gray-100 flex justify-between items-center bg-gray-50"
+          class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50"
         >
-          <h3 class="font-bold text-gray-800">Anotasyon Detayları</h3>
-          <button @click="handleCancel" class="text-gray-400 hover:text-gray-600">
+          <div>
+            <h3 class="font-bold text-gray-900 text-lg">Bölgesel İşaretleme</h3>
+            <p class="text-xs text-gray-500">Lütfen bu alan için geçerli etiketleri doldurun</p>
+          </div>
+          <button
+            @click="handleCancel"
+            class="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400"
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
+              class="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
               <path
-                fill-rule="evenodd"
-                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                clip-rule="evenodd"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
               />
             </svg>
           </button>
         </div>
 
-        <div class="p-5 space-y-4">
-          <div class="space-y-1">
-            <label class="block text-xs font-medium text-gray-700">Etiket Tipi</label>
-            <div v-if="localTypes.length === 0" class="text-xs text-red-500 bg-red-50 p-2 rounded">
-              Bu çalışma alanı için tanımlı lokal anotasyon tipi bulunamadı.
-            </div>
-            <div class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar">
-              <button
-                v-for="type in localTypes"
-                :key="type.id"
-                @click="selectedTypeId = type.id"
-                class="flex items-center gap-2 px-3 py-2 border rounded-lg text-xs font-medium transition-all"
-                :class="
-                  selectedTypeId === type.id
-                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500'
-                    : 'border-gray-200 hover:border-indigo-300 text-gray-600'
-                "
+        <div class="p-6 overflow-y-auto custom-scrollbar space-y-6">
+          <div v-if="localTypes.length === 0" class="flex flex-col items-center py-8 text-center">
+            <div class="bg-amber-50 p-3 rounded-full mb-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-8 w-8 text-amber-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
               >
-                <span
-                  class="w-2 h-2 rounded-full flex-shrink-0"
-                  :style="{ backgroundColor: type.color || '#ccc' }"
-                ></span>
-                <span class="truncate">{{ type.name }}</span>
-              </button>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
             </div>
+            <p class="text-sm font-medium text-gray-700">Tanımlı Lokal Etiket Bulunamadı</p>
+            <p class="text-xs text-gray-500 mt-1">
+              Lütfen çalışma alanı ayarlarından lokal etiket ekleyin.
+            </p>
           </div>
 
-          <div v-if="selectedType" class="pt-2 border-t border-gray-100">
-            <label class="block text-xs font-medium text-gray-700 mb-1">
-              Değer ({{ selectedType.name }})
-            </label>
+          <div
+            v-for="type in localTypes"
+            :key="type.id"
+            class="group p-4 rounded-xl border border-gray-100 bg-gray-50/30 hover:bg-white hover:border-indigo-100 hover:shadow-sm transition-all space-y-3"
+          >
+            <div class="flex items-center gap-2">
+              <span
+                class="w-3 h-3 rounded-full"
+                :style="{ backgroundColor: type.color || '#ccc' }"
+              ></span>
+              <label class="text-sm font-bold text-gray-800">{{ type.name }}</label>
+              <span v-if="type.required" class="text-rose-500 text-xs font-bold">* Zorunlu</span>
+            </div>
 
-            <input
-              v-if="selectedType.type === 'TEXT'"
-              v-model="tagValue"
-              type="text"
-              class="w-full form-input-sm"
-              placeholder="Değer giriniz..."
-            />
+            <div class="pl-5">
+              <input
+                v-if="type.type === 'TEXT'"
+                v-model="formValues[type.id]"
+                type="text"
+                class="w-full form-input-custom"
+                placeholder="Metin giriniz..."
+              />
 
-            <select
-              v-else-if="['SELECT', 'MULTI_SELECT'].includes(selectedType.type)"
-              v-model="tagValue"
-              class="w-full form-select-sm"
-            >
-              <option :value="null" disabled>Seçiniz</option>
-              <option v-for="opt in selectedType.options" :key="opt" :value="opt">{{ opt }}</option>
-            </select>
-
-            <input
-              v-else-if="selectedType.type === 'NUMBER'"
-              v-model.number="tagValue"
-              type="number"
-              class="w-full form-input-sm"
-            />
-
-            <div v-else-if="selectedType.type === 'BOOLEAN'" class="flex items-center gap-2">
-              <button
-                @click="tagValue = !tagValue"
-                class="px-3 py-1.5 rounded text-xs border transition-colors"
-                :class="
-                  tagValue
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-gray-100 text-gray-600 border-gray-200'
-                "
+              <select
+                v-else-if="['SELECT', 'MULTI_SELECT'].includes(type.type)"
+                v-model="formValues[type.id]"
+                class="w-full form-select-custom"
               >
-                {{ tagValue ? 'Evet' : 'Hayır' }}
-              </button>
+                <option :value="undefined">Seçilmedi</option>
+                <option v-for="opt in type.options" :key="opt" :value="opt">{{ opt }}</option>
+              </select>
+
+              <input
+                v-else-if="type.type === 'NUMBER'"
+                v-model.number="formValues[type.id]"
+                type="number"
+                class="w-full form-input-custom"
+                placeholder="Sayısal değer..."
+              />
+
+              <div v-else-if="type.type === 'BOOLEAN'" class="flex gap-2">
+                <button
+                  v-for="val in [true, false]"
+                  :key="String(val)"
+                  @click="formValues[type.id] = val"
+                  class="px-4 py-2 rounded-lg text-xs font-semibold border transition-all"
+                  :class="
+                    formValues[type.id] === val
+                      ? val
+                        ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
+                        : 'bg-rose-500 text-white border-rose-600 shadow-sm'
+                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                  "
+                >
+                  {{ val ? 'EVET (Pozitif)' : 'HAYIR (Negatif)' }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
           <button
             @click="handleCancel"
-            class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50"
+            class="px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-200 rounded-xl transition-colors"
           >
-            İptal
+            Vazgeç
           </button>
           <button
             @click="handleSave"
             :disabled="!isValid"
-            class="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-40 disabled:grayscale transition-all shadow-md hover:shadow-indigo-200"
           >
-            Kaydet
+            Tümünü Kaydet
           </button>
         </div>
       </div>
@@ -124,53 +144,35 @@
 import { ref, computed, watch } from 'vue';
 import type { AnnotationType } from '@/core/entities/AnnotationType';
 
-const props = defineProps<{
-  isOpen: boolean;
-  annotationTypes: AnnotationType[];
-}>();
-
+const props = defineProps<{ isOpen: boolean; annotationTypes: any[] }>();
 const emit = defineEmits(['save', 'cancel']);
 
-const selectedTypeId = ref<string | null>(null);
-const tagValue = ref<any>(null);
-
-const localTypes = computed(() => {
-  return props.annotationTypes.filter((t) => !t.global);
-});
-
-const selectedType = computed(() => {
-  return localTypes.value.find((t) => t.id === selectedTypeId.value);
-});
+const formValues = ref<Record<string, any>>({});
+const localTypes = computed(() => props.annotationTypes.filter((t) => !t.global));
 
 const isValid = computed(() => {
-  if (!selectedTypeId.value) return false;
-  if (tagValue.value === null || tagValue.value === '') return false;
-  return true;
+  return Object.values(formValues.value).some((v) => v !== null && v !== '');
 });
 
 watch(
   () => props.isOpen,
   (val) => {
-    if (!val) {
-      selectedTypeId.value = null;
-      tagValue.value = null;
-    } else {
-      const firstLocalType = localTypes.value[0];
-      if (firstLocalType && !selectedTypeId.value) {
-        selectedTypeId.value = firstLocalType.id;
-      }
+    if (val) {
+      formValues.value = {};
     }
   }
 );
 
 function handleSave() {
-  if (!selectedType.value) return;
+  const results = Object.entries(formValues.value)
+    .filter(([_, value]) => value !== null && value !== '')
+    .map(([id, value]) => {
+      const typeInfo = localTypes.value.find((t) => t.id === id);
+      return { type: typeInfo, value };
+    })
+    .filter((item) => item.type !== undefined);
 
-  emit('save', {
-    typeId: selectedTypeId.value,
-    type: selectedType.value,
-    value: tagValue.value,
-  });
+  emit('save', results);
 }
 
 function handleCancel() {
@@ -179,17 +181,17 @@ function handleCancel() {
 </script>
 
 <style scoped>
-.form-input-sm {
-  @apply border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all;
+.form-input-custom {
+  @apply w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all;
 }
-.form-select-sm {
-  @apply border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all cursor-pointer;
+.form-select-custom {
+  @apply w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all cursor-pointer;
 }
 .custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
+  width: 5px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #e5e7eb;
-  border-radius: 4px;
+  background: #e5e7eb;
+  border-radius: 10px;
 }
 </style>
