@@ -79,8 +79,6 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['update:modelValue']);
-
-// Model içinde bu tipe ait değeri bul
 const currentValue = computed(() => {
   const tag = props.modelValue.find((t) => t.tagName === props.annotationType.name);
   return tag ? tag.value : null;

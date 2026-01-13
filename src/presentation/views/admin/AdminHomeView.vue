@@ -238,8 +238,8 @@ const {
   pendingUsersCount,
   activeUsersCount,
   totalWorkspaces,
-  totalPatients, // YENİ
-  totalImages, // YENİ
+  totalPatients,
+  totalImages,
   pendingUsersList,
   userRegistrationChartData,
 } = useAdminDashboard();

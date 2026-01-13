@@ -1,6 +1,5 @@
 import { ref, computed, onMounted } from 'vue';
 import { useImageStore } from '@/stores/image';
-import type { Image } from '@/core/entities/Image';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 

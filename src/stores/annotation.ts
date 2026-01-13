@@ -3,7 +3,7 @@ import { ref, computed, shallowRef } from 'vue';
 import { repositories } from '@/services';
 import { useToast } from 'vue-toastification';
 import { useI18n } from 'vue-i18n';
-import type { Annotation } from '@/core/entities/Annotation';
+import { Annotation } from '@/core/entities/Annotation';
 import type { CreateNewAnnotationRequest } from '@/core/repositories/IAnnotation';
 import type { Pagination, PaginatedResult } from '@/core/types/common';
 
@@ -49,7 +49,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const actionLoading = ref(false);
   const error = ref<string | null>(null);
   const pagination = ref<Pagination>({
-    limit: 100,
+    limit: 10,
     offset: 0,
     sortBy: 'created_at',
     sortDir: 'desc',
@@ -137,7 +137,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
   };
 
   const updateAnnotationInState = (updatedAnnotation: Annotation): void => {
-    // Update in main annotations array
     const index = annotations.value.findIndex((ann) => ann.id === updatedAnnotation.id);
     if (index !== -1) {
       annotations.value = [
@@ -147,8 +146,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
       ];
     }
 
-    // Note: We can't determine imageId from annotation entity directly
-    // So we update in all image-specific annotations where it exists
     annotationsByImage.value.forEach((anns, imageId) => {
       const imgIndex = anns.findIndex((ann) => ann.id === updatedAnnotation.id);
       if (imgIndex !== -1) {
@@ -158,17 +155,13 @@ export const useAnnotationStore = defineStore('annotation', () => {
       }
     });
 
-    // Update current annotation if it matches
     if (currentAnnotation.value?.id === updatedAnnotation.id) {
       currentAnnotation.value = updatedAnnotation;
     }
   };
 
   const removeAnnotationFromState = (annotationId: string, imageId?: string): void => {
-    // Remove from main annotations array
     annotations.value = annotations.value.filter((ann) => ann.id !== annotationId);
-
-    // Remove from image-specific annotations
     if (imageId) {
       const imageAnnotations = annotationsByImage.value.get(imageId);
       if (imageAnnotations) {
@@ -178,7 +171,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
         );
       }
     } else {
-      // Remove from all images if imageId not provided
       annotationsByImage.value.forEach((anns, imgId) => {
         annotationsByImage.value.set(
           imgId,
@@ -187,12 +179,10 @@ export const useAnnotationStore = defineStore('annotation', () => {
       });
     }
 
-    // Clear current annotation if it matches
     if (currentAnnotation.value?.id === annotationId) {
       currentAnnotation.value = null;
     }
 
-    // Remove from selection
     selectedAnnotations.value.delete(annotationId);
   };
 
@@ -232,7 +222,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
     options: FetchOptions = {}
   ): Promise<void> => {
     const { refresh = false, showToast: showErrorToast = true } = options;
-
     if (loading.value && !refresh) return;
 
     loading.value = true;
@@ -247,26 +236,28 @@ export const useAnnotationStore = defineStore('annotation', () => {
         ...paginationOptions,
       };
 
-      const result: PaginatedResult<Annotation> = await annotationRepo.getByImageId(
-        imageId,
-        paginationParams
-      );
+      const result = await annotationRepo.getByImageId(imageId, paginationParams);
 
-      // Store in image-specific map
-      annotationsByImage.value.set(imageId, result.data);
+      // GÜVENLİ VERİ ÇEKME: result veya result.data null ise boş dizi döner, map hata vermez
+      const rawData = result?.data || [];
+      const entityAnnotations = rawData.map((item: any) => Annotation.create(item));
 
-      // Also update main annotations array
-      annotations.value = result.data;
+      annotationsByImage.value.set(imageId, entityAnnotations);
+      annotations.value = entityAnnotations;
 
-      // Update pagination
       pagination.value = {
         ...paginationParams,
-        ...result.pagination,
-        hasMore: result.pagination?.hasMore ?? result.data.length === paginationParams.limit,
+        ...(result?.pagination || {}),
+        hasMore: result?.pagination?.hasMore ?? rawData.length === paginationParams.limit,
       };
     } catch (err: any) {
-      handleError(err, t('annotation.messages.fetch_error'), showErrorToast);
-      throw err;
+      // 404 Hatası "Henüz kayıt yok" demektir, bunu bir hata olarak göstermiyoruz
+      if (err.response?.status === 404) {
+        annotations.value = [];
+        annotationsByImage.value.set(imageId, []);
+      } else {
+        handleError(err, t('annotation.messages.fetch_error'), showErrorToast);
+      }
     } finally {
       loading.value = false;
     }
@@ -286,17 +277,16 @@ export const useAnnotationStore = defineStore('annotation', () => {
   // Actions - Create
   // ===========================
 
+  // annotation.ts içindeki createAnnotation kısmını bununla değiştirin:
+
   const createAnnotation = async (
     imageId: string,
-    // data parametresi artık 'parent' hariç diğer alanları (polygon, tag vb.) içerir
     data: Omit<CreateNewAnnotationRequest, 'parent'>
   ): Promise<Annotation | null> => {
     actionLoading.value = true;
     resetError();
 
     try {
-      // BURADAKİ DÖNÜŞÜM KRİTİK:
-      // imageId'yi alıp Backend'in beklediği 'parent' objesine çeviriyoruz.
       const createRequest: CreateNewAnnotationRequest = {
         ...data,
         parent: {
@@ -305,12 +295,11 @@ export const useAnnotationStore = defineStore('annotation', () => {
         },
       };
 
-      const newAnnotation = await annotationRepo.create(createRequest);
+      const responseData = await annotationRepo.create(createRequest);
 
-      // Ana listeye ekle
+      const newAnnotation = Annotation.create(responseData);
+
       annotations.value = [newAnnotation, ...annotations.value];
-
-      // Görüntü bazlı listeye ekle
       const imageAnnotations = annotationsByImage.value.get(imageId) || [];
       annotationsByImage.value.set(imageId, [newAnnotation, ...imageAnnotations]);
 
@@ -337,8 +326,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
     try {
       await annotationRepo.update(annotationId, data);
-
-      // Fetch updated annotation
       const updatedAnnotation = await annotationRepo.getById(annotationId);
 
       if (updatedAnnotation) {
@@ -387,8 +374,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
     try {
       await annotationRepo.batchDelete(annotationIds);
-
-      // Remove all deleted annotations from state
       annotationIds.forEach((id) => removeAnnotationFromState(id, imageId));
 
       toast.success(t('annotation.messages.batch_delete_success'));

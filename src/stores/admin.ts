@@ -7,20 +7,16 @@ import { useToast } from 'vue-toastification';
 import type { Pagination } from '@/core/types/common';
 import { i18n } from '@/i18n';
 
-// i18n global t fonksiyonunu alıyoruz
 const t = i18n.global.t;
 const adminRepo = repositories.admin;
 
 export const useAdminStore = defineStore('admin', () => {
-  // --- STATE ---
   const users = shallowRef<User[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  // --- DEPENDENCIES ---
   const toast = useToast();
 
-  // Helper: State güncelleme
   function updateUserInState(updatedUser: User) {
     const index = users.value.findIndex((u) => u.userId === updatedUser.userId);
     if (index !== -1) {
@@ -31,8 +27,6 @@ export const useAdminStore = defineStore('admin', () => {
       users.value = [updatedUser, ...users.value];
     }
   }
-
-  // --- ACTIONS ---
 
   async function fetchAllUsers(pagination: Pagination = { limit: 100, offset: 0 }) {
     loading.value = true;

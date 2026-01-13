@@ -308,13 +308,11 @@ function getThumbnailUrl(image: any): string {
   return `${API_BASE_URL}/api/v1/proxy/${image.processedpath}/thumbnail.jpg`;
 }
 
-// Scroll Handler
 function handleScroll(event: Event) {
   const element = event.target as HTMLElement;
 
   if (props.loading) return;
 
-  // Listenin sonuna 50px kala tetikle
   const bottomThreshold = 50;
   if (element.scrollTop + element.clientHeight >= element.scrollHeight - bottomThreshold) {
     emit('load-more');

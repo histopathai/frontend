@@ -66,27 +66,19 @@ import { useWorkspaceStore } from '@/stores/workspace';
 import { repositories } from '@/services';
 import type { Workspace } from '@/core/entities/Workspace';
 import { useI18n } from 'vue-i18n';
-
-// Components
 import WorkspaceList from '@/presentation/components/workspace/WorkspaceList.vue';
 import WorkspaceFormModal from '@/presentation/components/workspace/WorkspaceFormModal.vue';
 import DeleteConfirmationModal from '@/presentation/components/common/DeleteConfirmationModal.vue';
 
 const store = useWorkspaceStore();
 const { t } = useI18n();
-
-// --- State ---
 const isModalOpen = ref(false);
 const selectedWorkspace = shallowRef<Workspace | null>(null);
-
-// Delete State
 const isDeleteModalOpen = ref(false);
 const workspaceToDelete = shallowRef<Workspace | null>(null);
 const idsToDelete = ref<string[]>([]);
 const isSingleDelete = ref(true);
 const deleteWarningText = ref('');
-
-// Pagination State
 const limit = 10;
 const currentPage = computed(() => {
   return Math.floor(store.pagination.offset / limit) + 1;
@@ -107,12 +99,9 @@ const deleteModalMessage = computed(() => {
   return `${idsToDelete.value.length} adet veri seti silinecek.`;
 });
 
-// --- Lifecycle ---
 onMounted(() => {
   loadData(1);
 });
-
-// --- Methods ---
 
 async function loadData(page: number) {
   const offset = (page - 1) * limit;
@@ -129,8 +118,6 @@ function handlePageChange(newPage: number) {
   loadData(newPage);
 }
 
-// --- Create / Edit ---
-
 function openCreateModal() {
   selectedWorkspace.value = null;
   isModalOpen.value = true;
@@ -145,8 +132,6 @@ function handleModalClose() {
   isModalOpen.value = false;
   selectedWorkspace.value = null;
 }
-
-// --- Delete Operations ---
 
 async function openDeleteModal(workspace: Workspace) {
   workspaceToDelete.value = workspace;

@@ -431,7 +431,6 @@ const form = reactive<FormState>({
   max: undefined,
 });
 
-// Computed Properties for UI
 const getHeaderTitle = computed(() => {
   if (isImportMode.value) return 'Şablondan Oluştur';
   if (isEditingMode.value) return 'Tipi Düzenle';
@@ -451,10 +450,8 @@ const getSaveButtonText = computed(() => {
   return 'Oluştur & Kaydet';
 });
 
-// Workspace tipleri (Store'dan gelir - Zaten shallowRef)
 const workspaceTypes = computed(() => store.annotationTypes);
 
-// Listeyi filtrele
 const filteredList = computed(() => {
   const source = activeTab.value === 'workspace' ? workspaceTypes.value : libraryTypes.value;
   if (!searchQuery.value.trim()) return source;
@@ -467,7 +464,6 @@ onMounted(async () => {
   startNewType();
 });
 
-// Tab değişince listeyi yenile veya temizle
 watch(activeTab, async (newTab) => {
   startNewType();
   if (newTab === 'library' && libraryTypes.value.length === 0) {
@@ -478,7 +474,6 @@ watch(activeTab, async (newTab) => {
 async function fetchWorkspaceTypes() {
   loadingTypes.value = true;
   try {
-    // Sadece bu workspace'e ait olanlar
     await store.fetchAnnotationTypes(
       { limit: 100 },
       { refresh: true, parentId: props.workspaceId }
@@ -494,10 +489,8 @@ async function loadLibrary() {
   loadingTypes.value = true;
   activeTab.value = 'library';
   try {
-    // Tüm tipleri çek (parentId filtresi olmadan)
     await store.fetchAnnotationTypes({ limit: 100 }, { refresh: true });
 
-    // shallowRef olduğu için direkt atama yapıyoruz, reaktivite çalışır ama instance bozulmaz.
     libraryTypes.value = [...store.annotationTypes];
   } catch (error) {
     toast.error('Kütüphane yüklenemedi.');
@@ -524,8 +517,6 @@ function handleItemClick(type: AnnotationType) {
   }
 
   currentTypeId.value = type.id;
-
-  // Formu doldur (Kopyalama işlemi)
   form.name = type.name;
   form.type = type.type;
   form.color = type.color || '#4F46E5';
@@ -537,7 +528,6 @@ function handleItemClick(type: AnnotationType) {
 }
 
 function isAlreadyInWorkspace(typeId: string): boolean {
-  // Bu kontrol için workspace ID listesine bakmamız lazım
   const currentIds = workspaceStore.currentWorkspace?.annotationTypeIds || [];
   return currentIds.includes(typeId);
 }
@@ -561,11 +551,9 @@ function getShortType(type: string) {
   return map[type] || type;
 }
 
-// YARDIMCI FONKSİYON: Workspace'e ID ekleme işini ayırdık
 async function addTypeToWorkspace(typeId: string) {
   const currentAnnotationIds = workspaceStore.currentWorkspace?.annotationTypeIds || [];
 
-  // Zaten ekli mi kontrolü
   if (currentAnnotationIds.includes(typeId)) {
     return;
   }
@@ -576,18 +564,14 @@ async function addTypeToWorkspace(typeId: string) {
   });
 }
 
-// YENİ FONKSİYON: Mevcut tipi kopyalamadan bağlar
 async function handleLinkExisting() {
   if (!currentTypeId.value) return;
 
   loading.value = true;
   try {
-    // 1. Mevcut ID'yi workspace listesine ekle
     await addTypeToWorkspace(currentTypeId.value);
-
     toast.success('Tip başarıyla veri setine eklendi.');
 
-    // 2. UI'ı güncelle
     if (activeTab.value === 'library') {
       activeTab.value = 'workspace';
     }
@@ -633,14 +617,11 @@ async function handleSave() {
     let createdOrUpdatedType: AnnotationType | null = null;
 
     if (isEditingMode.value && currentTypeId.value) {
-      // Sadece düzenleme modu (Workspace tabında) ise güncelle
       await store.updateAnnotationType(currentTypeId.value, payload);
       toast.success('Güncellendi.');
     } else {
-      // Yeni Oluşturma VEYA İçe Aktarma (Library tabı)
       createdOrUpdatedType = await store.createAnnotationType(payload);
 
-      // Workspace'i güncelle (Bağla)
       if (createdOrUpdatedType && createdOrUpdatedType.id) {
         await addTypeToWorkspace(createdOrUpdatedType.id);
         toast.success(
@@ -649,7 +630,6 @@ async function handleSave() {
       }
     }
 
-    // İşlem bitince workspace tabına dön ve yenile
     if (activeTab.value === 'library') {
       activeTab.value = 'workspace';
     }

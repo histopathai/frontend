@@ -63,8 +63,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const hasWorkspaces = computed(() => workspaces.value.length > 0);
   const totalWorkspaces = computed(() => workspaces.value.length);
   const hasMore = computed(() => pagination.value.hasMore ?? false);
-
-  // Get workspace by ID
   const getWorkspaceById = computed(() => {
     return (id: string) => workspaces.value.find((w) => w.id === id);
   });
@@ -120,8 +118,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     options: FetchOptions = {}
   ): Promise<void> => {
     const { refresh = false, showToast: showErrorToast = true } = options;
-
-    // Don't fetch if already loading
     if (loading.value && !refresh) return;
 
     loading.value = true;
@@ -134,10 +130,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       };
 
       const result: PaginatedResult<Workspace> = await workspaceRepo.list(paginationParams);
-
       workspaces.value = result.data;
-
-      // Update pagination metadata
       pagination.value = {
         ...paginationParams,
         ...result.pagination,
@@ -195,8 +188,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
     try {
       const newWorkspace = await workspaceRepo.create(data);
-
-      // Add to beginning of list
       workspaces.value = [newWorkspace, ...workspaces.value];
 
       toast.success(t('workspace.messages.create_success'));
@@ -222,8 +213,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
     try {
       await workspaceRepo.update(workspaceId, data);
-
-      // Fetch updated workspace
       const updatedWorkspace = await workspaceRepo.getById(workspaceId);
 
       if (updatedWorkspace) {

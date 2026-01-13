@@ -373,7 +373,6 @@ const { loading: patientLoading, age, gender, history } = usePatientEditor(toRef
 const race = ref('');
 const localMetadata = reactive<Record<string, any>>({});
 
-// Hasta değişince metadata'yı sıfırla ve yeniden doldur
 watch(
   () => props.patient,
   (newPatient) => {
@@ -386,21 +385,10 @@ watch(
   { immediate: true, deep: true }
 );
 
-// 1. ADIM: Aktif Workspace'den ID'leri Al
 const typeIds = computed<string[]>(() => {
   const ws = workspaceStore.currentWorkspace;
-
-  // LOGLAMA: Workspace ve ID durumunu kontrol et
-  console.log('PatientMetadataBar - Workspace:', ws);
-
   if (!ws) return [];
-
-  // Workspace.ts düzeltildiği için artık veriler 'annotationTypeIds' içindedir.
-  // Ekstra kontrollere gerek yok.
   const ids = ws.annotationTypeIds || [];
-
-  console.log('PatientMetadataBar - Bulunan Anotasyon IDleri:', ids);
-
   return ids;
 });
 
@@ -432,29 +420,18 @@ watch(
   { immediate: true, deep: true }
 );
 
-// 4. ADIM: Alanları Oluştur (GÜNCELLENMİŞ VERSİYON)
-// 4. ADIM: Alanları Oluştur (GÜNCELLENMİŞ VERSİYON)
-// 4. ADIM: Alanları Oluştur (GÜNCELLENMİŞ)
 const dynamicFields = computed<TagDefinition[]>(() => {
   const allFields: TagDefinition[] = [];
   const seenNames = new Set<string>();
 
   activeAnnotationTypes.value.forEach((type) => {
-    // ÖNEMLİ: Anotasyon tipinin içinde 'patientFields' aramak yerine,
-    // tipin KENDİSİNİ bir alan olarak ekliyoruz.
-
-    // Eğer "Görüntü Geneli" (Global) olarak işaretlenmemişse buraya dahil etmeyebiliriz.
-    // Tüm tiplerin gelmesini istiyorsanız aşağıdaki if kontrolünü kaldırabilirsiniz.
     if (type.global) {
-      // Aynı isimli alanları tekrar eklememek için kontrol
       if (!seenNames.has(type.name)) {
         seenNames.add(type.name);
-
-        // Tipin kendisini form tanımına dönüştür
         allFields.push({
-          name: type.name, // Örn: "Histolojik Alt Tip"
-          type: type.type, // Örn: "SELECT"
-          options: type.options || [], // Örn: ["Ductal", "Lobular"]
+          name: type.name,
+          type: type.type,
+          options: type.options || [],
           required: type.required || false,
         });
       }

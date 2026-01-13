@@ -26,7 +26,7 @@ interface AnnotationTypeState {
 interface FetchOptions {
   refresh?: boolean;
   showToast?: boolean;
-  parentId?: string; // Belirli bir workspace'e göre filtrelemek için eklendi
+  parentId?: string;
 }
 
 // ===========================
@@ -143,7 +143,6 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
 
       let result: PaginatedResult<AnnotationType>;
 
-      // Eğer parentId verilmişse ona göre filtrele, yoksa hepsini getir
       if (parentId) {
         result = await annotationTypeRepo.getByParentId(parentId, paginationParams);
       } else {
@@ -193,8 +192,6 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
 
   const loadMore = async (options: FetchOptions = {}): Promise<void> => {
     if (!hasMore.value || loading.value) return;
-
-    // ParentId varsa loadMore yaparken de korunmalı
     await fetchAnnotationTypes(
       {
         offset: pagination.value.offset + pagination.value.limit,
@@ -218,15 +215,10 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
         throw new Error(t('annotation_type.validation.name_required') || 'Name is required');
       }
 
-      // Repository çağrısı
       const newAnnotationType = await annotationTypeRepo.create(data);
-
-      // State güncelleme (Listenin başına ekle)
       annotationTypes.value = [newAnnotationType, ...annotationTypes.value];
-
       toast.success(t('annotation_type.messages.create_success'));
 
-      // Oluşturulan nesneyi döndür (ID'sine erişim için önemli)
       return newAnnotationType;
     } catch (err: any) {
       handleError(err, t('annotation_type.messages.create_error'));
@@ -249,8 +241,6 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
 
     try {
       await annotationTypeRepo.update(annotationTypeId, data);
-
-      // Güncel halini çekip state'i güncelle
       const updatedAnnotationType = await annotationTypeRepo.getById(annotationTypeId);
 
       if (updatedAnnotationType) {
@@ -296,8 +286,6 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
 
     try {
       await annotationTypeRepo.batchDelete(annotationTypeIds);
-
-      // Silinenleri state'den kaldır
       annotationTypes.value = annotationTypes.value.filter(
         (at) => !annotationTypeIds.includes(at.id)
       );

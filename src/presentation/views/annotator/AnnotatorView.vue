@@ -1,6 +1,6 @@
 <template>
-  <div class="flex w-full" style="height: calc(100vh - 65px)">
-    <aside class="w-96 h-full flex-shrink-0">
+  <div class="flex w-85" style="height: calc(100vh - 65px)">
+    <aside class="w-85 h-full flex-shrink-0">
       <AnnotatorSidebar
         :workspaces="workspaces"
         :patients="currentPatients"

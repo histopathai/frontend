@@ -2,7 +2,7 @@ import { ref, computed, watch } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { usePatientStore } from '@/stores/patient';
 import { useImageStore } from '@/stores/image';
-import { useAnnotationTypeStore } from '@/stores/annotation_type'; // 1. Store importu
+import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { storeToRefs } from 'pinia';
 import type { Patient } from '@/core/entities/Patient';
 import type { Image } from '@/core/entities/Image';
@@ -12,12 +12,12 @@ export function useAnnotatorNavigation() {
   const workspaceStore = useWorkspaceStore();
   const patientStore = usePatientStore();
   const imageStore = useImageStore();
-  const annotationTypeStore = useAnnotationTypeStore(); // 2. Store kullanımı
+  const annotationTypeStore = useAnnotationTypeStore();
 
   const { workspaces } = storeToRefs(workspaceStore);
   const { patientsByWorkspace } = storeToRefs(patientStore);
   const { imagesByPatient } = storeToRefs(imageStore);
-  const { annotationTypes } = storeToRefs(annotationTypeStore); // 3. State'i al
+  const { annotationTypes } = storeToRefs(annotationTypeStore);
 
   const loading = computed(
     () =>
@@ -30,7 +30,7 @@ export function useAnnotatorNavigation() {
   const selectedWorkspaceId = ref<string | undefined>(undefined);
   const selectedPatientId = ref<string | undefined>(undefined);
   const selectedImageId = ref<string | undefined>(undefined);
-  const selectedAnnotationTypeId = ref<string | undefined>(undefined); // 4. Seçili tip state'i
+  const selectedAnnotationTypeId = ref<string | undefined>(undefined);
 
   const currentPatients = computed((): Patient[] => {
     const list = selectedWorkspaceId.value
@@ -63,16 +63,12 @@ export function useAnnotatorNavigation() {
   function selectWorkspace(workspace: Workspace) {
     if (selectedWorkspaceId.value === workspace.id) return;
 
-    // 1. Yerel State'i Güncelle
     selectedWorkspaceId.value = workspace.id;
     selectedPatientId.value = undefined;
     selectedImageId.value = undefined;
 
-    // 2. KRİTİK ADIM: Global Store'daki 'currentWorkspace'i Güncelle!
-    // PatientMetadataBar bu veriye bağımlı olduğu için bu satır şart.
     workspaceStore.setCurrentWorkspace(workspace);
 
-    // 3. Verileri Getir
     patientStore.fetchPatientsByWorkspace(workspace.id);
     annotationTypeStore.fetchAnnotationTypes(
       { limit: 100 },
@@ -159,11 +155,9 @@ export function useAnnotatorNavigation() {
   watch(
     workspaces,
     (newWorkspaces) => {
-      // Eğer workspace listesi geldiyse ve henüz bir seçim yapılmadıysa
       if (newWorkspaces && newWorkspaces.length > 0 && !selectedWorkspaceId.value) {
         const firstWorkspace = newWorkspaces[0];
         if (firstWorkspace) {
-          // Hem seçimi yap hem de store'u güncelle
           selectWorkspace(firstWorkspace);
         }
       }

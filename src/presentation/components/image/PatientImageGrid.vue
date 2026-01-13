@@ -277,7 +277,7 @@ watch(
         console.log('İşlenen görüntüler tespit edildi, otomatik kontrol başlatılıyor...');
         pollInterval = setInterval(() => {
           loadImages(true);
-        }, 3000);
+        }, 2000);
       }
     } else {
       if (pollInterval) {

@@ -1,16 +1,14 @@
 import { ref } from 'vue';
-import { auth } from '@/main'; // Firebase auth instance
+import { auth } from '@/main';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { useToast } from 'vue-toastification';
 
 export function usePasswordReset() {
-  // --- State ---
   const email = ref('');
   const loading = ref(false);
   const error = ref<string | null>(null);
   const successMessage = ref<string | null>(null);
 
-  // --- Bağımlılıklar ---
   const toast = useToast();
 
   async function handlePasswordReset() {

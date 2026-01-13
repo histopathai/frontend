@@ -12,11 +12,10 @@ export function useOpenSeadragon(viewerId: string) {
   const annotationStore = useAnnotationStore();
 
   const viewer = shallowRef<OpenSeadragon.Viewer | null>(null);
-  const anno = shallowRef<any>(null); // Annotorious instance
+  const anno = shallowRef<any>(null);
   const currentImageId = ref<string | null>(null);
   const loading = ref(false);
 
-  // --- Çizim Kontrolleri ---
   function startDrawing() {
     if (anno.value) {
       anno.value.setDrawingTool('polygon');
@@ -31,20 +30,15 @@ export function useOpenSeadragon(viewerId: string) {
     }
   }
 
-  /**
-   * Annotorious'un karmaşık Selector string'inden Point[] dizisi üretir
-   */
   function parsePolygonPoints(selectorValue: string): Point[] {
     let pointsStr = '';
 
-    // SVG formatındaysa (points="...")
     if (selectorValue.includes('<polygon')) {
       const match = selectorValue.match(/points=["'](.*?)["']/);
       if (match && match[1]) {
         pointsStr = match[1];
       }
     } else {
-      // Standart format
       pointsStr = selectorValue.replace('xywh=polygon:', '');
     }
 
@@ -84,18 +78,12 @@ export function useOpenSeadragon(viewerId: string) {
       ajaxWithCredentials: true,
     });
 
-    // --- ANNOTORIOUS BAŞLATMA ---
-    // disableEditor: true -> Kütüphanenin kendi popup'ını tamamen kapatır.
-    // widgets: [] -> Gereksiz widget'ları kaldırır.
     anno.value = new Annotorious(viewer.value, {
       widgets: [],
       disableEditor: true,
       readOnly: false,
     });
 
-    // --- CREATE LISTENER ---
-    // Çizim bittiğinde sadece Viewer.vue'nun yakalaması yeterli,
-    // ancak burada da poligonun geçerliliğini kontrol edebilirsiniz.
     anno.value.on('createAnnotation', (annotation: any) => {
       const points = parsePolygonPoints(annotation.target.selector.value);
       if (points.length < 3) {
@@ -104,7 +92,6 @@ export function useOpenSeadragon(viewerId: string) {
       }
     });
 
-    // --- DELETE LISTENER ---
     anno.value.on('deleteAnnotation', (annotation: any) => {
       if (currentImageId.value) {
         annotationStore.deleteAnnotation(annotation.id, currentImageId.value);
@@ -112,55 +99,54 @@ export function useOpenSeadragon(viewerId: string) {
     });
   }
 
-  /**
-   * Backend'den gelen anotasyonları kütüphanenin anlayacağı W3C formatına çevirir
-   */
-
   async function loadAnnotations(imageId: string) {
     if (!anno.value) return;
     anno.value.clearAnnotations();
 
     try {
       await annotationStore.fetchAnnotationsByImage(imageId, undefined, { showToast: false });
+
       const annotations = annotationStore.annotations;
+      if (!annotations || annotations.length === 0) {
+        console.log('Bu görüntü için henüz bir anotasyon bulunmuyor.');
+        return;
+      }
 
-      if (annotations.length === 0) return;
+      const w3cAnnotations = annotations
+        .map((ann) => {
+          if (!ann.polygon || ann.polygon.length === 0) return null;
 
-      const w3cAnnotations = annotations.map((ann) => {
-        const polygonStr = ann.polygon.map((p) => `${p.x},${p.y}`).join(' ');
+          const polygonStr = ann.polygon.map((p) => `${p.x},${p.y}`).join(' ');
 
-        const label = ann.tag?.tag_name || 'Etiket';
-        const value = ann.tag?.value ? `: ${ann.tag.value}` : '';
-
-        return {
-          '@context': 'http://www.w3.org/ns/anno.jsonld',
-          type: 'Annotation',
-          id: ann.id,
-          body: [
-            {
-              type: 'TextualBody',
-              value: `${label}${value}`,
-              purpose: 'tagging',
+          return {
+            '@context': 'http://www.w3.org/ns/anno.jsonld',
+            type: 'Annotation',
+            id: String(ann.id),
+            body: [
+              {
+                type: 'TextualBody',
+                value: ann.tag?.value || '',
+                purpose: 'tagging',
+              },
+            ],
+            target: {
+              selector: {
+                type: 'SvgSelector',
+                value: `<svg><polygon points="${polygonStr}" /></svg>`,
+              },
             },
-          ],
-          target: {
-            selector: {
-              type: 'SvgSelector',
-              value: `<svg><polygon points="${polygonStr}" /></svg>`,
-            },
-          },
-        };
-      });
+          };
+        })
+        .filter((ann) => ann !== null);
 
-      anno.value.setAnnotations(w3cAnnotations);
+      if (w3cAnnotations.length > 0) {
+        anno.value.setAnnotations(w3cAnnotations);
+      }
     } catch (e) {
-      console.error('Anotasyonlar yüklenirken hata:', e);
+      console.warn('Anotasyonlar yüklenirken bir sorun oluştu:', e);
     }
   }
 
-  /**
-   * Görüntüyü DZI formatında yükler
-   */
   async function loadImage(image: Image) {
     if (!viewer.value || !image.processedpath) return;
 
@@ -203,8 +189,9 @@ export function useOpenSeadragon(viewerId: string) {
   return {
     loading,
     loadImage,
+    loadAnnotations,
     startDrawing,
     stopDrawing,
-    anno, // Viewer.vue'nun createAnnotation event'ini yakalaması için gerekli
+    anno,
   };
 }

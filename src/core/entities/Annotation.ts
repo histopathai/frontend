@@ -29,56 +29,51 @@ export interface AnnotationProps {
 
 export class Annotation {
   private constructor(private props: AnnotationProps) {}
-
   static create(data: any): Annotation {
-    let tagValues: TagValue[] = [];
     let tagObj: AnnotationTag | null = null;
 
-    // Backend'den gelen 'tag' verisini işle
-    if (data.tag) {
+    // Konsol çıktınızda (Screenshot 17.14.16) veriler ana seviyede geliyor.
+    // 'tag_name' alanını backend'den geldiği şekliyle yakalamalıyız.
+    if (data.type || data.tag_type || data.tag_name) {
       tagObj = {
-        tag_type: data.tag.tag_type,
-        tag_name: data.tag.tag_name,
+        tag_type: data.tag_type || data.tagType || data.type || 'TEXT',
+        // ÖNCELİK: Backend'den gelen gerçek ismi (Mitoz Varlığı vb.) al.
+        // Yoksa fallback olarak tip adını (TEXT/BOOLEAN) kullanma, 'İsimsiz' de.
+        tag_name: data.tag_name || data.tagName || 'İsimsiz Lokal Etiket',
+        value: data.value,
+        color: data.color || '#4F46E5',
+        global: data.global ?? false,
+      };
+    }
+    // 2. İHTİMAL: 'tag' objesi içindeyse (Alternatif backend formatı)
+    else if (data.tag) {
+      tagObj = {
+        tag_type: data.tag.tag_type || data.tag.tagType || 'TEXT',
+        tag_name: data.tag.tag_name || data.tag.tagName || 'Bilinmeyen',
         value: data.tag.value,
         color: data.tag.color,
         global: data.tag.global ?? false,
       };
-
-      // Geriye dönük uyumluluk için 'data' dizisini de doldur
-      tagValues.push({
-        tagName: data.tag.tag_name,
-        tagType: data.tag.tag_type,
-        value: data.tag.value,
-      });
     }
 
+    // Parent Referansı (image_id çıktıda yok ama genellikle id uyuşmazlığı için kontrol edilir)
     let parentRef: ParentRef | null = null;
     if (data.parent) {
-      parentRef = {
-        id: data.parent.id,
-        type: data.parent.type,
-      };
+      parentRef = { id: data.parent.id, type: data.parent.type };
     } else if (data.image_id) {
-      // Fallback: Eğer parent yoksa image_id kullan
       parentRef = { id: data.image_id, type: 'image' };
     }
 
     return new Annotation({
-      id: data.id,
+      id: String(data.id),
       parent: parentRef,
       annotatorId: data.annotator_id || data.creator_id || '',
       polygon: (data.polygon || []).map((p: any) => Point.from(p)),
-      data: tagValues,
+      data: data.data || [],
       tag: tagObj,
       description: data.description ?? null,
-      createdAt:
-        typeof data.created_at === 'string'
-          ? new Date(data.created_at)
-          : data.created_at || new Date(),
-      updatedAt:
-        typeof data.updated_at === 'string'
-          ? new Date(data.updated_at)
-          : data.updated_at || new Date(),
+      createdAt: data.created_at ? new Date(data.created_at) : new Date(),
+      updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(),
     });
   }
 

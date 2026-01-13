@@ -134,7 +134,6 @@ const emit = defineEmits(['save', 'cancel']);
 const selectedTypeId = ref<string | null>(null);
 const tagValue = ref<any>(null);
 
-// Sadece Local tipleri filtrele (Global: false)
 const localTypes = computed(() => {
   return props.annotationTypes.filter((t) => !t.global);
 });
@@ -145,7 +144,6 @@ const selectedType = computed(() => {
 
 const isValid = computed(() => {
   if (!selectedTypeId.value) return false;
-  // Zorunluluk kontrolü eklenebilir
   if (tagValue.value === null || tagValue.value === '') return false;
   return true;
 });
