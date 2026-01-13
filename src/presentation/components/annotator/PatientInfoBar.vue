@@ -83,21 +83,25 @@
               {{ t.name || t.tag_name }}
             </label>
 
-            <component
-              :is="getInputComponent(t)"
-              :type="normalizeType(t) === 'NUMBER' ? 'number' : 'text'"
-              :value="activeGlobalValues[t.name || t.tag_name]"
-              @change="
-                (e: Event) =>
-                  handleManualUpdate(t, (e.target as HTMLInputElement | HTMLSelectElement).value)
-              "
+            <!-- SELECT için -->
+            <select
+              v-if="normalizeType(t) === 'SELECT' || normalizeType(t) === 'MULTI_SELECT'"
+              :value="activeGlobalValues[t.name || t.tag_name] || ''"
+              @change="(e: Event) => handleManualUpdate(t, (e.target as HTMLSelectElement).value)"
               class="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-700 outline-none focus:ring-1 focus:ring-indigo-200"
             >
-              <template v-if="normalizeType(t) === 'SELECT'">
-                <option :value="undefined" disabled>Seçiniz...</option>
-                <option v-for="opt in extractOptions(t)" :key="opt" :value="opt">{{ opt }}</option>
-              </template>
-            </component>
+              <option value="" disabled>Seçiniz...</option>
+              <option v-for="opt in extractOptions(t)" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+
+            <!-- INPUT için -->
+            <input
+              v-else
+              :type="normalizeType(t) === 'NUMBER' ? 'number' : 'text'"
+              :value="activeGlobalValues[t.name || t.tag_name] || ''"
+              @change="(e: Event) => handleManualUpdate(t, (e.target as HTMLInputElement).value)"
+              class="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-700 outline-none focus:ring-1 focus:ring-indigo-200"
+            />
           </div>
         </div>
       </div>
@@ -180,7 +184,13 @@ const activeGlobalValues = reactive<Record<string, any>>({});
 
 // Sadece global olan tipleri filtrele
 const globalTypes = computed(() => {
-  return props.annotationTypes.filter((t) => t.global === true || t.isGlobal === true);
+  const filtered = props.annotationTypes.filter((t) => t.global === true || t.isGlobal === true);
+  console.log('🔍 [PatientInfoBar] globalTypes computed:', {
+    total: props.annotationTypes.length,
+    filtered: filtered.length,
+    types: filtered.map((t) => ({ name: t.name, global: t.global })),
+  });
+  return filtered;
 });
 
 const globalAnnsCount = computed(() => {
@@ -205,6 +215,148 @@ const extractOptions = (type: any) => {
   return Array.isArray(source) ? source : [];
 };
 
+function getMinValue(type: any): number | undefined {
+  return type.min;
+}
+
+function getMaxValue(type: any): number | undefined {
+  return type.max;
+}
+
+function getStepValue(type: any): number | undefined {
+  return type.step ?? 1;
+}
+
+function getPlaceholder(type: any): string {
+  if (normalizeType(type) === 'NUMBER') {
+    const min = getMinValue(type);
+    const max = getMaxValue(type);
+    if (min !== undefined && max !== undefined) {
+      return `${min} - ${max} arası`;
+    } else if (min !== undefined) {
+      return `Min: ${min}`;
+    } else if (max !== undefined) {
+      return `Max: ${max}`;
+    }
+  }
+  return '';
+}
+
+function handleNumberInput(type: any, event: Event) {
+  const input = event.target as HTMLInputElement;
+  const tagName = type?.name || type?.tag_name;
+
+  if (normalizeType(type) !== 'NUMBER') return;
+
+  const inputValue = input.value;
+  if (!inputValue) {
+    input.style.borderColor = '#e5e7eb';
+    input.style.backgroundColor = '#ffffff';
+    return;
+  }
+
+  const numValue = parseFloat(inputValue);
+  const min = getMinValue(type);
+  const max = getMaxValue(type);
+
+  // Geçersiz sayı kontrolü
+  if (isNaN(numValue)) {
+    input.style.borderColor = '#ef4444';
+    input.style.backgroundColor = '#fef2f2';
+    return;
+  }
+
+  // Min/Max aşıldı mı kontrol et
+  let isInvalid = false;
+  let errorMsg = '';
+
+  if (min !== undefined && numValue < min) {
+    isInvalid = true;
+    errorMsg = `⚠️ "${tagName}" için minimum değer: ${min}`;
+  } else if (max !== undefined && numValue > max) {
+    isInvalid = true;
+    errorMsg = `⚠️ "${tagName}" için maksimum değer: ${max}`;
+  }
+
+  if (isInvalid) {
+    input.style.borderColor = '#ef4444';
+    input.style.backgroundColor = '#fef2f2';
+    input.style.color = '#991b1b';
+
+    // Tooltip benzeri uyarı (input'un title attribute'u)
+    input.title = errorMsg;
+    console.warn(errorMsg, `Girilen: ${numValue}`);
+  } else {
+    input.style.borderColor = '#10b981'; // Yeşil = geçerli
+    input.style.backgroundColor = '#f0fdf4';
+    input.style.color = '#065f46';
+    input.title = '✓ Geçerli değer';
+  }
+}
+
+function validateAndClamp(type: any, event: Event) {
+  const input = event.target as HTMLInputElement;
+  const tagName = type?.name || type?.tag_name;
+
+  if (normalizeType(type) !== 'NUMBER') return;
+
+  let numValue = parseFloat(input.value);
+
+  if (isNaN(numValue) || input.value === '') {
+    // Boş bırakılmışsa style'ı sıfırla
+    input.style.borderColor = '';
+    input.style.backgroundColor = '';
+    input.style.color = '';
+    input.title = '';
+    return;
+  }
+
+  const min = getMinValue(type);
+  const max = getMaxValue(type);
+  let clamped = false;
+  let clampReason = '';
+
+  // Min/Max değerlerine otomatik klampla
+  if (min !== undefined && numValue < min) {
+    numValue = min;
+    clamped = true;
+    clampReason = `Minimum değer ${min} olmalı`;
+  }
+
+  if (max !== undefined && numValue > max) {
+    numValue = max;
+    clamped = true;
+    clampReason = `Maksimum değer ${max} olmalı`;
+  }
+
+  if (clamped) {
+    input.value = numValue.toString();
+
+    // Toast benzeri bildirim
+    const rangeText =
+      min !== undefined && max !== undefined
+        ? `${min}-${max} arası`
+        : min !== undefined
+          ? `minimum ${min}`
+          : `maksimum ${max}`;
+
+    // Kullanıcıya alert göster
+    setTimeout(() => {
+      alert(
+        `⚠️ "${tagName}" ${clampReason}\n\nDeğer otomatik olarak ${numValue} yapıldı.\nGeçerli aralık: ${rangeText}`
+      );
+    }, 100);
+
+    console.warn(`⚠️ "${tagName}" değeri ${rangeText} olmalı. Otomatik düzeltildi: ${numValue}`);
+  }
+
+  // Style'ı sıfırla
+  input.style.borderColor = '';
+  input.style.backgroundColor = '';
+  input.style.color = '';
+  input.title = '';
+}
+
 function togglePanel(panel: string) {
   activePanel.value = activePanel.value === panel ? null : panel;
 }
@@ -216,23 +368,37 @@ function getInputComponent(type: any) {
 
 function handleManualUpdate(type: any, newVal: any) {
   const tagName = type?.name || type?.tag_name;
+  const tagType = normalizeType(type);
+  const tagColor = type?.color || '#ff0000';
 
-  if (!tagName || newVal === undefined || newVal === null) {
-    console.error('❌ HATA: Eksik veri!', { tagName, newVal });
+  // Boş veya geçersiz değerleri kontrol et
+  if (!tagName || newVal === undefined || newVal === null || newVal === '') {
+    console.error('❌ HATA: Eksik veri!', { tagName, tagType, newVal });
     return;
   }
 
-  if (activeGlobalValues[tagName] === newVal) return;
+  // Aynı değer tekrar gönderilmesin
+  if (activeGlobalValues[tagName] === newVal) {
+    console.log('⏭️ [Global] Değer değişmedi, atlıyor:', tagName);
+    return;
+  }
 
+  // Local state'i güncelle
   activeGlobalValues[tagName] = newVal;
 
-  emit('add-global', {
-    type: normalizeType(type),
-    name: tagName,
-    value: newVal.toString(),
-    color: type.color || '#ff0000',
+  // ✅ DÜZELTME: value olarak newVal gönderiliyor (tagName DEĞİL!)
+  const payload = {
+    tag_type: tagType, // Backend'in beklediği format
+    tag_name: tagName, // Tag'in adı (örn: "Histolojik Alt Tip")
+    tag_value: newVal.toString(), // ✅ Seçilen değer (örn: "Ductal")
+    color: tagColor,
     global: true,
-  });
+    is_global: true,
+  };
+
+  emit('add-global', payload);
+
+  console.log('✅ [Global] Gönderilen payload:', payload);
 }
 
 async function updatePatientField(field: string, value: any) {
@@ -257,13 +423,32 @@ async function updatePatientField(field: string, value: any) {
 watch(
   () => annotationStore.allAnnotations,
   (newAnns) => {
-    newAnns.forEach((ann) => {
-      if (ann.tag?.global) {
-        activeGlobalValues[ann.tag.tag_name] = ann.tag.value;
+    console.log('🔍 [PatientInfoBar Watch] Anotasyonlar güncellendi:', newAnns.length);
+
+    // Her anotasyonu kontrol et
+    newAnns.forEach((ann, index) => {
+      console.log(`  [${index}] Tag:`, ann.tag);
+
+      const isGlobal = ann.tag?.global === true;
+      const tagName = ann.tag?.tag_name;
+      const tagValue = ann.tag?.value;
+
+      if (isGlobal && tagName) {
+        console.log(`    ✅ Global alan bulundu: ${tagName} = ${tagValue}`);
+
+        // Sadece değer değiştiyse güncelle (gereksiz render'ları önle)
+        if (activeGlobalValues[tagName] !== tagValue) {
+          activeGlobalValues[tagName] = tagValue;
+          console.log(`    🔄 activeGlobalValues güncellendi: ${tagName} = ${tagValue}`);
+        }
+      } else {
+        console.log(`    ⏭️ Global değil veya tag name yok`);
       }
     });
+
+    console.log('📊 [PatientInfoBar] activeGlobalValues:', { ...activeGlobalValues });
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 );
 </script>
 

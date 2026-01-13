@@ -106,6 +106,10 @@ export const useAnnotationStore = defineStore('annotation', () => {
   /**
    * Belirli bir görüntünün kayıtlı anotasyonlarını çeker.
    */
+
+  function clearDbAnnotations() {
+    dbAnnotations.value = [];
+  }
   async function fetchAnnotations(imageId: string) {
     try {
       const result = await annotationRepo.getByImageId(imageId, { limit: 100, offset: 0 });
@@ -164,6 +168,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
     addDraft,
     removeDraft,
     saveAllChanges,
+    clearDbAnnotations,
     fetchAnnotations,
     deleteRealAnnotation,
     clearStore,
