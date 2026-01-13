@@ -7,6 +7,7 @@ import { storeToRefs } from 'pinia';
 import type { Patient } from '@/core/entities/Patient';
 import type { Image } from '@/core/entities/Image';
 import type { Workspace } from '@/core/entities/Workspace';
+import type { AnnotationType } from '@/core/entities/AnnotationType';
 
 export function useAnnotatorNavigation() {
   const workspaceStore = useWorkspaceStore();
@@ -60,16 +61,103 @@ export function useAnnotatorNavigation() {
     return currentPatients.value.findIndex((p) => p.id === selectedPatientId.value);
   });
 
+  // 🔥 Seçili workspace objesi
+  const selectedWorkspace = computed((): Workspace | null => {
+    if (!selectedWorkspaceId.value) return null;
+    return workspaces.value.find((w) => w.id === selectedWorkspaceId.value) || null;
+  });
+
+  /**
+   * 🔥 REVERSE FILTER: Workspace'teki annotation_types array'ine göre filtrele
+   */
+  const workspaceAnnotationTypes = computed(() => {
+    if (!selectedWorkspace.value) {
+      console.log('⚠️ [useAnnotatorNavigation] Workspace seçilmemiş');
+      return [];
+    }
+
+    // Workspace objesinden annotation_types array'ini al
+    const workspaceTypeIds =
+      (selectedWorkspace.value as any).annotation_types ||
+      (selectedWorkspace.value as any).annotationTypes ||
+      [];
+
+    console.log('🔍 [useAnnotatorNavigation] Workspace annotation type IDs:', {
+      workspaceId: selectedWorkspaceId.value,
+      typeIds: workspaceTypeIds,
+      totalAvailableTypes: annotationTypes.value.length,
+    });
+
+    if (!Array.isArray(workspaceTypeIds) || workspaceTypeIds.length === 0) {
+      console.warn(
+        "⚠️ [useAnnotatorNavigation] Workspace'te annotation_types array'i yok veya boş!"
+      );
+      return [];
+    }
+
+    // Annotation type'ları ID'lere göre filtrele
+    const filtered = annotationTypes.value.filter((type: AnnotationType) => {
+      const matches = workspaceTypeIds.includes(type.id);
+      if (matches) {
+        console.log('  ✅ Eşleşti:', type.name, '→', type.id);
+      }
+      return matches;
+    });
+
+    console.log('📊 [useAnnotatorNavigation] Filtreleme sonucu:', {
+      filtered: filtered.length,
+      types: filtered.map((t) => ({ name: t.name, global: t.global })),
+    });
+
+    return filtered;
+  });
+
+  /**
+   * 🔥 Global annotation types
+   */
+  const globalAnnotationTypes = computed(() => {
+    const globals = workspaceAnnotationTypes.value.filter((type: AnnotationType) => {
+      return type.global === true;
+    });
+
+    console.log('🌍 [useAnnotatorNavigation] Global types:', {
+      count: globals.length,
+      types: globals.map((t) => t.name),
+    });
+
+    return globals;
+  });
+
+  /**
+   * 🔥 Lokal annotation types
+   */
+  const localAnnotationTypes = computed(() => {
+    const locals = workspaceAnnotationTypes.value.filter((type: AnnotationType) => {
+      return type.global !== true;
+    });
+
+    console.log('📍 [useAnnotatorNavigation] Local types:', {
+      count: locals.length,
+      types: locals.map((t) => t.name),
+    });
+
+    return locals;
+  });
+
   function selectWorkspace(workspace: Workspace) {
     if (selectedWorkspaceId.value === workspace.id) return;
+
+    console.log('🔄 [useAnnotatorNavigation] Workspace seçildi:', workspace.id);
+    console.log('📋 Workspace annotation_types:', (workspace as any).annotation_types);
 
     selectedWorkspaceId.value = workspace.id;
     selectedPatientId.value = undefined;
     selectedImageId.value = undefined;
 
     workspaceStore.setCurrentWorkspace(workspace);
-
     patientStore.fetchPatientsByWorkspace(workspace.id);
+
+    console.log('📥 [useAnnotatorNavigation] Annotation types yükleniyor...');
     annotationTypeStore.fetchAnnotationTypes(
       { limit: 100 },
       { refresh: true, parentId: workspace.id }
@@ -165,6 +253,36 @@ export function useAnnotatorNavigation() {
     { immediate: true }
   );
 
+  watch(
+    annotationTypes,
+    (newTypes) => {
+      console.log('👀 [useAnnotatorNavigation] Annotation types güncellendi:', {
+        count: newTypes.length,
+        types: newTypes.map((t) => ({
+          id: t.id,
+          name: t.name,
+          global: t.global,
+        })),
+      });
+    },
+    { deep: true }
+  );
+
+  // 🔥 YENİ: Workspace değişimini izle
+  watch(
+    selectedWorkspace,
+    (newWorkspace) => {
+      if (newWorkspace) {
+        console.log('👀 [useAnnotatorNavigation] Seçili workspace değişti:', {
+          id: newWorkspace.id,
+          name: (newWorkspace as any).name,
+          annotation_types: (newWorkspace as any).annotation_types,
+        });
+      }
+    },
+    { deep: true }
+  );
+
   workspaceStore.fetchWorkspaces();
 
   return {
@@ -174,6 +292,11 @@ export function useAnnotatorNavigation() {
     currentPatients,
     currentImages,
     annotationTypes,
+
+    // Workspace array'ine göre filtrelenmiş
+    workspaceAnnotationTypes,
+    globalAnnotationTypes,
+    localAnnotationTypes,
 
     selectedWorkspaceId,
     selectedPatientId,
