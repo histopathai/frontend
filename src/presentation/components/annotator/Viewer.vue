@@ -21,49 +21,27 @@
 
         <div class="p-4">
           <div v-if="selectedAnnotationData" class="animate-fade-in space-y-4">
-            <div v-if="selectedAnnotationData.data && selectedAnnotationData.data.length > 0">
-              <div
-                v-for="(item, index) in selectedAnnotationData.data"
-                :key="index"
-                class="mb-4 last:mb-0"
-              >
-                <div class="flex items-start gap-3">
-                  <div class="w-1 h-6 rounded-full shrink-0 bg-indigo-500"></div>
-                  <div class="flex flex-col min-w-0">
-                    <span
-                      class="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1"
-                    >
-                      {{ item.tagName }}
-                    </span>
-                    <div
-                      class="text-xs font-bold text-gray-800 break-words bg-gray-50 p-2 rounded-lg border border-gray-100"
-                    >
-                      {{ item.value }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div v-else class="flex items-start gap-3">
+            <div class="flex items-start gap-3">
               <div
                 class="w-1.5 h-8 rounded-full shrink-0"
                 :style="{ backgroundColor: selectedAnnotationData.tag?.color || '#4F46E5' }"
               ></div>
               <div class="flex flex-col min-w-0">
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                <span
+                  class="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1"
+                >
                   {{ selectedAnnotationData.tag?.tag_name }}
                 </span>
-                <div class="text-xs font-bold text-indigo-900 bg-indigo-50 p-2 rounded-lg">
+                <h4 class="text-sm font-semibold text-gray-800 truncate leading-tight">
                   {{ selectedAnnotationData.tag?.value }}
-                </div>
+                </h4>
               </div>
             </div>
 
             <div class="flex items-center justify-end pt-2 border-t border-gray-100">
               <button
                 @click="deleteSelected"
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold text-rose-500 hover:bg-rose-50 transition-all"
+                class="text-[10px] font-bold text-rose-500 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-all"
               >
                 SİL
               </button>
@@ -71,7 +49,7 @@
           </div>
           <div v-else class="text-center py-10 px-4">
             <p class="text-[11px] text-gray-400 font-medium italic">
-              Detaylar için bir poligon seçin.
+              Poligon detayları için seçim yapın.
             </p>
           </div>
         </div>
@@ -104,8 +82,7 @@ const props = defineProps({
 const annotationTypeStore = useAnnotationTypeStore();
 const annotationStore = useAnnotationStore();
 const viewerId = 'osd-viewer-main';
-const { loading, loadAnnotations, loadImage, startDrawing, stopDrawing, anno } =
-  useOpenSeadragon(viewerId);
+const { loadAnnotations, loadImage, startDrawing, stopDrawing, anno } = useOpenSeadragon(viewerId);
 
 const isModalOpen = ref(false);
 const currentDrawingData = ref<any>(null);
@@ -133,13 +110,11 @@ onMounted(() => {
         currentDrawingData.value = selection;
         isModalOpen.value = true;
       });
-
       newAnno.on('selectAnnotation', (annotation: any) => {
         const targetId = String(annotation.id).replace('#', '');
-        const found = annotationStore.annotations.find((a) => String(a.id) === targetId);
-        selectedAnnotationData.value = found || null;
+        selectedAnnotationData.value =
+          annotationStore.annotations.find((a) => String(a.id) === targetId) || null;
       });
-
       newAnno.on('deselectAnnotation', () => {
         selectedAnnotationData.value = null;
       });
@@ -153,41 +128,38 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
 
   try {
     const rawPoints = convertAnnotoriousToPoints(currentDrawingData.value);
+    const points = rawPoints.map((p) => Point.from(p));
 
-    // İstediğiniz değişiklik burada: Her bir değerin tagName'i anotasyon tipi ile aynı olacak şekilde 'data' dizisi oluşturuluyor
-    const dataArray = results.map((r) => ({
-      tagName: r.type.name, // Anotasyon tipinin adı
-      value: r.value,
-      type: r.type.type,
-    }));
+    // KRİTİK DEĞİŞİKLİK: Her bir lokal etiket sonucunu ayrı birer anotasyon olarak kaydediyoruz.
+    // Poligon kopyalanmış oluyor, böylece DB'de her bir tip için bağımsız bir girdi oluşur.
+    const savePromises = results.map((res) => {
+      const payload = {
+        polygon: points, // Aynı poligonu kullanıyoruz
+        tag: {
+          tag_type: res.type.type,
+          tag_name: res.type.name, // Anotasyon tipinin adını doğrudan buraya yazıyoruz
+          value: res.value,
+          color: res.type.color || '#ec4899',
+          global: false,
+        },
+      };
+      return annotationStore.createAnnotation(props.selectedImage.id, payload);
+    });
 
-    const payload = {
-      polygon: rawPoints.map((p) => Point.from(p)),
-      tag: {
-        tag_type: results[0].type.type,
-        tag_name: results[0].type.name, // İlk seçilenin adını ana isim yapıyoruz
-        value: results[0].value,
-        color: results[0].type.color || '#4f46e5',
-        global: false,
-      },
-      data: dataArray, // DB'de isimlendirilmiş tüm değerleri içeren liste
-    };
-
-    await annotationStore.createAnnotation(props.selectedImage.id, payload);
+    await Promise.all(savePromises);
 
     if (anno.value) anno.value.cancelSelected();
     await loadAnnotations(props.selectedImage.id);
     isModalOpen.value = false;
     currentDrawingData.value = null;
   } catch (error) {
-    console.error('Kaydetme hatası:', error);
+    console.error('Çoklu kayıt hatası:', error);
   }
 }
 
 function handleModalCancel() {
   if (anno.value) anno.value.cancelSelected();
   isModalOpen.value = false;
-  currentDrawingData.value = null;
 }
 
 async function deleteSelected() {
@@ -206,17 +178,3 @@ function convertAnnotoriousToPoints(selection: any) {
   }, []);
 }
 </script>
-
-<style scoped>
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-</style>
