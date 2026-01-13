@@ -17,14 +17,6 @@
     </aside>
 
     <main class="flex-1 h-full flex flex-col bg-white min-w-0 overflow-hidden">
-      <PatientMetadataBar
-        :patient="selectedPatient"
-        :image="selectedImage"
-        :is-drawing-mode="isDrawingMode"
-        @start-drawing="handleStartDrawing"
-        @stop-drawing="handleStopDrawing"
-      />
-
       <div class="flex-1 w-full overflow-hidden relative group">
         <Viewer
           ref="viewerRef"
@@ -41,7 +33,6 @@
 import { ref } from 'vue';
 import { useAnnotatorNavigation } from '@/presentation/composables/annotator/useAnnotatorNavigation';
 import AnnotatorSidebar from '@/presentation/components/annotator/AnnotatorSidebar.vue';
-import PatientMetadataBar from '@/presentation/components/annotator/PatientMetadataBar.vue';
 import Viewer from '@/presentation/components/annotator/Viewer.vue';
 
 const {
