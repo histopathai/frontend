@@ -2,7 +2,7 @@
   <div
     class="flex flex-col h-full bg-white border-r border-gray-200 shadow-[2px_0_8px_rgba(0,0,0,0.02)]"
   >
-    <div class="p-5 border-b border-gray-200 bg-gray-50/50">
+    <div class="p-4 border-b border-gray-200 bg-gray-50/50">
       <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
         Çalışma Alanı
       </label>
@@ -18,19 +18,6 @@
           </option>
         </select>
       </div>
-
-      <transition name="fade">
-        <div v-if="currentWorkspace" class="mt-3">
-          <div
-            class="flex items-center gap-2 text-xs text-gray-500 bg-white p-2 rounded border border-gray-100"
-          >
-            <span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-medium">{{
-              currentWorkspace.organType
-            }}</span>
-            <span class="truncate">{{ currentWorkspace.organization }}</span>
-          </div>
-        </div>
-      </transition>
     </div>
 
     <div class="flex-1 overflow-y-auto custom-scrollbar" @scroll="handleScroll">

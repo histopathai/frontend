@@ -32,14 +32,10 @@ export class Annotation {
   static create(data: any): Annotation {
     let tagObj: AnnotationTag | null = null;
 
-    // Konsol çıktınızda (Screenshot 17.14.16) veriler ana seviyede geliyor.
-    // 'tag_name' alanını backend'den geldiği şekliyle yakalamalıyız.
-    if (data.type || data.tag_type || data.tag_name) {
+    if (data.tag_name || data.tagName || data.tag_type || data.type) {
       tagObj = {
         tag_type: data.tag_type || data.tagType || data.type || 'TEXT',
-        // ÖNCELİK: Backend'den gelen gerçek ismi (Mitoz Varlığı vb.) al.
-        // Yoksa fallback olarak tip adını (TEXT/BOOLEAN) kullanma, 'İsimsiz' de.
-        tag_name: data.tag_name || data.tagName || 'İsimsiz Lokal Etiket',
+        tag_name: data.tag_name || data.tagName || 'İsimsiz Etiket',
         value: data.value,
         color: data.color || '#4F46E5',
         global: data.global ?? false,

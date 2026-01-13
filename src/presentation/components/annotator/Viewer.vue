@@ -63,40 +63,131 @@
           ></div>
         </div>
 
-        <div class="p-3">
-          <div v-if="selectedAnnotationData" class="animate-fade-in">
-            <div class="flex items-center gap-2 mb-2">
+        <div class="p-4">
+          <div v-if="selectedAnnotationData" class="animate-fade-in space-y-4">
+            <div class="flex items-start gap-3">
               <div
-                class="w-2 h-2 rounded-full"
-                :style="{ backgroundColor: selectedAnnotationData.tag?.color }"
+                class="w-1.5 h-8 rounded-full shrink-0"
+                :style="{ backgroundColor: selectedAnnotationData.tag?.color || '#4F46E5' }"
               ></div>
-              <div class="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                {{ selectedAnnotationData.tag?.tag_name }}
+              <div class="flex flex-col min-w-0">
+                <span
+                  class="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1"
+                >
+                  Lokal Etiket Türü
+                </span>
+                <h4 class="text-sm font-semibold text-gray-800 truncate leading-tight">
+                  {{ selectedAnnotationData.tag?.tag_name || 'İsimsiz Anotasyon' }}
+                </h4>
               </div>
             </div>
 
-            <div class="bg-gray-50 rounded-lg p-3 border border-gray-100 shadow-inner">
-              <div class="text-xs text-gray-800 font-medium break-all">
-                <template v-if="selectedAnnotationData.tag?.tag_type === 'BOOLEAN'">
-                  {{ selectedAnnotationData.tag?.value ? '✓ Evet' : '✕ Hayır' }}
-                </template>
-                <template v-else>
-                  {{ selectedAnnotationData.tag?.value || 'Değer girilmemiş' }}
-                </template>
+            <div class="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100/50 shadow-sm">
+              <div class="flex flex-col gap-1">
+                <span class="text-[10px] font-medium text-indigo-400 uppercase tracking-tight"
+                  >İşaretlenen Değer</span
+                >
+                <div class="text-xs font-bold text-indigo-900 break-words leading-relaxed">
+                  <template v-if="selectedAnnotationData.tag?.tag_type === 'BOOLEAN'">
+                    <div class="flex items-center gap-1.5">
+                      <span
+                        v-if="selectedAnnotationData.tag?.value"
+                        class="text-emerald-600 flex items-center gap-1"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          class="w-4 h-4"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                        Evet
+                      </span>
+                      <span v-else class="text-rose-600 flex items-center gap-1">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          class="w-4 h-4"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                        Hayır
+                      </span>
+                    </div>
+                  </template>
+
+                  <template v-else>
+                    {{ selectedAnnotationData.tag?.value || 'Veri girilmemiş' }}
+                  </template>
+                </div>
               </div>
             </div>
 
-            <div class="mt-3 flex justify-between items-center px-1">
-              <span class="text-[9px] text-gray-400 italic"
-                >ID: {{ selectedAnnotationData.id.substring(0, 8) }}</span
-              >
+            <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+              <div class="flex flex-col">
+                <span class="text-[9px] text-gray-400 font-medium">Sistem ID</span>
+                <code class="text-[9px] text-gray-500 bg-gray-100 px-1 rounded"
+                  >#{{ selectedAnnotationData.id.substring(0, 8) }}</code
+                >
+              </div>
+
               <button
                 @click="deleteSelected"
-                class="text-[10px] text-red-500 hover:text-red-700 font-bold transition-colors"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-all active:scale-95 border border-transparent hover:border-rose-100"
               >
-                Sil
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="2"
+                  stroke="currentColor"
+                  class="w-3.5 h-3.5"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+                  />
+                </svg>
+                SİL
               </button>
             </div>
+          </div>
+
+          <div
+            v-else
+            class="flex flex-col items-center justify-center py-10 px-4 text-center space-y-3"
+          >
+            <div class="p-3 bg-gray-50 rounded-full">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="w-6 h-6 text-gray-300"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.227 7.917-3.286-.672ZM12 2.25V4.5m5.834.166-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243-1.59-1.59"
+                />
+              </svg>
+            </div>
+            <p class="text-[11px] text-gray-400 font-medium leading-relaxed italic">
+              Anotasyon detaylarını görmek için <br />
+              bir poligon seçin.
+            </p>
           </div>
         </div>
       </div>
@@ -200,35 +291,52 @@ onMounted(() => {
   );
 });
 
+// src/presentation/components/annotator/Viewer.vue
+
+// src/presentation/components/annotator/Viewer.vue
+// src/presentation/components/annotator/Viewer.vue
+
 async function handleModalSave(data: { typeId: string; type: any; value: any }) {
   if (!currentDrawingData.value || !props.selectedImage) return;
 
   try {
+    // 1. Ortak poligon verisini hazırla
     const rawPoints = convertAnnotoriousToPoints(currentDrawingData.value);
     const points = rawPoints.map((p) => Point.from(p));
 
+    // 2. Payload hazırla
+    // Not: Eğer modalın sadece bir tip dönüyorsa,
+    // her "Kaydet" dediğinde bu fonksiyon bir kez çalışır.
     const payload = {
       polygon: points,
       tag: {
-        tag_type: data.type.type, // 'TEXT', 'BOOLEAN' vb.
-        tag_name: data.type.name, // ÖNEMLİ: Workspace'te tanımladığınız etiket ismi (Mitoz Varlığı vb.)
+        tag_type: data.type.type,
+        tag_name: data.type.name, // "Lokal skorlama" veya "Lokal değerlendirme"
         value: data.value,
         color: data.type.color || '#4F46E5',
         global: false,
       },
     };
 
-    await annotationStore.createAnnotation(props.selectedImage.id, payload);
-    if (anno.value) {
-      anno.value.cancelSelected();
-      await loadAnnotations(props.selectedImage.id);
-    }
+    // 3. Backend'e gönder
+    console.log('Gönderilen Payload:', payload);
+    const saved = await annotationStore.createAnnotation(props.selectedImage.id, payload);
 
-    isModalOpen.value = false;
-    currentDrawingData.value = null;
-    stopDrawing();
+    if (saved) {
+      // 4. KRİTİK: Kütüphanedeki geçici seçimi temizle
+      if (anno.value) {
+        anno.value.cancelSelected();
+      }
+
+      // 5. Listeyi tazele (Böylece hem önceki hem yeni kayıtlar gelir)
+      await loadAnnotations(props.selectedImage.id);
+
+      // Modal'ı kapat
+      isModalOpen.value = false;
+      currentDrawingData.value = null;
+    }
   } catch (error) {
-    console.error('Hata:', error);
+    console.error('Kayıt sırasında hata:', error);
   }
 }
 
@@ -239,15 +347,25 @@ function handleModalCancel() {
 }
 
 async function deleteSelected() {
-  if (selectedAnnotationData.value && props.selectedImage) {
+  if (!selectedAnnotationData.value || !props.selectedImage) return;
+
+  try {
     const success = await annotationStore.deleteAnnotation(
       selectedAnnotationData.value.id,
       props.selectedImage.id
     );
-    if (success && anno.value) {
-      anno.value.removeAnnotation(selectedAnnotationData.value.id);
+
+    if (success) {
+      if (anno.value) {
+        // Annotorious'tan ID ile kaldır
+        anno.value.removeAnnotation(selectedAnnotationData.value.id);
+      }
       selectedAnnotationData.value = null;
+      // UI'ı senkronize et
+      await loadAnnotations(props.selectedImage.id);
     }
+  } catch (error) {
+    console.error('Silme hatası:', error);
   }
 }
 
