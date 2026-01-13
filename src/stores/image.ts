@@ -257,7 +257,7 @@ export const useImageStore = defineStore('image', () => {
         contentType = 'application/octet-stream';
       }
       const createRequest: CreateNewImageRequest = {
-        parent: { id: patientId, type: 'image' },
+        parent: { id: patientId, type: 'patient' },
         content_type: contentType,
         name: file.name,
         format: file.name.split('.').pop() || 'unknown',
