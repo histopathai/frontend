@@ -10,13 +10,14 @@ export interface AnnotationTypeProps {
   creatorId: string;
   name: string;
   description: string | null;
-  type: TagType; // 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT' | 'MULTI_SELECT'
+  type: TagType;
   options: string[];
   global: boolean;
   required: boolean;
   min?: number;
   max?: number;
   tags: TagDefinition[];
+  patientFields: TagDefinition[];
   parent: ParentRef | null;
 
   color: string | null;
@@ -38,7 +39,7 @@ export class AnnotationType {
     } else if (data.parent_id) {
       parentRef = {
         id: data.parent_id,
-        type: 'workspace', // Varsayım
+        type: 'workspace',
       };
     }
 
@@ -60,7 +61,9 @@ export class AnnotationType {
 
       createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,
       updatedAt: typeof data.updated_at === 'string' ? new Date(data.updated_at) : data.updated_at,
-      tags: [],
+
+      tags: data.tags || [],
+      patientFields: data.patient_fields || [],
     };
 
     return new AnnotationType(props);
@@ -102,6 +105,14 @@ export class AnnotationType {
   get max(): number | undefined {
     return this.props.max;
   }
+
+  get tags(): TagDefinition[] {
+    return this.props.tags;
+  }
+  get patientFields(): TagDefinition[] {
+    return this.props.patientFields;
+  }
+
   get parent(): ParentRef | null {
     return this.props.parent;
   }
