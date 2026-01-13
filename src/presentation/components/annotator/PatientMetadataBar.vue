@@ -109,13 +109,34 @@
 
         <div
           v-if="activePopover === 'clinical'"
-          class="absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-gray-100 p-4 z-50 animate-fade-in origin-top-left max-h-[400px] overflow-y-auto custom-scrollbar"
+          class="absolute top-full left-0 mt-2 w-80 bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-gray-100 p-4 z-50 animate-fade-in origin-top-left max-h-[400px] overflow-y-auto custom-scrollbar"
         >
           <div class="flex flex-col gap-3">
             <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
               Klinik Tanı & Bulgular
             </h3>
 
+            <div
+              v-if="activeAnnotationTypes.length > 0"
+              class="flex flex-wrap gap-2 mb-1 pb-3 border-b border-gray-50"
+            >
+              <div
+                v-for="type in activeAnnotationTypes"
+                :key="type.id"
+                class="flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-bold shadow-sm select-none"
+                :style="{
+                  backgroundColor: type.color ? `${type.color}10` : '#f9fafb',
+                  borderColor: type.color ? `${type.color}40` : '#e5e7eb',
+                  color: type.color || '#374151',
+                }"
+              >
+                <span
+                  class="w-1.5 h-1.5 rounded-full"
+                  :style="{ backgroundColor: type.color || '#9ca3af' }"
+                ></span>
+                {{ type.name }}
+              </div>
+            </div>
             <div
               v-if="activeAnnotationTypes.length === 0"
               class="text-xs text-gray-500 py-3 text-center bg-gray-50 rounded"
@@ -152,7 +173,7 @@
               v-else-if="dynamicFields.length === 0"
               class="text-xs text-orange-500 py-2 bg-orange-50 px-2 rounded"
             >
-              ⚠ Tanımlı anotasyon tiplerinde hasta veri alanı bulunamadı.
+              ⚠ Tanımlı anotasyon tiplerinde ek hasta veri alanı bulunamadı.
             </div>
 
             <div
@@ -270,6 +291,7 @@
       class="fixed inset-0 z-40 bg-transparent"
       @click="activePopover = null"
     ></div>
+
     <Teleport to="body">
       <div
         v-if="isHistoryModalOpen"
@@ -325,12 +347,14 @@
 import { ref, type PropType, toRef, computed, reactive, watch } from 'vue';
 import type { Patient } from '@/core/entities/Patient';
 import type { Image } from '@/core/entities/Image';
+import type { AnnotationType } from '@/core/entities/AnnotationType';
 import type { TagDefinition } from '@/core/types/tags';
 import { usePatientEditor } from '@/presentation/composables/annotator/usePatientEditor';
 import { useAnnotationStore } from '@/stores/annotation';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { usePatientStore } from '@/stores/patient';
+import { useToast } from 'vue-toastification';
 
 const props = defineProps({
   patient: { type: Object as PropType<Patient | null>, default: null },
@@ -341,6 +365,7 @@ const annotationStore = useAnnotationStore();
 const annotationTypeStore = useAnnotationTypeStore();
 const workspaceStore = useWorkspaceStore();
 const patientStore = usePatientStore();
+const toast = useToast();
 
 const activePopover = ref<string | null>(null);
 
@@ -361,64 +386,78 @@ watch(
   { immediate: true, deep: true }
 );
 
-// 1. ADIM: Güvenli ID Listesi (Tüm ID'leri Al)
-const typeIds = computed(() => {
+// 1. ADIM: Aktif Workspace'den ID'leri Al
+const typeIds = computed<string[]>(() => {
   const ws = workspaceStore.currentWorkspace;
+
+  // LOGLAMA: Workspace ve ID durumunu kontrol et
+  console.log('PatientMetadataBar - Workspace:', ws);
+
   if (!ws) return [];
-  // @ts-ignore - Backend uyumluluğu için
-  return ws.annotationTypeIds || ws.annotation_types || [];
+
+  // Workspace.ts düzeltildiği için artık veriler 'annotationTypeIds' içindedir.
+  // Ekstra kontrollere gerek yok.
+  const ids = ws.annotationTypeIds || [];
+
+  console.log('PatientMetadataBar - Bulunan Anotasyon IDleri:', ids);
+
+  return ids;
 });
 
-// 2. ADIM: Aktif Olan TÜM Anotasyon Tiplerini Bul
-const activeAnnotationTypes = computed(() => {
+const activeAnnotationTypes = computed<AnnotationType[]>(() => {
   if (typeIds.value.length === 0) return [];
 
-  // Tüm ID'leri store'dan çek, bulunanları filtrele
   return typeIds.value
-    .map((id) => annotationTypeStore.getAnnotationTypeById(id))
-    .filter((type): type is NonNullable<typeof type> => !!type);
+    .map((id: string) => annotationTypeStore.getAnnotationTypeById(id))
+    .filter((type): type is AnnotationType => !!type);
 });
-
-// 3. ADIM: Tüm Tipleri Yükle
-async function loadAnnotationConfig() {
-  if (typeIds.value.length > 0) {
-    // Promise.all ile tüm ID'leri paralel yükle
-    await Promise.all(
-      typeIds.value.map(async (id) => {
-        if (id && !annotationTypeStore.getAnnotationTypeById(id)) {
-          try {
-            await annotationTypeStore.fetchAnnotationTypeById(id);
-          } catch (e) {
-            console.error('Anotasyon tipi yüklenemedi:', id, e);
-          }
-        }
-      })
-    );
-  }
-}
 
 watch(
   typeIds,
-  () => {
-    loadAnnotationConfig();
+  async (ids: string[]) => {
+    if (ids.length > 0) {
+      await Promise.all(
+        ids.map(async (id: string) => {
+          if (id && !annotationTypeStore.getAnnotationTypeById(id)) {
+            try {
+              await annotationTypeStore.fetchAnnotationTypeById(id);
+            } catch (e) {
+              console.error('Anotasyon tipi yüklenemedi:', id, e);
+            }
+          }
+        })
+      );
+    }
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 );
 
-// 4. ADIM: Alanları Birleştir (Merge)
+// 4. ADIM: Alanları Oluştur (GÜNCELLENMİŞ VERSİYON)
+// 4. ADIM: Alanları Oluştur (GÜNCELLENMİŞ VERSİYON)
+// 4. ADIM: Alanları Oluştur (GÜNCELLENMİŞ)
 const dynamicFields = computed<TagDefinition[]>(() => {
   const allFields: TagDefinition[] = [];
   const seenNames = new Set<string>();
 
   activeAnnotationTypes.value.forEach((type) => {
-    if (type.patientFields && Array.isArray(type.patientFields)) {
-      type.patientFields.forEach((field) => {
-        // Aynı isimli alanları tekrar ekleme (Deduplication)
-        if (!seenNames.has(field.name)) {
-          seenNames.add(field.name);
-          allFields.push(field);
-        }
-      });
+    // ÖNEMLİ: Anotasyon tipinin içinde 'patientFields' aramak yerine,
+    // tipin KENDİSİNİ bir alan olarak ekliyoruz.
+
+    // Eğer "Görüntü Geneli" (Global) olarak işaretlenmemişse buraya dahil etmeyebiliriz.
+    // Tüm tiplerin gelmesini istiyorsanız aşağıdaki if kontrolünü kaldırabilirsiniz.
+    if (type.global) {
+      // Aynı isimli alanları tekrar eklememek için kontrol
+      if (!seenNames.has(type.name)) {
+        seenNames.add(type.name);
+
+        // Tipin kendisini form tanımına dönüştür
+        allFields.push({
+          name: type.name, // Örn: "Histolojik Alt Tip"
+          type: type.type, // Örn: "SELECT"
+          options: type.options || [], // Örn: ["Ductal", "Lobular"]
+          required: type.required || false,
+        });
+      }
     }
   });
 
@@ -438,6 +477,8 @@ function getFirstFilledMetadataSummary() {
     return val !== undefined && val !== null && val !== '';
   });
 
+  console.log('Filled field for summary:', filledField);
+
   if (!filledField) return '';
   const val = localMetadata[filledField.name];
   if (filledField.type === 'BOOLEAN') return `${filledField.name}: ${val ? 'Evet' : 'Hayır'}`;
@@ -456,20 +497,50 @@ function togglePopover(name: string) {
 
 async function handleSaveAll() {
   if (!props.patient || isLoading.value) return;
+
   localSaving.value = true;
   try {
-    const payload: any = {
+    const patientPayload = {
       age: age.value,
       gender: gender.value,
       history: history.value,
       race: race.value,
-      metadata: { ...localMetadata },
     };
-    await patientStore.updatePatient(props.patient.id, payload);
-    if (annotationStore.hasUnsavedChanges) await annotationStore.saveAllPendingAnnotations();
+
+    await patientStore.updatePatient(props.patient.id, patientPayload);
+
+    const metadataPromises = Object.entries(localMetadata).map(async ([tagName, value]) => {
+      if (value === undefined || value === null || value === '') return;
+
+      const typeDef = activeAnnotationTypes.value.find((t) => t.name === tagName);
+      if (!typeDef) return;
+      const annotationPayload = {
+        tag: {
+          tag_type: typeDef.type,
+          tag_name: tagName,
+          value: value,
+          color: typeDef.color || '#000000',
+          global: true,
+        },
+        polygon: undefined,
+      };
+
+      if (props.image?.id) {
+        return annotationStore.createAnnotation(props.image.id, annotationPayload);
+      }
+    });
+
+    await Promise.all(metadataPromises);
+
+    if (annotationStore.hasUnsavedChanges) {
+      await annotationStore.saveAllPendingAnnotations();
+    }
+
     activePopover.value = null;
+    toast.success('Tüm veriler başarıyla kaydedildi.');
   } catch (error) {
     console.error('Kaydetme hatası:', error);
+    toast.error('Kaydetme sırasında bir hata oluştu.');
   } finally {
     localSaving.value = false;
   }

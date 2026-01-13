@@ -78,14 +78,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
     return (imageId: string) => annotationsByImage.value.get(imageId) || [];
   });
 
-  const annotationsWithScore = computed(() => {
-    return annotations.value.filter((ann) => ann.hasScore());
-  });
-
-  const annotationsWithClass = computed(() => {
-    return annotations.value.filter((ann) => ann.hasClassification());
-  });
-
   function addUnsavedAnnotation(annotation: any) {
     unsavedAnnotations.value.push(annotation);
   }
@@ -296,23 +288,29 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
   const createAnnotation = async (
     imageId: string,
-    data: Omit<CreateNewAnnotationRequest, 'image_id'>
+    // data parametresi artık 'parent' hariç diğer alanları (polygon, tag vb.) içerir
+    data: Omit<CreateNewAnnotationRequest, 'parent'>
   ): Promise<Annotation | null> => {
     actionLoading.value = true;
     resetError();
 
     try {
+      // BURADAKİ DÖNÜŞÜM KRİTİK:
+      // imageId'yi alıp Backend'in beklediği 'parent' objesine çeviriyoruz.
       const createRequest: CreateNewAnnotationRequest = {
         ...data,
-        image_id: imageId,
+        parent: {
+          id: imageId,
+          type: 'image',
+        },
       };
 
       const newAnnotation = await annotationRepo.create(createRequest);
 
-      // Add to main annotations array
+      // Ana listeye ekle
       annotations.value = [newAnnotation, ...annotations.value];
 
-      // Add to image-specific annotations
+      // Görüntü bazlı listeye ekle
       const imageAnnotations = annotationsByImage.value.get(imageId) || [];
       annotationsByImage.value.set(imageId, [newAnnotation, ...imageAnnotations]);
 
@@ -514,8 +512,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
     hasSelection,
     getAnnotationById,
     getAnnotationsByImageId,
-    annotationsWithScore,
-    annotationsWithClass,
 
     // Actions - Fetch
     fetchAnnotationById,

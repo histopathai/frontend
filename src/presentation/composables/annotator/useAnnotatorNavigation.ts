@@ -63,10 +63,16 @@ export function useAnnotatorNavigation() {
   function selectWorkspace(workspace: Workspace) {
     if (selectedWorkspaceId.value === workspace.id) return;
 
+    // 1. Yerel State'i Güncelle
     selectedWorkspaceId.value = workspace.id;
     selectedPatientId.value = undefined;
     selectedImageId.value = undefined;
 
+    // 2. KRİTİK ADIM: Global Store'daki 'currentWorkspace'i Güncelle!
+    // PatientMetadataBar bu veriye bağımlı olduğu için bu satır şart.
+    workspaceStore.setCurrentWorkspace(workspace);
+
+    // 3. Verileri Getir
     patientStore.fetchPatientsByWorkspace(workspace.id);
     annotationTypeStore.fetchAnnotationTypes(
       { limit: 100 },
@@ -153,9 +159,11 @@ export function useAnnotatorNavigation() {
   watch(
     workspaces,
     (newWorkspaces) => {
+      // Eğer workspace listesi geldiyse ve henüz bir seçim yapılmadıysa
       if (newWorkspaces && newWorkspaces.length > 0 && !selectedWorkspaceId.value) {
         const firstWorkspace = newWorkspaces[0];
         if (firstWorkspace) {
+          // Hem seçimi yap hem de store'u güncelle
           selectWorkspace(firstWorkspace);
         }
       }

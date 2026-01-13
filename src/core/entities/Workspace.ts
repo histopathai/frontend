@@ -23,6 +23,7 @@ export class Workspace {
       annotationTypeIds:
         data.annotationTypeIds ||
         data.annotation_type_ids ||
+        data.annotation_types ||
         (data.annotationTypeId ? [data.annotationTypeId] : []) ||
         [],
       name: data.name,
