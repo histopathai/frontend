@@ -2,6 +2,7 @@ import { ref, computed, watch } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { usePatientStore } from '@/stores/patient';
 import { useImageStore } from '@/stores/image';
+import { useAnnotationTypeStore } from '@/stores/annotation_type'; // 1. Store importu
 import { storeToRefs } from 'pinia';
 import type { Patient } from '@/core/entities/Patient';
 import type { Image } from '@/core/entities/Image';
@@ -11,18 +12,25 @@ export function useAnnotatorNavigation() {
   const workspaceStore = useWorkspaceStore();
   const patientStore = usePatientStore();
   const imageStore = useImageStore();
+  const annotationTypeStore = useAnnotationTypeStore(); // 2. Store kullanımı
 
   const { workspaces } = storeToRefs(workspaceStore);
   const { patientsByWorkspace } = storeToRefs(patientStore);
   const { imagesByPatient } = storeToRefs(imageStore);
+  const { annotationTypes } = storeToRefs(annotationTypeStore); // 3. State'i al
 
   const loading = computed(
-    () => workspaceStore.loading || patientStore.loading || imageStore.loading
+    () =>
+      workspaceStore.loading ||
+      patientStore.loading ||
+      imageStore.loading ||
+      annotationTypeStore.loading
   );
 
   const selectedWorkspaceId = ref<string | undefined>(undefined);
   const selectedPatientId = ref<string | undefined>(undefined);
   const selectedImageId = ref<string | undefined>(undefined);
+  const selectedAnnotationTypeId = ref<string | undefined>(undefined); // 4. Seçili tip state'i
 
   const currentPatients = computed((): Patient[] => {
     const list = selectedWorkspaceId.value
@@ -60,6 +68,14 @@ export function useAnnotatorNavigation() {
     selectedImageId.value = undefined;
 
     patientStore.fetchPatientsByWorkspace(workspace.id);
+    annotationTypeStore.fetchAnnotationTypes(
+      { limit: 100 },
+      { refresh: true, parentId: workspace.id }
+    );
+  }
+
+  function selectAnnotationType(typeId: string) {
+    selectedAnnotationTypeId.value = typeId;
   }
 
   function selectPatient(patient: Patient | null) {
@@ -110,7 +126,6 @@ export function useAnnotatorNavigation() {
     }
   }
 
-  // Yeni Fonksiyon: Daha fazla hasta yükle
   function loadMorePatients() {
     if (selectedWorkspaceId.value) {
       patientStore.loadMorePatients(selectedWorkspaceId.value);
@@ -156,19 +171,22 @@ export function useAnnotatorNavigation() {
     workspaces,
     currentPatients,
     currentImages,
+    annotationTypes,
 
     selectedWorkspaceId,
     selectedPatientId,
     selectedImageId,
     selectedPatient,
     selectedImage,
+    selectedAnnotationTypeId,
 
     selectWorkspace,
     selectPatient,
     selectImage,
+    selectAnnotationType,
     nextImage,
     prevImage,
 
-    loadMorePatients, // Dışarı aktarıldı
+    loadMorePatients,
   };
 }
