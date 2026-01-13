@@ -5,8 +5,14 @@ export interface PatientProps {
   name: string;
   gender: string | null;
   birthDate: Date | null;
-  metadata: Record<string, any>;
+  age: number | null;
+  race: string | null;
+  disease: string | null;
+  subtype: string | null;
+  grade: number | null;
+  history: string | null;
 
+  metadata: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +28,12 @@ export class Patient {
       name,
       gender,
       birth_date,
+      age,
+      race,
+      disease,
+      subtype,
+      grade,
+      history,
       created_at,
       updated_at,
       ...rest
@@ -34,6 +46,13 @@ export class Patient {
       name,
       gender: gender ?? null,
       birthDate: birth_date ? new Date(birth_date) : null,
+      age: age ?? null,
+      race: race ?? null,
+      disease: disease ?? null,
+      subtype: subtype ?? null,
+      grade: grade ?? null,
+      history: history ?? null,
+
       metadata: rest || {},
 
       createdAt: typeof created_at === 'string' ? new Date(created_at) : created_at,
@@ -60,10 +79,28 @@ export class Patient {
     return this.props.birthDate;
   }
 
+  get age(): number | null {
+    return this.props.age;
+  }
+  get race(): string | null {
+    return this.props.race;
+  }
+  get disease(): string | null {
+    return this.props.disease;
+  }
+  get subtype(): string | null {
+    return this.props.subtype;
+  }
+  get grade(): number | null {
+    return this.props.grade;
+  }
+  get history(): string | null {
+    return this.props.history;
+  }
+
   get metadata(): Record<string, any> {
     return this.props.metadata;
   }
-
   get createdAt(): Date {
     return this.props.createdAt;
   }

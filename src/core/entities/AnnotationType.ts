@@ -62,8 +62,8 @@ export class AnnotationType {
       createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,
       updatedAt: typeof data.updated_at === 'string' ? new Date(data.updated_at) : data.updated_at,
 
-      tags: data.tags || [],
-      patientFields: data.patient_fields || [],
+      tags: data.tags || data.fields || [],
+      patientFields: data.patient_fields || data.metadata_fields || [],
     };
 
     return new AnnotationType(props);

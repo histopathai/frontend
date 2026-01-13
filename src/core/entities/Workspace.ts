@@ -20,7 +20,11 @@ export class Workspace {
     return new Workspace({
       id: data.id,
       creatorId: data.creator_id,
-      annotationTypeIds: data.annotation_types || [],
+      annotationTypeIds:
+        data.annotationTypeIds ||
+        data.annotation_type_ids ||
+        (data.annotationTypeId ? [data.annotationTypeId] : []) ||
+        [],
       name: data.name,
       organType: data.organ_type,
       organization: data.organization,
