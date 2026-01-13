@@ -34,7 +34,7 @@
 
       <div class="flex items-center gap-4 overflow-x-auto custom-scrollbar flex-1 px-2">
         <template v-for="field in patientFields" :key="field.name">
-          <div class="flex flex-col group min-w-[100px]">
+          <div class="flex flex-col group min-w-[120px]">
             <label
               class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5 whitespace-nowrap group-hover:text-indigo-500 transition-colors"
             >
@@ -64,16 +64,6 @@
               />
             </div>
 
-            <select
-              v-else-if="field.type === 'SELECT'"
-              :value="getPatientValue(field.name) || ''"
-              @change="(e) => updatePatientField(field.name, (e.target as HTMLSelectElement).value)"
-              class="h-6 text-xs border-gray-300 rounded shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white py-0 cursor-pointer"
-            >
-              <option value="" disabled>Seçiniz</option>
-              <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
-            </select>
-
             <button
               v-else-if="field.type === 'BOOLEAN'"
               @click="updatePatientField(field.name, !getPatientValue(field.name))"
@@ -91,60 +81,41 @@
               {{ getPatientValue(field.name) ? 'EVET' : 'HAYIR' }}
             </button>
 
-            <div v-else-if="field.type === 'MULTI_SELECT'" class="relative group/multi">
+            <div v-else-if="['SELECT', 'MULTI_SELECT'].includes(field.type)" class="relative">
               <div
                 class="h-6 border border-gray-300 rounded px-2 flex items-center bg-white cursor-pointer hover:border-indigo-400 transition-colors w-full overflow-hidden"
+                @click="(e) => toggleDropdown('patient', field.name, e)"
               >
-                <span class="text-[10px] text-gray-700 truncate">
-                  {{
-                    (getPatientValue(field.name) || []).length > 0
-                      ? (getPatientValue(field.name) || []).join(', ')
-                      : 'Seçiniz...'
-                  }}
+                <span class="text-[10px] text-gray-700 truncate select-none">
+                  {{ formatValue(getPatientValue(field.name), field.type) }}
                 </span>
-              </div>
-              <div
-                class="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 shadow-xl rounded-lg p-1.5 hidden group-hover/multi:block z-50"
-              >
-                <div class="max-h-48 overflow-y-auto custom-scrollbar space-y-0.5">
-                  <label
-                    v-for="opt in field.options"
-                    :key="opt"
-                    class="flex items-center p-1.5 hover:bg-indigo-50 rounded cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      :checked="(getPatientValue(field.name) || []).includes(opt)"
-                      @change="
-                        (e) =>
-                          handlePatientMultiSelect(
-                            field.name,
-                            opt,
-                            (e.target as HTMLInputElement).checked
-                          )
-                      "
-                      class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-3 w-3 mr-2"
-                    />
-                    <span class="text-xs text-gray-700">{{ opt }}</span>
-                  </label>
-                </div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-3 w-3 ml-auto text-gray-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
               </div>
             </div>
           </div>
         </template>
-
         <div v-if="patientFields.length === 0" class="text-xs text-gray-400 italic">
-          Bu çalışma alanı için hasta veri alanı tanımlanmamış.
+          Alan tanımlanmamış.
         </div>
       </div>
 
       <div class="h-8 w-px bg-gray-200 shrink-0 ml-auto"></div>
-
       <div class="flex flex-col shrink-0 text-right">
         <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Görüntü</span>
-        <span class="text-sm text-gray-700 leading-tight truncate max-w-[150px]">
-          {{ imageStore.currentImage?.name || 'Görüntü Seçilmedi' }}
-        </span>
+        <span class="text-sm text-gray-700 leading-tight truncate max-w-[150px]">{{
+          imageStore.currentImage?.name || 'Görüntü Seçilmedi'
+        }}</span>
       </div>
     </div>
 
@@ -157,9 +128,9 @@
           <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider"
             >Seçili Alan</span
           >
-          <span class="text-sm font-bold text-indigo-900 whitespace-nowrap leading-tight">
-            {{ selectedType?.name || 'Bilinmeyen Tip' }}
-          </span>
+          <span class="text-sm font-bold text-indigo-900 whitespace-nowrap leading-tight">{{
+            selectedType?.name || 'Bilinmeyen Tip'
+          }}</span>
         </div>
         <div
           class="w-3 h-8 rounded-full shadow-sm"
@@ -171,34 +142,70 @@
         <div
           v-for="tag in selectedType?.tags || []"
           :key="tag.name"
-          class="flex flex-col justify-center group"
+          class="flex flex-col justify-center group min-w-[140px]"
         >
           <label
             class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5 whitespace-nowrap transition-colors group-hover:text-indigo-500"
           >
-            {{ tag.name }} <span class="text-red-400">*</span>
+            {{ tag.name }} <span v-if="selectedType?.required" class="text-red-400">*</span>
           </label>
-
           <input
             v-if="tag.type === 'TEXT'"
             type="text"
             :value="getValue(tag.name)"
             @input="(e) => updateValue(tag, (e.target as HTMLInputElement).value)"
-            class="h-8 w-40 text-sm border-gray-300 rounded shadow-sm focus:border-indigo-500 bg-white"
+            class="h-8 w-full text-sm border-gray-300 rounded shadow-sm focus:border-indigo-500 bg-white"
             placeholder="..."
           />
-          <select
-            v-if="tag.type === 'SELECT'"
+          <input
+            v-else-if="tag.type === 'NUMBER'"
+            type="number"
+            :min="tag.min"
+            :max="tag.max"
             :value="getValue(tag.name)"
-            @change="(e) => updateValue(tag, (e.target as HTMLSelectElement).value)"
-            class="h-8 text-sm border-gray-300 rounded shadow-sm focus:border-indigo-500 bg-white min-w-[140px]"
+            @input="(e) => updateValue(tag, parseFloat((e.target as HTMLInputElement).value))"
+            class="h-8 w-full text-sm border-gray-300 rounded shadow-sm focus:border-indigo-500 bg-white"
+          />
+          <button
+            v-else-if="tag.type === 'BOOLEAN'"
+            @click="updateValue(tag, !getValue(tag.name))"
+            class="h-8 px-3 rounded text-xs font-semibold border transition-all flex items-center gap-2 justify-center"
+            :class="
+              getValue(tag.name)
+                ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                : 'bg-gray-50 border-gray-200 text-gray-500'
+            "
           >
-            <option value="" disabled>Seçiniz...</option>
-            <option v-for="opt in tag.options" :key="opt" :value="opt">{{ opt }}</option>
-          </select>
+            <span
+              class="w-2 h-2 rounded-full"
+              :class="getValue(tag.name) ? 'bg-indigo-500' : 'bg-gray-300'"
+            ></span
+            >{{ getValue(tag.name) ? 'EVET' : 'HAYIR' }}
+          </button>
+          <div v-else-if="['SELECT', 'MULTI_SELECT'].includes(tag.type)" class="relative">
+            <div
+              class="h-8 border border-gray-300 rounded px-3 flex items-center bg-white cursor-pointer hover:border-indigo-400 transition-colors w-full"
+              @click="(e) => toggleDropdown('annotation', tag.name, e)"
+            >
+              <span class="text-sm text-gray-700 truncate select-none flex-1">{{
+                formatValue(getValue(tag.name), tag.type)
+              }}</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4 ml-2 text-gray-400"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </div>
+          </div>
         </div>
       </div>
-
       <div class="ml-auto pl-4 border-l border-indigo-100">
         <button
           @click="annotationStore.selectAnnotation(null)"
@@ -220,11 +227,62 @@
         </button>
       </div>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="dropdownState.isOpen"
+        class="fixed z-[9999] bg-white border border-gray-200 shadow-xl rounded-lg p-1.5 min-w-[180px] animate-fade-in"
+        :style="{ top: dropdownState.top, left: dropdownState.left }"
+      >
+        <div class="fixed inset-0 z-[-1]" @click="closeDropdown"></div>
+        <div class="max-h-60 overflow-y-auto custom-scrollbar space-y-0.5">
+          <template v-if="getActiveFieldType() === 'SELECT'">
+            <div
+              v-for="opt in getActiveOptions()"
+              :key="opt"
+              @click="handleSelect(opt)"
+              class="px-3 py-2 hover:bg-indigo-50 rounded cursor-pointer text-sm text-gray-700 flex items-center justify-between group"
+              :class="{ 'bg-indigo-50 font-medium text-indigo-700': isOptionSelected(opt) }"
+            >
+              {{ opt }}
+              <svg
+                v-if="isOptionSelected(opt)"
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4 text-indigo-600"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </div>
+          </template>
+          <template v-else>
+            <label
+              v-for="opt in getActiveOptions()"
+              :key="opt"
+              class="flex items-center px-3 py-2 hover:bg-indigo-50 rounded cursor-pointer group"
+            >
+              <input
+                type="checkbox"
+                :checked="isOptionSelected(opt)"
+                @change="(e) => handleMultiSelect(opt, (e.target as HTMLInputElement).checked)"
+                class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 mr-3"
+              />
+              <span class="text-sm text-gray-700 group-hover:text-indigo-700">{{ opt }}</span>
+            </label>
+          </template>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, watch, onMounted } from 'vue';
+import { computed, watch, ref, reactive } from 'vue';
 import { usePatientStore } from '@/stores/patient';
 import { useImageStore } from '@/stores/image';
 import { useAnnotationStore } from '@/stores/annotation';
@@ -243,103 +301,133 @@ const selectedType = computed(() => {
   if (!selectedAnnotation.value) return null;
   return annotationTypeStore.getAnnotationTypeById(selectedAnnotation.value.typeId || '');
 });
-
-// --- DİNAMİK HASTA ALANLARI YÖNETİMİ ---
-
-// Workspace'in bağlı olduğu AnnotationType'ı bul
 const currentAnnotationType = computed(() => {
-  const typeId = workspaceStore.currentWorkspace?.annotationTypeId;
-  if (!typeId) return null;
-  return annotationTypeStore.getAnnotationTypeById(typeId);
+  const typeIds = workspaceStore.currentWorkspace?.annotationTypeIds;
+  if (!typeIds || typeIds.length === 0) return null;
+
+  const firstId = typeIds[0];
+  if (!firstId) return null;
+
+  return annotationTypeStore.getAnnotationTypeById(firstId);
 });
 
-// AnnotationType içinden hasta için tanımlanmış alanları çekiyoruz
-// NOT: 'patientFields' ismi AnnotationType modelinizde tanımladığınız isimle aynı olmalı
 const patientFields = computed<TagDefinition[]>(() => {
   if (!currentAnnotationType.value) return [];
-  // Eğer modelde bu alanın adı 'patientTags', 'metadataRequirements' vs ise burayı güncelleyin.
-  // Varsayım: kullanıcı tarafından formda oluşturulan alanlar buraya kaydediliyor.
-  return (currentAnnotationType.value as any).patientFields || [];
+  return currentAnnotationType.value.patientFields || [];
 });
 
 async function loadAnnotationConfig() {
-  const typeId = workspaceStore.currentWorkspace?.annotationTypeId;
-  if (typeId && !annotationTypeStore.getAnnotationTypeById(typeId)) {
-    await annotationTypeStore.fetchAnnotationTypeById(typeId);
+  const typeIds = workspaceStore.currentWorkspace?.annotationTypeIds;
+  if (typeIds && typeIds.length > 0) {
+    const firstId = typeIds[0];
+    if (firstId && !annotationTypeStore.getAnnotationTypeById(firstId)) {
+      await annotationTypeStore.fetchAnnotationTypeById(firstId);
+    }
   }
 }
 
 watch(
-  () => workspaceStore.currentWorkspace?.annotationTypeId,
-  () => {
-    loadAnnotationConfig();
-  },
+  () => workspaceStore.currentWorkspace?.annotationTypeIds,
+  () => loadAnnotationConfig(),
   { immediate: true }
 );
 
-// Hasta verisini okuma
-function getPatientValue(fieldName: string): any {
-  if (!patientStore.currentPatient) return null;
-  // Veritabanında bu dinamik alanlar 'metadata' json kolonunda mı tutuluyor
-  // yoksa düz kolonlar mı (disease, subtype gibi)?
-  // Eğer düz kolonsa:
-  const val = (patientStore.currentPatient as any)[fieldName];
-  // Eğer metadata içindeyse: const val = patientStore.currentPatient.metadata?.[fieldName];
+const dropdownState = reactive({
+  isOpen: false,
+  context: 'patient' as any,
+  fieldName: '',
+  top: '0px',
+  left: '0px',
+});
 
-  return val;
+function toggleDropdown(context: 'patient' | 'annotation', fieldName: string, event: MouseEvent) {
+  if (
+    dropdownState.isOpen &&
+    dropdownState.context === context &&
+    dropdownState.fieldName === fieldName
+  ) {
+    closeDropdown();
+    return;
+  }
+  const target = event.currentTarget as HTMLElement;
+  const rect = target.getBoundingClientRect();
+  dropdownState.top = `${rect.bottom + 4}px`;
+  dropdownState.left = `${rect.left}px`;
+  dropdownState.context = context;
+  dropdownState.fieldName = fieldName;
+  dropdownState.isOpen = true;
 }
-
-// Hasta verisini güncelleme
-async function updatePatientField(fieldName: string, value: any) {
-  if (!patientStore.currentPatient) return;
-
-  const payload = {
-    [fieldName]: value,
-  };
-
-  await patientStore.updatePatient(patientStore.currentPatient.id, payload);
+function closeDropdown() {
+  dropdownState.isOpen = false;
+  dropdownState.fieldName = '';
 }
-
-// Hasta Multi-Select Yönetimi
-function handlePatientMultiSelect(fieldName: string, option: string, isChecked: boolean) {
-  const currentVal: string[] = getPatientValue(fieldName) || [];
+function getActiveDefinition() {
+  if (dropdownState.context === 'patient')
+    return patientFields.value.find((f) => f.name === dropdownState.fieldName);
+  else return selectedType.value?.tags?.find((t) => t.name === dropdownState.fieldName);
+}
+function getActiveFieldType() {
+  return getActiveDefinition()?.type;
+}
+function getActiveOptions() {
+  return getActiveDefinition()?.options || [];
+}
+function isOptionSelected(option: string) {
+  let val =
+    dropdownState.context === 'patient'
+      ? getPatientValue(dropdownState.fieldName)
+      : getValue(dropdownState.fieldName);
+  if (Array.isArray(val)) return val.includes(option);
+  return val === option;
+}
+function formatValue(val: any, type: string) {
+  if (type === 'MULTI_SELECT')
+    return Array.isArray(val) && val.length > 0 ? val.join(', ') : 'Seçiniz...';
+  return val ? val : 'Seçiniz...';
+}
+function handleSelect(option: string) {
+  if (dropdownState.context === 'patient') updatePatientField(dropdownState.fieldName, option);
+  else updateValue(getActiveDefinition()!, option);
+  closeDropdown();
+}
+function handleMultiSelect(option: string, isChecked: boolean) {
+  let currentVal =
+    (dropdownState.context === 'patient'
+      ? getPatientValue(dropdownState.fieldName)
+      : getValue(dropdownState.fieldName)) || [];
   let newVal = [...currentVal];
-
   if (isChecked) {
     if (!newVal.includes(option)) newVal.push(option);
   } else {
-    newVal = newVal.filter((v) => v !== option);
+    newVal = newVal.filter((v: any) => v !== option);
+  }
+  if (dropdownState.context === 'patient') updatePatientField(dropdownState.fieldName, newVal);
+  else updateValue(getActiveDefinition()!, newVal);
+}
+function getPatientValue(fieldName: string) {
+  const p = patientStore.currentPatient;
+  if (!p) return null;
+  if (fieldName in p) {
+    return (p as any)[fieldName];
   }
 
-  updatePatientField(fieldName, newVal);
+  return p.metadata?.[fieldName] ?? null;
 }
-
-// --- ANOTASYON TAG YÖNETİMİ (MEVCUT) ---
-function getValue(tagName: string): any {
-  if (!selectedAnnotation.value || !selectedAnnotation.value.data) return null;
-  const tag = selectedAnnotation.value.data.find((t) => t.tagName === tagName);
-  return tag ? tag.value : null;
+async function updatePatientField(fieldName: string, value: any) {
+  if (patientStore.currentPatient)
+    await patientStore.updatePatient(patientStore.currentPatient.id, { [fieldName]: value });
 }
-
+function getValue(tagName: string) {
+  return selectedAnnotation.value?.data?.find((t) => t.tagName === tagName)?.value || null;
+}
 function updateValue(tagDef: TagDefinition, newValue: any) {
   if (!selectedAnnotation.value) return;
   const currentData = [...(selectedAnnotation.value.data || [])];
   const index = currentData.findIndex((t) => t.tagName === tagDef.name);
-
-  const newTagValue: TagValue = {
-    tagName: tagDef.name,
-    tagType: tagDef.type,
-    value: newValue,
-  };
-
-  if (index >= 0) {
-    currentData[index] = newTagValue;
-  } else {
-    currentData.push(newTagValue);
-  }
-  annotationStore.updateAnnotation(selectedAnnotation.value.id, {
-    data: currentData,
-  });
+  const newTagValue = { tagName: tagDef.name, tagType: tagDef.type, value: newValue };
+  if (index >= 0) currentData[index] = newTagValue;
+  else currentData.push(newTagValue);
+  annotationStore.updateAnnotation(selectedAnnotation.value.id, { data: currentData });
 }
 </script>
 
@@ -358,14 +446,12 @@ function updateValue(tagDef: TagDefinition, newValue: any) {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: #d1d5db;
 }
-
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.2s ease-out;
 }
 .animate-slide-in {
   animation: slideIn 0.3s ease-out;
 }
-
 @keyframes fadeIn {
   from {
     opacity: 0;
