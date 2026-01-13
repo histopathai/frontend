@@ -250,19 +250,28 @@ import type { PropType } from 'vue';
 import type { Workspace } from '@/core/entities/Workspace';
 import type { Patient } from '@/core/entities/Patient';
 import type { Image } from '@/core/entities/Image';
+import type { AnnotationType } from '@/core/entities/AnnotationType';
 
 const props = defineProps({
   workspaces: { type: Array as PropType<Workspace[]>, required: true },
   patients: { type: Array as PropType<Patient[]>, required: true },
   images: { type: Array as PropType<Image[]>, required: true },
+  annotationTypes: { type: Array as PropType<AnnotationType[]>, default: () => [] },
+
   selectedWorkspaceId: String,
   selectedPatientId: String,
   selectedImageId: String,
+  selectedAnnotationTypeId: String,
   loading: Boolean,
 });
 
-// 'load-more' eventi eklendi
-const emit = defineEmits(['workspace-selected', 'patient-selected', 'image-selected', 'load-more']);
+const emit = defineEmits([
+  'workspace-selected',
+  'patient-selected',
+  'image-selected',
+  'type-selected',
+  'load-more',
+]);
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
