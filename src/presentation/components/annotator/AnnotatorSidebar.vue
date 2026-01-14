@@ -61,7 +61,7 @@
         </div>
 
         <div
-          v-for="patient in patients"
+          v-for="patient in sortedPatients"
           :key="patient.id"
           class="border-b border-gray-50 last:border-0"
         >
@@ -149,15 +149,11 @@
                 </li>
 
                 <li
-                  v-for="image in images"
+                  v-for="image in sortedImages"
                   :key="image.id"
                   @click="$emit('image-selected', image)"
                   class="relative group flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all border"
-                  :class="[
-                    image.id === selectedImageId
-                      ? 'bg-white border-indigo-500 shadow-sm ring-1 ring-indigo-100 z-10'
-                      : 'border-transparent hover:bg-white hover:border-gray-200 hover:shadow-sm text-gray-600',
-                  ]"
+                  :class="getImageClasses(image)"
                 >
                   <div
                     class="h-10 w-10 flex-shrink-0 rounded bg-gray-200 overflow-hidden border border-gray-200 relative"
@@ -210,8 +206,27 @@
                   </div>
 
                   <div
+                    v-if="image.id !== selectedImageId && annotatedImageSet.has(image.id)"
+                    class="absolute right-2 flex items-center justify-center w-5 h-5 bg-emerald-100 rounded-full shadow-sm"
+                    title="Anotasyon içeriyor"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-3 w-3 text-emerald-600"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                  </div>
+
+                  <div
                     v-if="image.id === selectedImageId"
-                    class="absolute right-2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-sm"
+                    class="absolute right-2 w-2 h-2 rounded-full bg-indigo-500 shadow-sm ring-2 ring-indigo-100"
                   ></div>
                 </li>
               </ul>
@@ -230,14 +245,14 @@
     </div>
 
     <div
-      v-if="selectedImageId && annotationTypes.length > 0"
+      v-if="selectedImageId && globalAnnotationTypes.length > 0"
       class="border-t border-gray-200 bg-gray-50/80 p-3"
     >
       <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">
         Global Etiketler
       </div>
       <AnnotationTagForm
-        :annotation-types="annotationTypes"
+        :annotation-types="globalAnnotationTypes"
         v-model="globalFormValues"
         @save="handleGlobalSave"
       />
@@ -246,7 +261,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { PropType } from 'vue';
 import type { Workspace } from '@/core/entities/Workspace';
 import type { Patient } from '@/core/entities/Patient';
@@ -254,8 +269,10 @@ import type { Image } from '@/core/entities/Image';
 import type { AnnotationType } from '@/core/entities/AnnotationType';
 import AnnotationTagForm from './AnnotationTagForm.vue';
 import { useAnnotationStore } from '@/stores/annotation';
+import { useAuthStore } from '@/stores/auth'; // Auth Store Eklendi
 import { useToast } from 'vue-toastification';
 
+// Props
 const props = defineProps({
   workspaces: { type: Array as PropType<Workspace[]>, required: true },
   patients: { type: Array as PropType<Patient[]>, required: true },
@@ -272,58 +289,183 @@ const emit = defineEmits(['workspace-selected', 'patient-selected', 'image-selec
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const annotationStore = useAnnotationStore();
+const authStore = useAuthStore(); // Auth Store instance
 const toast = useToast();
 
 const globalFormValues = ref<Record<string, any>>({});
+// Reaktif bir Set yerine ref(Set) kullanarak value değişiminde reaktiviteyi tetikliyoruz
+const annotatedImageSet = ref(new Set<string>());
 
-// Global Etiketleri (Store'dan gelen) izle ve formu doldur
+// --- SIRALAMA İŞLEMLERİ (Numeric ve Alfabetik) ---
+
+// 1. Hastaları Sırala
+const sortedPatients = computed(() => {
+  return [...props.patients].sort((a, b) => {
+    const nameA = a.name || '';
+    const nameB = b.name || '';
+    return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+  });
+});
+
+// 2. Görüntüleri Sırala
+const sortedImages = computed(() => {
+  return [...props.images].sort((a, b) => {
+    const nameA = a.name || '';
+    const nameB = b.name || '';
+    return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+  });
+});
+
+const globalAnnotationTypes = computed(() => {
+  return props.annotationTypes.filter((t) => t.global === true);
+});
+
+// --- YEŞİL ARKA PLAN VE ANOTASYON KONTROL MANTIĞI ---
+
+// 1. Görüntüler değiştiğinde (Hasta klasörü açıldığında) backend'e sor
 watch(
-  () => annotationStore.annotations,
-  (newAnnotations) => {
-    // Sadece şu anki resme ait global etiketleri bul
-    if (!props.selectedImageId) {
-      globalFormValues.value = {};
+  () => props.images,
+  async (newImages) => {
+    if (!newImages || newImages.length === 0) {
+      annotatedImageSet.value = new Set();
       return;
     }
 
-    const currentGlobals: Record<string, any> = {};
+    // Token'ı güvenli şekilde Store'dan alıyoruz
+    const token = authStore.token || localStorage.getItem('token');
+    if (!token) {
+      // Token yoksa sessizce çık, set'i temizle
+      annotatedImageSet.value = new Set();
+      return;
+    }
 
-    newAnnotations.forEach((ann) => {
-      // Bir anotasyonun Global olduğunu nasıl anlarız?
-      // 1. Tag içindeki 'global' alanı true ise
-      // 2. Veya Tip Adı (tag_name) bizim 'annotationTypes' prop'umuzdaki bir tiple eşleşiyorsa
-      const isGlobal =
-        ann.tag?.global || props.annotationTypes.some((t) => t.name === ann.tag?.tag_name);
+    // Geçici bir Set oluştur, API sonuçlarını buraya doldur
+    const tempSet = new Set<string>();
 
-      if (isGlobal && ann.tag) {
-        // Hangi Tip ID'sine denk geldiğini bul (İsim eşleşmesi ile)
-        const matchingType = props.annotationTypes.find((t) => t.name === ann.tag!.tag_name);
+    // Eğer hali hazırda seçili bir resim varsa ve Store'da onun anotasyonları yüklüyse,
+    // API cevabını beklemeden onu "var" olarak işaretle. Bu kullanıcı deneyimini hızlandırır.
+    if (
+      props.selectedImageId &&
+      annotationStore.annotations &&
+      annotationStore.annotations.length > 0
+    ) {
+      // Sadece seçili resmin anotasyonları store'da olur
+      tempSet.add(props.selectedImageId);
+    }
 
-        if (matchingType) {
-          currentGlobals[matchingType.id] = ann.tag.value;
-        }
-      }
+    const promises = newImages.map(async (img) => {
+      // Zaten store'dan bildiğimiz resim için tekrar istek atma
+      if (tempSet.has(img.id)) return img.id;
 
-      // Eğer "Data" dizisi içinde global veriler varsa onları da tara
-      if (ann.data && Array.isArray(ann.data)) {
-        ann.data.forEach((d: any) => {
-          const dName = d.tagName || d.tag_name || d.name || d.label;
-          const matchingType = props.annotationTypes.find((t) => t.name === dName);
-
-          if (matchingType) {
-            currentGlobals[matchingType.id] = d.value;
-          }
+      try {
+        // Limit 1 yeterli, sadece var mı yok mu bakıyoruz
+        const url = `${API_BASE_URL}/api/v1/proxy/annotations/image/${img.id}?limit=1`;
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
         });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.data && Array.isArray(result.data) && result.data.length > 0) {
+            return img.id;
+          }
+        }
+      } catch (e) {
+        // Hata durumunda yoksay
       }
+      return null;
     });
 
-    globalFormValues.value = currentGlobals;
+    // İstekleri bekle
+    const results = await Promise.all(promises);
+
+    // Sonuçları sete ekle
+    results.forEach((id) => {
+      if (id) tempSet.add(id);
+    });
+
+    // Ana referansı güncelle (Vue reaktivitesini tetikler)
+    annotatedImageSet.value = tempSet;
   },
-  { immediate: true, deep: true }
+  { immediate: true } // Component mount edildiğinde de çalışır
 );
+
+// 2. Kullanıcı çizim yaparken/silerken anlık güncelleme (Store Watcher)
+watch(
+  () => annotationStore.annotations,
+  (newAnnotations) => {
+    // Sadece şu an seçili bir resim varsa işlem yap
+    if (!props.selectedImageId) return;
+
+    // Mevcut seti kopyala (Reaktivite için yeni referans oluşturacağız)
+    const newSet = new Set(annotatedImageSet.value);
+
+    if (newAnnotations.length > 0) {
+      // Seçili resme anotasyon eklendiyse sete ekle
+      newSet.add(props.selectedImageId);
+    } else {
+      // Seçili resmin tüm anotasyonları silindiyse setten çıkar
+      newSet.delete(props.selectedImageId);
+    }
+
+    // Referansı güncelle
+    annotatedImageSet.value = newSet;
+
+    updateGlobalFormValues(newAnnotations);
+  },
+  { deep: true }
+);
+
+// --- YARDIMCI FONKSİYONLAR ---
+
+function updateGlobalFormValues(annotations: any[]) {
+  const currentGlobals: Record<string, any> = {};
+  const normalize = (s: any) =>
+    String(s || '')
+      .trim()
+      .toLowerCase();
+
+  annotations.forEach((ann) => {
+    if (!ann.tag) return;
+
+    const annTagName = normalize(ann.tag.tag_name);
+    const isMarkedGlobal = ann.tag.global === true;
+
+    const matchingType = props.annotationTypes.find((t) => {
+      const typeName = normalize(t.name);
+      return typeName === annTagName;
+    });
+
+    if (matchingType && (isMarkedGlobal || matchingType.global)) {
+      currentGlobals[matchingType.id] = ann.tag.value;
+    }
+  });
+
+  globalFormValues.value = currentGlobals;
+}
 
 function isSelected(patientId: string) {
   return props.selectedPatientId === patientId;
+}
+
+function getImageClasses(image: any) {
+  // 1. Seçili Resim (Mavi çerçeve, beyaz arka plan)
+  if (image.id === props.selectedImageId) {
+    return 'bg-white border-indigo-500 shadow-md ring-1 ring-indigo-200 z-10';
+  }
+
+  // 2. Anotasyonu Olan Resim (Yeşil Arka Plan)
+  // Anotasyon setinde ID var mı kontrolü
+  if (annotatedImageSet.value.has(String(image.id))) {
+    return 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm';
+  }
+
+  // 3. Standart Resim
+  return 'border-transparent hover:bg-white hover:border-gray-300 hover:shadow-sm text-gray-600 bg-transparent';
 }
 
 function onWorkspaceChange(event: Event) {
@@ -364,8 +506,6 @@ async function handleGlobalSave(results: Array<{ type: any; value: any }>) {
 
   try {
     const existingAnnotations = annotationStore.annotations;
-
-    // Normalize fonksiyonu (Undefined hatasını önlemek için any kabul ediyor)
     const normalize = (s: any) =>
       String(s || '')
         .trim()
@@ -374,10 +514,8 @@ async function handleGlobalSave(results: Array<{ type: any; value: any }>) {
     for (const res of results) {
       const targetName = normalize(res.type.name);
 
-      // Bu tipte zaten kayıtlı bir global anotasyon var mı?
       const existingAnn = existingAnnotations.find((a) => {
         const aName = normalize(a.tag?.tag_name);
-        // Global olduğu için isme bakıyoruz
         return aName === targetName;
       });
 
@@ -419,14 +557,5 @@ async function handleGlobalSave(results: Array<{ type: any; value: any }>) {
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: #d1d5db;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
 </style>

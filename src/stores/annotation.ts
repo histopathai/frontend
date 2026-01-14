@@ -222,8 +222,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
     let errorCount = 0;
 
     try {
-      console.log(`📤 ${pendingAnnotations.value.length} adet annotation kaydediliyor...`);
-
       for (const pending of pendingAnnotations.value) {
         try {
           const createRequest: CreateNewAnnotationRequest = {
@@ -306,7 +304,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
     paginationOptions?: Partial<Pagination>,
     options: FetchOptions = {}
   ): Promise<void> => {
-    console.log('8. [Store] fetchAnnotationsByImage başladı. ID:', imageId);
     const { refresh = false, showToast: showErrorToast = true } = options;
     if (loading.value && !refresh) return;
 
@@ -323,7 +320,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
       };
 
       const result = await annotationRepo.getByImageId(imageId, paginationParams);
-      console.log('9. [Store] API ham yanıt:', result);
       const rawData = result?.data || [];
 
       const entityAnnotations = rawData.map((item: any) => {

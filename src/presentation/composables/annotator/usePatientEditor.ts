@@ -9,7 +9,7 @@ export function usePatientEditor(patient: Ref<Patient | null>) {
 
   const age = ref<number | undefined>();
   const gender = ref<string | undefined>();
-  const race = ref<string | undefined>('');
+  const race = ref<string | undefined>();
   const disease = ref<string | undefined>();
   const subtype = ref<string | undefined>();
   const grade = ref<number | undefined>();
@@ -21,6 +21,7 @@ export function usePatientEditor(patient: Ref<Patient | null>) {
       if (newPatient) {
         age.value = newPatient.age ?? undefined;
         gender.value = newPatient.gender ?? undefined;
+        race.value = newPatient.race ?? undefined;
         disease.value = newPatient.disease ?? undefined;
         subtype.value = newPatient.subtype ?? undefined;
         grade.value = newPatient.grade ?? undefined;
