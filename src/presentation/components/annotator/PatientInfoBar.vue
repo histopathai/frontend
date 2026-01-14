@@ -2,7 +2,6 @@
   <div class="relative bg-white border-b border-gray-100 z-20">
     <div class="h-11 flex items-center justify-between px-4 shadow-sm">
       <div class="flex items-center gap-2">
-        <!-- HASTA PANELİ BUTONU -->
         <button
           @click="togglePanel('patient')"
           :class="[
@@ -17,11 +16,9 @@
           <span
             v-if="hasPatientChanges"
             class="ml-1 w-2 h-2 bg-amber-500 rounded-full animate-pulse"
-            title="Kaydedilmemiş hasta bilgisi değişiklikleri var"
           ></span>
         </button>
 
-        <!-- GLOBAL PANELİ BUTONU -->
         <button
           @click="togglePanel('global')"
           :class="[
@@ -39,16 +36,10 @@
           >
             {{ globalFilledCount }}
           </span>
-          <span
-            v-if="globalChangesCount > 0"
-            class="ml-1 w-2 h-2 bg-amber-500 rounded-full animate-pulse"
-            title="Kaydedilmemiş global değişiklikler var"
-          ></span>
         </button>
       </div>
 
       <div class="flex items-center gap-2">
-        <!-- ÇİZİM MODU BUTONU -->
         <button
           @click="$emit('toggle-draw')"
           :class="[
@@ -62,7 +53,6 @@
           <span>{{ isDrawingMode ? 'ÇİZİM MODU' : 'POLİGON ÇİZ' }}</span>
         </button>
 
-        <!-- KAYDET BUTONU -->
         <button
           @click="$emit('save')"
           :disabled="!hasAnyChanges || loading"
@@ -75,9 +65,6 @@
       </div>
     </div>
 
-    <!-- ===============================
-         GLOBAL ETİKET PANELİ
-         =============================== -->
     <transition name="panel">
       <div
         v-if="activePanel === 'global'"
@@ -106,7 +93,6 @@
               <span v-if="t.required" class="text-red-500 ml-1">*</span>
             </label>
 
-            <!-- SELECT için -->
             <select
               v-if="normalizeType(t) === 'SELECT'"
               :value="tempGlobalValues[t.name] || ''"
@@ -117,7 +103,6 @@
               <option v-for="opt in t.options" :key="opt" :value="opt">{{ opt }}</option>
             </select>
 
-            <!-- MULTI_SELECT için -->
             <select
               v-else-if="normalizeType(t) === 'MULTI_SELECT'"
               :value="tempGlobalValues[t.name] || ''"
@@ -128,7 +113,6 @@
               <option v-for="opt in t.options" :key="opt" :value="opt">{{ opt }}</option>
             </select>
 
-            <!-- NUMBER için -->
             <input
               v-else-if="normalizeType(t) === 'NUMBER'"
               type="number"
@@ -136,11 +120,9 @@
               @input="(e: Event) => handleGlobalChange(t, (e.target as HTMLInputElement).value)"
               :min="t.min"
               :max="t.max"
-              :placeholder="getPlaceholder(t)"
               class="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-700 outline-none focus:ring-1 focus:ring-indigo-200"
             />
 
-            <!-- TEXT için -->
             <input
               v-else
               type="text"
@@ -148,104 +130,102 @@
               @input="(e: Event) => handleGlobalChange(t, (e.target as HTMLInputElement).value)"
               class="w-full bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-700 outline-none focus:ring-1 focus:ring-indigo-200"
             />
-
-            <!-- Mevcut Değer Göstergesi -->
-            <div
-              v-if="
-                originalGlobalValues[t.name] &&
-                originalGlobalValues[t.name] !== tempGlobalValues[t.name]
-              "
-              class="text-[8px] text-gray-400 mt-1 ml-1"
-            >
-              Önceki: <span class="font-semibold">{{ originalGlobalValues[t.name] }}</span>
-            </div>
           </div>
 
           <div
             v-if="globalAnnotationTypes.length === 0"
             class="text-center py-6 text-gray-400 text-xs"
           >
-            <i class="fas fa-info-circle mb-2"></i>
-            <p>Bu workspace için global etiket tanımlanmamış</p>
+            <i class="fas fa-exclamation-triangle mb-2 text-amber-400"></i>
+            <p>Global etiket tanımı bulunamadı.</p>
           </div>
         </div>
       </div>
     </transition>
 
-    <!-- ===============================
-         HASTA BİLGİSİ PANELİ
-         =============================== -->
     <transition name="panel">
       <div
         v-if="activePanel === 'patient'"
-        class="absolute top-12 left-4 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 p-3 z-30"
+        class="absolute top-12 left-4 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 p-4 z-30"
       >
-        <div class="mb-2 pb-1.5 border-b border-gray-50 flex justify-between items-center">
-          <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-            Hasta Bilgileri
+        <div class="mb-3 pb-2 border-b border-gray-50 flex justify-between items-center">
+          <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            Hasta Kartı
           </span>
-          <span
-            v-if="hasPatientChanges"
-            class="text-[8px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full"
-          >
-            Değiştirildi
+          <span v-if="loading" class="text-xs text-blue-500">
+            <i class="fas fa-sync fa-spin"></i>
           </span>
         </div>
 
-        <div class="space-y-3">
-          <div class="grid grid-cols-2 gap-2">
-            <div class="space-y-1">
-              <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">
-                Yaş
-              </label>
+        <div v-if="patient" class="space-y-3">
+          <div class="bg-blue-50/50 p-2 rounded border border-blue-100 mb-2">
+            <div class="text-[9px] text-blue-400 font-bold uppercase">HASTA ADI</div>
+            <div class="text-xs font-bold text-blue-900">{{ tempPatient.name || 'İsimsiz' }}</div>
+          </div>
+
+          <div class="flex gap-3">
+            <div class="flex-1 space-y-1">
+              <label class="text-[9px] font-bold text-gray-500 uppercase">Yaş</label>
               <input
                 type="number"
                 :value="tempPatient.age"
                 @input="
-                  (e: Event) => updateTempPatient('age', (e.target as HTMLInputElement).value)
+                  (e: Event) =>
+                    handlePatientFieldChange('age', (e.target as HTMLInputElement).value)
                 "
-                class="w-full bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-700 outline-none focus:ring-1 focus:ring-blue-100"
+                class="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-700 outline-none focus:ring-1 focus:ring-blue-200 transition-all"
+                placeholder="-"
               />
             </div>
-            <div class="space-y-1">
-              <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">
-                Cinsiyet
-              </label>
+            <div class="flex-1 space-y-1">
+              <label class="text-[9px] font-bold text-gray-500 uppercase">Cinsiyet</label>
               <select
-                :value="tempPatient.gender"
+                :value="tempPatient.gender || ''"
                 @change="
-                  (e: Event) => updateTempPatient('gender', (e.target as HTMLSelectElement).value)
+                  (e: Event) =>
+                    handlePatientFieldChange('gender', (e.target as HTMLSelectElement).value)
                 "
-                class="w-full bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-700 outline-none focus:ring-1 focus:ring-blue-100"
+                class="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-700 outline-none focus:ring-1 focus:ring-blue-200 transition-all"
               >
-                <option value="">Seçiniz</option>
+                <option value="" disabled>Seçiniz</option>
                 <option value="Male">Erkek</option>
                 <option value="Female">Kadın</option>
+                <option value="Other">Diğer</option>
               </select>
             </div>
           </div>
+
           <div class="space-y-1">
-            <label class="text-[9px] font-black text-gray-400 uppercase ml-1">Hastalık</label>
+            <label class="text-[9px] font-bold text-gray-500 uppercase">Irk / Etnik Köken</label>
             <input
               type="text"
-              :value="tempPatient.disease"
+              :value="tempPatient.race || ''"
               @input="
-                (e: Event) => updateTempPatient('disease', (e.target as HTMLInputElement).value)
+                (e: Event) => handlePatientFieldChange('race', (e.target as HTMLInputElement).value)
               "
-              class="w-full bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-700 outline-none focus:ring-1 focus:ring-blue-100"
+              class="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-700 outline-none focus:ring-1 focus:ring-blue-200 transition-all"
+              placeholder="Belirtilmemiş"
             />
           </div>
+
           <div class="space-y-1">
-            <label class="text-[9px] font-black text-gray-400 uppercase ml-1">Klinik Öykü</label>
+            <label class="text-[9px] font-bold text-gray-500 uppercase">Anamnez / Hikaye</label>
             <textarea
-              :value="tempPatient.history"
+              :value="tempPatient.history || ''"
               @input="
-                (e: Event) => updateTempPatient('history', (e.target as HTMLTextAreaElement).value)
+                (e: Event) =>
+                  handlePatientFieldChange('history', (e.target as HTMLInputElement).value)
               "
-              rows="3"
-              class="w-full bg-gray-50 border border-gray-100 rounded-lg p-2 text-xs text-gray-600 outline-none resize-none leading-tight focus:ring-1 focus:ring-blue-100"
+              rows="4"
+              class="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-xs font-medium text-gray-700 outline-none focus:ring-1 focus:ring-blue-200 transition-all resize-none"
+              placeholder="Hasta geçmişi ve notlar..."
             ></textarea>
           </div>
+        </div>
+
+        <div v-else class="text-center py-4 text-gray-400 text-xs">
+          <i class="fas fa-user-slash mb-2 text-lg"></i>
+          <p>Seçili hasta verisi yüklenemedi.</p>
         </div>
       </div>
     </transition>
@@ -253,14 +233,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, watch, onMounted } from 'vue';
+import { ref, computed, reactive, watch } from 'vue';
 import type { Patient } from '@/core/entities/Patient';
 import type { AnnotationType } from '@/core/entities/AnnotationType';
 import { useAnnotationStore } from '@/stores/annotation';
-
-// ===========================
-// Props & Emits
-// ===========================
 
 const props = defineProps<{
   patient: Patient | null;
@@ -273,261 +249,152 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['toggle-draw', 'save', 'add-global', 'update-patient']);
-
-// ===========================
-// Store
-// ===========================
-
 const annotationStore = useAnnotationStore();
-
-// ===========================
-// State
-// ===========================
 
 const activePanel = ref<string | null>(null);
 const tempGlobalValues = reactive<Record<string, any>>({});
-const tempPatient = reactive<{
-  age?: number | null;
-  gender?: string | null;
-  disease?: string | null;
-  history?: string | null;
-  [key: string]: any;
-}>({});
 
-// Orijinal değerleri takip et (değişiklik kontrolü için)
+// Hasta verileri için reactive obje
+const tempPatient = reactive({
+  name: '',
+  age: null as number | null,
+  gender: '',
+  race: '',
+  history: '',
+});
+
+// Değişiklik kontrolü için orijinal değerleri sakla
+const originalPatient = reactive({
+  name: '',
+  age: null as number | null,
+  gender: '',
+  race: '',
+  history: '',
+});
+
 const originalGlobalValues = reactive<Record<string, any>>({});
-const originalPatient = reactive<Record<string, any>>({});
 
-// ===========================
 // Computed
-// ===========================
-
-const globalChangesCount = computed(() => {
-  return Object.keys(tempGlobalValues).filter(
-    (key) =>
-      tempGlobalValues[key] !== originalGlobalValues[key] &&
-      tempGlobalValues[key] !== '' &&
-      tempGlobalValues[key] !== undefined
-  ).length;
-});
-
-const globalFilledCount = computed(() => {
-  return Object.values(tempGlobalValues).filter((v) => v !== undefined && v !== '').length;
-});
-
+const globalChangesCount = computed(
+  () =>
+    Object.keys(tempGlobalValues).filter((k) => tempGlobalValues[k] !== originalGlobalValues[k])
+      .length
+);
+const globalFilledCount = computed(
+  () => Object.values(tempGlobalValues).filter((v) => v !== undefined && v !== '').length
+);
 const hasPatientChanges = computed(() => {
-  return Object.keys(tempPatient).some((key) => tempPatient[key] !== originalPatient[key]);
+  return (
+    tempPatient.age !== originalPatient.age ||
+    tempPatient.gender !== originalPatient.gender ||
+    tempPatient.race !== originalPatient.race ||
+    tempPatient.history !== originalPatient.history
+  );
 });
 
-const totalChangesCount = computed(() => {
-  const annotationChanges = props.unsavedCount || 0;
-  const patientChanges = hasPatientChanges.value ? 1 : 0;
-  return annotationChanges + patientChanges;
-});
+const totalChangesCount = computed(
+  () => (props.unsavedCount || 0) + (hasPatientChanges.value ? 1 : 0)
+);
+const hasAnyChanges = computed(() => totalChangesCount.value > 0 || props.hasChanges);
 
-const hasAnyChanges = computed(() => {
-  return totalChangesCount.value > 0 || props.hasChanges;
-});
-
-// ===========================
-// Helper Functions
-// ===========================
-
-function normalizeType(type: AnnotationType): string {
-  const t = type.type.toString().toUpperCase();
-
-  // Kısaltmaları normalize et
-  if (t === 'SEL') return 'SELECT';
-  if (t === 'NUM') return 'NUMBER';
-  if (t === 'TXT') return 'TEXT';
-
-  return t;
+// Helpers
+function normalizeType(t: AnnotationType) {
+  if (!t.type) return 'TEXT';
+  const type = t.type.toString().toUpperCase();
+  if (type === 'SEL') return 'SELECT';
+  if (type === 'NUM') return 'NUMBER';
+  if (type === 'MULTI_SELECT') return 'MULTI_SELECT';
+  return 'TEXT';
 }
-
-function getPlaceholder(type: AnnotationType): string {
-  if (normalizeType(type) === 'NUMBER') {
-    const min = type.min;
-    const max = type.max;
-    if (min !== undefined && max !== undefined) {
-      return `${min} - ${max} arası`;
-    } else if (min !== undefined) {
-      return `Min: ${min}`;
-    } else if (max !== undefined) {
-      return `Max: ${max}`;
-    }
-  }
-  return '';
-}
-
-// ===========================
-// Event Handlers
-// ===========================
 
 function togglePanel(panel: string) {
   activePanel.value = activePanel.value === panel ? null : panel;
 }
 
-function handleGlobalChange(type: AnnotationType, newVal: any) {
-  const tagName = type.name;
-  const tagType = normalizeType(type);
-  const tagColor = type.color || '#6366f1';
+function handleGlobalChange(t: AnnotationType, val: any) {
+  if (!t.name) return;
+  tempGlobalValues[t.name] = val;
 
-  if (!tagName || newVal === undefined || newVal === null) {
-    console.warn('⚠️ [Global] Eksik veri:', { tagName, newVal });
-    return;
-  }
-
-  // Boş değer ve zaten boş ise hiçbir şey yapma
-  if (newVal === '' && tempGlobalValues[tagName] === '') {
-    return;
-  }
-
-  tempGlobalValues[tagName] = newVal;
-
-  console.log('📝 [Global] Geçici değer güncellendi:', {
-    tagName,
-    oldValue: originalGlobalValues[tagName],
-    newValue: newVal,
-  });
-
-  // Parent'a emit et
-  const payload = {
-    tag_type: tagType,
-    tag_name: tagName,
-    tag_value: newVal.toString(),
-    color: tagColor,
+  emit('add-global', {
+    tag_type: normalizeType(t),
+    tag_name: t.name,
+    tag_value: val.toString(),
+    color: t.color,
     global: true,
-  };
-
-  emit('add-global', payload);
+  });
 }
 
-function updateTempPatient(field: string, value: any) {
-  let processedValue = value;
+function handlePatientFieldChange(field: keyof typeof tempPatient, val: any) {
+  // @ts-ignore
+  tempPatient[field] = val;
 
+  // Sayısal alan kontrolü
+  let processedValue = val;
   if (field === 'age') {
-    processedValue = value === '' ? undefined : parseInt(value, 10);
-    if (value !== '' && isNaN(processedValue)) return;
+    processedValue = val ? parseInt(val) : null;
   }
-
-  tempPatient[field] = processedValue;
-
-  console.log('📝 [Patient] Geçici değer güncellendi:', {
-    field,
-    oldValue: originalPatient[field],
-    newValue: processedValue,
-  });
 
   emit('update-patient', { field, value: processedValue });
 }
 
-// ===========================
 // Watchers
-// ===========================
 
-/**
- * 🔄 Hasta değiştiğinde form alanlarını doldur
- */
+// 1. Global Annotation Değişimlerini İzle
 watch(
-  () => props.patient,
-  (newPatient) => {
-    if (newPatient) {
-      console.log('👤 [PatientInfoBar] Hasta bilgisi yüklendi:', newPatient.id);
+  [() => annotationStore.dbAnnotations, () => props.globalAnnotationTypes],
+  ([newAnnotations, newTypes]) => {
+    if (!newAnnotations || !newTypes) return;
 
-      // Orijinal değerleri kaydet
-      originalPatient.age = newPatient.age;
-      originalPatient.gender = newPatient.gender;
-      originalPatient.disease = newPatient.disease;
-      originalPatient.history = newPatient.history;
+    Object.keys(tempGlobalValues).forEach((k) => delete tempGlobalValues[k]);
+    Object.keys(originalGlobalValues).forEach((k) => delete originalGlobalValues[k]);
 
-      // Temp değerleri doldur
-      tempPatient.age = newPatient.age;
-      tempPatient.gender = newPatient.gender;
-      tempPatient.disease = newPatient.disease;
-      tempPatient.history = newPatient.history;
-    }
-  },
-  { immediate: true }
-);
+    newAnnotations.forEach((ann) => {
+      const g = ann.tag?.global;
+      const isGlobal = String(g) === 'true' || g === true;
 
-/**
- * 🔄 Annotation'lar değiştiğinde global değerleri doldur
- * BU EN ÖNEMLİ KISIM - Otomatik değer doldurma burada yapılıyor
- */
-watch(
-  () => annotationStore.allAnnotations,
-  (newAnns) => {
-    console.log('🔄 [PatientInfoBar] Annotations güncellendi, global değerler kontrol ediliyor...');
+      if (isGlobal && ann.tag?.tag_name) {
+        const dbTagName = ann.tag.tag_name;
+        const dbTagValue = ann.tag.value;
 
-    newAnns.forEach((ann) => {
-      const isGlobal = ann.tag?.global === true;
-      const tagName = ann.tag?.tag_name;
-      const tagValue = ann.tag?.value;
+        const matchedType = newTypes.find((t) => t.name?.toLowerCase() === dbTagName.toLowerCase());
 
-      if (isGlobal && tagName) {
-        // Orijinal değeri kaydet (ilk yüklemede)
-        if (originalGlobalValues[tagName] === undefined) {
-          originalGlobalValues[tagName] = tagValue;
-        }
-
-        // Temp değeri doldur (eğer henüz doldurulmamışsa)
-        if (tempGlobalValues[tagName] === undefined) {
-          tempGlobalValues[tagName] = tagValue;
-          console.log(
-            `✅ [PatientInfoBar] Global alan otomatik dolduruldu: ${tagName} = ${tagValue}`
-          );
+        if (matchedType && matchedType.name) {
+          const formKey = matchedType.name;
+          tempGlobalValues[formKey] = dbTagValue;
+          originalGlobalValues[formKey] = dbTagValue;
+        } else {
+          tempGlobalValues[dbTagName] = dbTagValue;
+          originalGlobalValues[dbTagName] = dbTagValue;
         }
       }
     });
   },
+  { deep: true, immediate: true }
+);
+
+// 2. Hasta Bilgisi Değişimini İzle (DÜZELTİLEN KISIM)
+watch(
+  () => props.patient,
+  (p) => {
+    if (p) {
+      console.log('👤 [PatientInfoBar] Hasta yüklendi:', p);
+
+      // Class instance olduğu için Object.assign(tempPatient, p) ÇALIŞMAZ.
+      // Getter'ları manuel olarak okuyup atamalıyız:
+      const newData = {
+        name: p.name || '',
+        age: p.age,
+        gender: p.gender || '',
+        race: p.race || '',
+        history: p.history || '',
+      };
+
+      Object.assign(tempPatient, newData);
+      Object.assign(originalPatient, newData);
+    }
+  },
   { immediate: true, deep: true }
 );
-
-/**
- * 🔄 Kaydetme işlemi tamamlandığında orijinal değerleri güncelle
- */
-watch(
-  () => props.unsavedCount,
-  (newCount, oldCount) => {
-    // Kayıt başarılı olduğunda (unsavedCount 0'a düştüğünde)
-    if (oldCount > 0 && newCount === 0) {
-      console.log('✅ [PatientInfoBar] Kayıt başarılı, orijinal değerler güncelleniyor...');
-
-      // Global değerleri güncelle
-      Object.keys(tempGlobalValues).forEach((key) => {
-        originalGlobalValues[key] = tempGlobalValues[key];
-      });
-
-      // Hasta değerlerini güncelle
-      Object.keys(tempPatient).forEach((key) => {
-        originalPatient[key] = tempPatient[key];
-      });
-
-      console.log('🔄 [PatientInfoBar] Orijinal değerler senkronize edildi');
-    }
-  }
-);
-
-// ===========================
-// Lifecycle
-// ===========================
-
-onMounted(() => {
-  console.log('🎯 [PatientInfoBar] Component mounted');
-
-  // İlk yüklemede mevcut global değerleri yükle
-  const existingValues = annotationStore.loadExistingGlobalValues();
-
-  Object.keys(existingValues).forEach((key) => {
-    tempGlobalValues[key] = existingValues[key];
-    originalGlobalValues[key] = existingValues[key];
-  });
-
-  console.log('📊 [PatientInfoBar] İlk global değerler yüklendi:', {
-    count: Object.keys(existingValues).length,
-    values: existingValues,
-  });
-});
 </script>
 
 <style scoped>
