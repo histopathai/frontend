@@ -52,11 +52,9 @@ watch(
     // oldImg parametresini ekleyin
     // EĞER: Yeni resim yoksa VEYA (Eski resim varsa VE ID'ler aynıysa) işlem yapma.
     if (!newImg || (oldImg && newImg.id === oldImg.id)) {
-      console.log('⚠️ [Viewer] Aynı resim veya geçersiz veri, atlanıyor.');
       return;
     }
 
-    console.log('✅ [Viewer] Yeni resim yükleniyor:', newImg.id);
     await loadImage(newImg);
   }
 );
@@ -122,7 +120,6 @@ onMounted(() => {
 
           // Hepsini tek bir listede birleştir
           const allSiblings = [...siblingAnnotations, ...siblingPending];
-          console.log(`🧩 Toplam ${allSiblings.length} adet üst üste anotasyon bulundu.`);
 
           // --- VERİLERİ BİRLEŞTİRME DÖNGÜSÜ ---
           // Her bir kardeş anotasyonun 'tag' verisini alıp modalı dolduruyoruz
@@ -141,7 +138,6 @@ onMounted(() => {
             }
           });
 
-          console.log('🚀 Modal Final Değerleri:', initialValues);
           console.groupEnd();
 
           editInitialValues.value = initialValues;
@@ -235,7 +231,6 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
   try {
     // --- CREATE: Yeni Çizim ---
     if (currentDrawingData.value && props.selectedImage) {
-      console.log('🔹 Mod: YENİ KAYIT');
       const points = rawPoints.map((p) => Point.from(p));
 
       const operations = results.map(async (res, index) => {
@@ -267,8 +262,6 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
 
     // --- UPDATE: Güncelleme ---
     else if (selectedAnnotationData.value) {
-      console.log('🔹 Mod: GÜNCELLEME');
-
       const refAnno = selectedAnnotationData.value;
 
       // HATA ÇÖZÜMÜ BURADA: (s: string) yerine (s: any) yaptık.

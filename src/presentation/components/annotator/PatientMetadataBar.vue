@@ -32,7 +32,7 @@
 
         <div
           v-if="activePopover === 'demographics'"
-          class="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-100 p-4 z-50 animate-fade-in origin-top-left"
+          class="absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-lg border border-gray-100 p-4 z-50 animate-fade-in origin-top-left"
         >
           <div class="grid grid-cols-2 gap-3">
             <div class="flex flex-col gap-1">
@@ -45,6 +45,19 @@
                 <option value="Male">Erkek</option>
                 <option value="Female">Kadın</option>
               </select>
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-[11px] font-medium text-gray-600">Irk</label>
+              <input type="text" v-model="race" class="form-input-sm" placeholder="Örn: Asyalı" />
+            </div>
+            <div class="flex flex-col gap-1 col-span-2">
+              <label class="text-[11px] font-medium text-gray-600">Hasta Öyküsü</label>
+              <textarea
+                v-model="history"
+                class="form-input-sm resize-none"
+                rows="3"
+                placeholder="Hasta hikayesi..."
+              ></textarea>
             </div>
           </div>
           <div class="pt-2 border-t border-gray-50 flex justify-end mt-2">
@@ -228,7 +241,7 @@ const {
 
 const isLoading = computed(() => patientLoading.value || annotationStore.actionLoading);
 
-// Hasta değiştiğinde localMetadata'yı doldur ve başlangıç değerlerini sakla
+// 1. Hasta Metadatasını Yükle
 watch(
   () => props.patient,
   (newPatient) => {
@@ -243,18 +256,52 @@ watch(
   { immediate: true, deep: true }
 );
 
+// 2. Aktif Görselin Global Anotasyonlarını Getir
+const imageAnnotations = computed(() => {
+  if (!props.image?.id) return [];
+  return annotationStore.getAnnotationsByImageId(props.image.id);
+});
+
+watch(
+  imageAnnotations,
+  (annotations) => {
+    const globalAnns = annotations.filter((a) => a.tag?.global);
+    globalAnns.forEach((ann) => {
+      if (ann.tag && ann.tag.tag_name) {
+        localMetadata[ann.tag.tag_name] = ann.tag.value;
+        initialMetadata.value[ann.tag.tag_name] = ann.tag.value;
+      }
+    });
+  },
+  { immediate: true, deep: true }
+);
+
+// Demografik değişiklikleri kontrol et
+const hasDemographicsChanges = computed(() => {
+  if (!props.patient) return false;
+  return (
+    age.value !== (props.patient.age ?? undefined) ||
+    gender.value !== (props.patient.gender ?? undefined) ||
+    race.value !== (props.patient.race ?? undefined) ||
+    history.value !== (props.patient.history ?? undefined)
+  );
+});
+
 // Bekleyen değişiklikleri say
 const unsavedCount = computed(() => {
-  // 1. Global etiketlerde değişiklik var mı?
+  // Global etiketlerde değişiklik var mı?
   const changedGlobals = Object.entries(localMetadata).filter(([key, val]) => {
     const initial = initialMetadata.value[key];
     return val !== initial && val !== '' && val !== undefined && val !== null;
   }).length;
 
-  // 2. Pending lokal anotasyonlar
+  // Pending lokal anotasyonlar
   const pendingLocals = annotationStore.pendingCount;
 
-  return changedGlobals + pendingLocals;
+  // Demografik değişiklikler
+  const demographicChange = hasDemographicsChanges.value ? 1 : 0;
+
+  return changedGlobals + pendingLocals + demographicChange;
 });
 
 const activeAnnotationTypes = computed(() => {
@@ -290,60 +337,94 @@ function togglePopover(name: string) {
 async function handleSaveAll() {
   if (!props.patient || isLoading.value || unsavedCount.value === 0) return;
 
-  try {
-    // 1. Temel hasta bilgilerini güncelle (Yaş, Cinsiyet vb.)
-    await patientStore.updatePatient(props.patient.id, {
-      age: age.value,
-      gender: gender.value,
-      race: race.value,
-      history: history.value,
-    });
+  let errorOccurred = false;
 
-    // 2. Global Etiketleri Anotasyon Olarak Kaydet
-    // Sadece DEĞIŞEN değerleri kaydet
+  try {
+    // 1. Temel hasta bilgilerini güncelle (Yaş, Cinsiyet, Irk, Öykü)
+    if (hasDemographicsChanges.value) {
+      try {
+        await patientStore.updatePatient(props.patient.id, {
+          age: age.value,
+          gender: gender.value,
+          race: race.value,
+          history: history.value,
+        });
+      } catch (e) {
+        console.error('Patient update failed', e);
+        errorOccurred = true;
+      }
+    }
+
+    // 2. Global Etiketleri Anotasyon Olarak Kaydet veya Güncelle
     const changedGlobalEntries = Object.entries(localMetadata).filter(([key, val]) => {
       const initial = initialMetadata.value[key];
       return val !== initial && val !== '' && val !== undefined && val !== null;
     });
 
     const globalPromises = changedGlobalEntries.map(async ([tagName, value]) => {
-      if (!props.image?.id) {
-        console.warn('⚠️ Image ID bulunamadı, global etiket kaydedilemedi:', tagName);
-        return;
-      }
+      if (!props.image?.id) return true;
 
       const typeDef = activeAnnotationTypes.value.find((t) => t.name === tagName && t.global);
-      if (!typeDef) {
-        console.warn('⚠️ Tip tanımı bulunamadı:', tagName);
-        return;
-      }
+      if (!typeDef) return true;
 
-      return annotationStore.createAnnotation(props.image.id, {
-        tag: {
-          tag_type: typeDef.type,
-          tag_name: tagName,
-          value: String(value),
-          color: typeDef.color || '#4f46e5',
-          global: true,
-        },
-        polygon: undefined,
-      });
+      const existingAnn = imageAnnotations.value.find(
+        (a) => a.tag?.global && a.tag.tag_name === tagName
+      );
+
+      // Value conversion based on type if needed, or send raw
+      // String() wrapper kaldırıldı, ham değer gönderiliyor (Backend 500 hatası önlemi için)
+      const tagData = {
+        tag_type: typeDef.type,
+        tag_name: tagName,
+        value: value,
+        color: typeDef.color || '#4f46e5',
+        global: true,
+      };
+
+      if (existingAnn) {
+        // updateAnnotation returns boolean (true=success, false=fail)
+        return await annotationStore.updateAnnotation(existingAnn.id, {
+          tag: tagData,
+        });
+      } else {
+        // createAnnotation throws on error, returns object on success
+        try {
+          await annotationStore.createAnnotation(props.image.id, {
+            tag: tagData,
+            polygon: undefined,
+          });
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
     });
 
-    await Promise.all(globalPromises.filter(Boolean));
-    // Başlangıç değerlerini güncelle
-    Object.assign(initialMetadata.value, localMetadata);
+    const globalResults = await Promise.all(globalPromises);
+    if (globalResults.some((res) => res === false)) {
+      errorOccurred = true;
+    }
+
+    // Eğer hata yoksa metadata başlangıç değerlerini güncelle
+    if (!errorOccurred) {
+      Object.assign(initialMetadata.value, localMetadata);
+    }
 
     // 3. Lokal (Çizimli) Bekleyen Anotasyonları Kaydet
     if (annotationStore.pendingCount > 0) {
-      await annotationStore.saveAllPendingAnnotations();
+      const success = await annotationStore.saveAllPendingAnnotations();
+      if (!success) errorOccurred = true;
     }
 
-    toast.success('Tüm değişiklikler başarıyla kaydedildi! 🎉');
-    activePopover.value = null;
+    if (errorOccurred) {
+      toast.error('Bazı değişiklikler kaydedilemedi. Lütfen tekrar deneyin.');
+    } else {
+      toast.success('Tüm değişiklikler başarıyla kaydedildi');
+      activePopover.value = null;
+    }
   } catch (e) {
-    toast.error('Kaydetme hatası oluştu.');
-    console.error('❌ Save Error:', e);
+    toast.error('Beklenmedik bir hata oluştu');
+    console.error(e);
   }
 }
 </script>

@@ -25,6 +25,11 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => user.value?.role.isAdmin() ?? false);
   const isApproved = computed(() => user.value?.adminApproved ?? false);
 
+  // --- EKLENEN KISIM: Token Getter ---
+  // Session ID'yi token olarak dışarı açıyoruz.
+  // Bu sayede componentlerde authStore.token şeklinde erişebiliriz.
+  const token = computed(() => session.value?.id);
+
   const userInitials = computed(() => {
     if (user.value?.displayName) {
       return user.value.displayName.charAt(0).toUpperCase();
@@ -236,6 +241,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     isApproved,
     userInitials,
+    token,
 
     // Actions
     initializeAuth,
