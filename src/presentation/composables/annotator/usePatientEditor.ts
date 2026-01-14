@@ -23,7 +23,7 @@ export function usePatientEditor(patient: Ref<Patient | null>) {
         gender.value = newPatient.gender ?? undefined;
         disease.value = newPatient.disease ?? undefined;
         subtype.value = newPatient.subtype ?? undefined;
-        grade.value = newPatient.grade ? parseInt(newPatient.grade) : undefined;
+        grade.value = newPatient.grade ?? undefined;
         history.value = newPatient.history ?? undefined;
       }
     },

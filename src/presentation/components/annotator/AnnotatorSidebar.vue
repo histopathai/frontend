@@ -228,16 +228,33 @@
         </div>
       </div>
     </div>
+
+    <div
+      v-if="selectedImageId && annotationTypes.length > 0"
+      class="border-t border-gray-200 bg-gray-50/80 p-3"
+    >
+      <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">
+        Global Etiketler
+      </div>
+      <AnnotationTagForm
+        :annotation-types="annotationTypes"
+        v-model="globalFormValues"
+        @save="handleGlobalSave"
+      />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch, onMounted } from 'vue';
 import type { PropType } from 'vue';
 import type { Workspace } from '@/core/entities/Workspace';
 import type { Patient } from '@/core/entities/Patient';
 import type { Image } from '@/core/entities/Image';
 import type { AnnotationType } from '@/core/entities/AnnotationType';
+import AnnotationTagForm from './AnnotationTagForm.vue';
+import { useAnnotationStore } from '@/stores/annotation';
+import { useToast } from 'vue-toastification';
 
 const props = defineProps({
   workspaces: { type: Array as PropType<Workspace[]>, required: true },
@@ -248,22 +265,61 @@ const props = defineProps({
   selectedWorkspaceId: String,
   selectedPatientId: String,
   selectedImageId: String,
-  selectedAnnotationTypeId: String,
   loading: Boolean,
 });
 
-const emit = defineEmits([
-  'workspace-selected',
-  'patient-selected',
-  'image-selected',
-  'type-selected',
-  'load-more',
-]);
+const emit = defineEmits(['workspace-selected', 'patient-selected', 'image-selected', 'load-more']);
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const annotationStore = useAnnotationStore();
+const toast = useToast();
 
-const currentWorkspace = computed(() =>
-  props.workspaces.find((w) => w.id === props.selectedWorkspaceId)
+const globalFormValues = ref<Record<string, any>>({});
+
+// Global Etiketleri (Store'dan gelen) izle ve formu doldur
+watch(
+  () => annotationStore.annotations,
+  (newAnnotations) => {
+    // Sadece şu anki resme ait global etiketleri bul
+    if (!props.selectedImageId) {
+      globalFormValues.value = {};
+      return;
+    }
+
+    const currentGlobals: Record<string, any> = {};
+
+    newAnnotations.forEach((ann) => {
+      // Bir anotasyonun Global olduğunu nasıl anlarız?
+      // 1. Tag içindeki 'global' alanı true ise
+      // 2. Veya Tip Adı (tag_name) bizim 'annotationTypes' prop'umuzdaki bir tiple eşleşiyorsa
+      const isGlobal =
+        ann.tag?.global || props.annotationTypes.some((t) => t.name === ann.tag?.tag_name);
+
+      if (isGlobal && ann.tag) {
+        // Hangi Tip ID'sine denk geldiğini bul (İsim eşleşmesi ile)
+        const matchingType = props.annotationTypes.find((t) => t.name === ann.tag!.tag_name);
+
+        if (matchingType) {
+          currentGlobals[matchingType.id] = ann.tag.value;
+        }
+      }
+
+      // Eğer "Data" dizisi içinde global veriler varsa onları da tara
+      if (ann.data && Array.isArray(ann.data)) {
+        ann.data.forEach((d: any) => {
+          const dName = d.tagName || d.tag_name || d.name || d.label;
+          const matchingType = props.annotationTypes.find((t) => t.name === dName);
+
+          if (matchingType) {
+            currentGlobals[matchingType.id] = d.value;
+          }
+        });
+      }
+    });
+
+    globalFormValues.value = currentGlobals;
+  },
+  { immediate: true, deep: true }
 );
 
 function isSelected(patientId: string) {
@@ -291,18 +347,61 @@ function getThumbnailUrl(image: any): string {
   if (!image || !image.processedpath) {
     return 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
   }
-
   return `${API_BASE_URL}/api/v1/proxy/${image.processedpath}/thumbnail.jpg`;
 }
 
 function handleScroll(event: Event) {
   const element = event.target as HTMLElement;
-
   if (props.loading) return;
-
   const bottomThreshold = 50;
   if (element.scrollTop + element.clientHeight >= element.scrollHeight - bottomThreshold) {
     emit('load-more');
+  }
+}
+
+async function handleGlobalSave(results: Array<{ type: any; value: any }>) {
+  if (!props.selectedImageId || results.length === 0) return;
+
+  try {
+    const existingAnnotations = annotationStore.annotations;
+
+    // Normalize fonksiyonu (Undefined hatasını önlemek için any kabul ediyor)
+    const normalize = (s: any) =>
+      String(s || '')
+        .trim()
+        .toLowerCase();
+
+    for (const res of results) {
+      const targetName = normalize(res.type.name);
+
+      // Bu tipte zaten kayıtlı bir global anotasyon var mı?
+      const existingAnn = existingAnnotations.find((a) => {
+        const aName = normalize(a.tag?.tag_name);
+        // Global olduğu için isme bakıyoruz
+        return aName === targetName;
+      });
+
+      const tagData = {
+        tag_type: res.type.type,
+        tag_name: res.type.name,
+        value: res.value,
+        color: res.type.color || '#333',
+        global: true,
+      };
+
+      if (existingAnn) {
+        await annotationStore.updateAnnotation(String(existingAnn.id), { tag: tagData });
+      } else {
+        await annotationStore.createAnnotation(props.selectedImageId, {
+          polygon: [],
+          tag: tagData,
+        });
+      }
+    }
+    toast.success('Global etiketler kaydedildi.');
+  } catch (error) {
+    console.error('Global save error:', error);
+    toast.error('Kayıt başarısız.');
   }
 }
 </script>
