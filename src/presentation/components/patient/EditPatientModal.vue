@@ -38,45 +38,10 @@
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <template v-if="isClassificationEnabled">
-              <div>
-                <label class="form-label">{{ t('patient.form.disease') }}</label>
-                <select v-model="form.disease" class="form-input">
-                  <option value="" disabled>{{ t('patient.form.disease_placeholder') }}</option>
-                  <option value="Karsinom">Karsinom</option>
-                  <option value="Normal">Normal</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="form-label">{{ t('patient.form.subtype') }}</label>
-                <select v-if="subtypeOptions.length > 0" v-model="form.subtype" class="form-input">
-                  <option value="">{{ t('patient.form.subtype_placeholder') }}</option>
-                  <option v-for="opt in subtypeOptions" :key="opt" :value="opt">
-                    {{ opt }}
-                  </option>
-                </select>
-                <input
-                  v-else
-                  type="text"
-                  v-model="form.subtype"
-                  class="form-input"
-                  :placeholder="loadingSubtypes ? '...' : ''"
-                />
-              </div>
-            </template>
-
-            <template v-if="isScoreEnabled">
-              <div>
-                <label class="form-label">{{ t('patient.form.grade') }}</label>
-                <input type="number" v-model.number="form.grade" class="form-input" />
-              </div>
-            </template>
-          </div>
-
-          <div>
-            <label class="form-label">{{ t('patient.form.history') }}</label>
-            <textarea v-model="form.history" class="form-input" rows="3"></textarea>
+            <div>
+              <label class="form-label">{{ t('patient.form.history') }}</label>
+              <textarea v-model="form.history" class="form-input" rows="3"></textarea>
+            </div>
           </div>
         </div>
 
