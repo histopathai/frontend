@@ -170,15 +170,20 @@
     <div v-if="patient" class="flex items-center gap-2 flex-shrink-0">
       <button
         @click="handleSaveAll"
-        :disabled="isLoading"
-        class="flex items-center gap-2 px-5 py-2 bg-gray-900 text-white rounded-lg font-bold text-xs shadow-md hover:bg-black transition-all"
+        :disabled="isLoading || unsavedCount === 0"
+        class="flex items-center gap-2 px-5 py-2 rounded-lg font-bold text-xs shadow-md transition-all"
+        :class="
+          unsavedCount > 0
+            ? 'bg-gray-900 text-white hover:bg-black'
+            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+        "
       >
         <span>Kaydet</span>
         <span
           v-if="unsavedCount > 0"
           class="bg-indigo-500 text-white px-1.5 py-0.5 rounded text-[10px]"
         >
-          +{{ unsavedCount }}
+          {{ unsavedCount }}
         </span>
       </button>
     </div>
@@ -211,6 +216,7 @@ const toast = useToast();
 
 const activePopover = ref<string | null>(null);
 const localMetadata = reactive<Record<string, any>>({});
+const initialMetadata = ref<Record<string, any>>({});
 
 const {
   loading: patientLoading,
@@ -222,29 +228,31 @@ const {
 
 const isLoading = computed(() => patientLoading.value || annotationStore.actionLoading);
 
-// 1. HATA DÜZELTME: Hasta değiştiğinde localMetadata'yı doldur
+// Hasta değiştiğinde localMetadata'yı doldur ve başlangıç değerlerini sakla
 watch(
   () => props.patient,
   (newPatient) => {
     Object.keys(localMetadata).forEach((k) => delete localMetadata[k]);
+    Object.keys(initialMetadata.value).forEach((k) => delete initialMetadata.value[k]);
+
     if (newPatient && newPatient.metadata) {
       Object.assign(localMetadata, newPatient.metadata);
+      Object.assign(initialMetadata.value, newPatient.metadata);
     }
   },
   { immediate: true, deep: true }
 );
 
-// Sayaç: Global'de değişen değerler + Store'daki bekleyen lokal anotasyonlar
+// Bekleyen değişiklikleri say
 const unsavedCount = computed(() => {
-  // Sadece başlangıçtaki metadata'dan farklı olan veya yeni girilen global değerleri say
-  const currentMetadata = props.patient?.metadata || {};
+  // 1. Global etiketlerde değişiklik var mı?
   const changedGlobals = Object.entries(localMetadata).filter(([key, val]) => {
-    return val !== currentMetadata[key] && val !== '' && val !== undefined && val !== null;
+    const initial = initialMetadata.value[key];
+    return val !== initial && val !== '' && val !== undefined && val !== null;
   }).length;
 
-  const pendingLocals = annotationStore.annotations.filter((a) =>
-    String(a.id).startsWith('temp-')
-  ).length;
+  // 2. Pending lokal anotasyonlar
+  const pendingLocals = annotationStore.pendingCount;
 
   return changedGlobals + pendingLocals;
 });
@@ -256,7 +264,6 @@ const activeAnnotationTypes = computed(() => {
     .filter((t): t is any => !!t);
 });
 
-// dynamicFields içine 'global: true' eklendi (Tip hatası için)
 const dynamicFields = computed(() =>
   activeAnnotationTypes.value
     .filter((t) => t.global)
@@ -270,6 +277,7 @@ const dynamicFields = computed(() =>
 );
 
 const hasFilledMetadata = computed(() => dynamicFields.value.some((f) => localMetadata[f.name]));
+
 const getFirstFilledMetadataSummary = () => {
   const f = dynamicFields.value.find((f) => localMetadata[f.name]);
   return f ? `${f.name}: ${localMetadata[f.name]}` : '';
@@ -280,50 +288,73 @@ function togglePopover(name: string) {
 }
 
 async function handleSaveAll() {
-  if (!props.patient || isLoading.value) return;
+  if (!props.patient || isLoading.value || unsavedCount.value === 0) return;
+
   try {
-    // 1. Sadece Temel Hasta Bilgilerini Güncelle (Yaş, Cinsiyet vb.)
-    // Metadata'yı buradan kaldırdık çünkü bu bilgiler Anotasyon olarak tutuluyor.
+    console.log('🔄 Kaydetme başlıyor...');
+
+    // 1. Temel hasta bilgilerini güncelle (Yaş, Cinsiyet vb.)
     await patientStore.updatePatient(props.patient.id, {
       age: age.value,
       gender: gender.value,
       race: race.value,
       history: history.value,
     });
+    console.log('✅ Hasta bilgileri güncellendi');
 
-    // 2. Global Etiketleri (Gleason vb.) Anotasyon Olarak Kaydet
-    // localMetadata içindeki her bir anahtar-değer çiftini ayrı birer global anotasyona dönüştürür.
-    const globalPromises = Object.entries(localMetadata).map(([tagName, value]) => {
-      // Değer boşsa veya geçerli bir görüntü ID'si yoksa işlem yapma
-      if (value === undefined || value === null || value === '' || !props.image?.id) return;
+    // 2. Global Etiketleri Anotasyon Olarak Kaydet
+    // Sadece DEĞIŞEN değerleri kaydet
+    const changedGlobalEntries = Object.entries(localMetadata).filter(([key, val]) => {
+      const initial = initialMetadata.value[key];
+      return val !== initial && val !== '' && val !== undefined && val !== null;
+    });
+
+    console.log(`📋 ${changedGlobalEntries.length} adet global etiket kaydedilecek`);
+
+    const globalPromises = changedGlobalEntries.map(async ([tagName, value]) => {
+      if (!props.image?.id) {
+        console.warn('⚠️ Image ID bulunamadı, global etiket kaydedilemedi:', tagName);
+        return;
+      }
 
       const typeDef = activeAnnotationTypes.value.find((t) => t.name === tagName && t.global);
-      if (!typeDef) return;
+      if (!typeDef) {
+        console.warn('⚠️ Tip tanımı bulunamadı:', tagName);
+        return;
+      }
+
+      console.log(`📤 Global etiket kaydediliyor: ${tagName} = ${value}`);
 
       return annotationStore.createAnnotation(props.image.id, {
         tag: {
           tag_type: typeDef.type,
           tag_name: tagName,
-          value,
+          value: String(value),
           color: typeDef.color || '#4f46e5',
-          global: true, // Sistemin bunun global olduğunu anlamasını sağlar
+          global: true,
         },
-        polygon: undefined, // Global olduğu için poligon (çizim) yok
+        polygon: undefined,
       });
     });
 
-    // Tüm global kayıt isteklerinin tamamlanmasını bekle
-    await Promise.all(globalPromises);
+    await Promise.all(globalPromises.filter(Boolean));
+    console.log('✅ Global etiketler kaydedildi');
+
+    // Başlangıç değerlerini güncelle
+    Object.assign(initialMetadata.value, localMetadata);
 
     // 3. Lokal (Çizimli) Bekleyen Anotasyonları Kaydet
-    // Store'da id'si 'temp-' ile başlayan poligonlu çizimleri toplu gönderir.
-    await annotationStore.saveAllPendingAnnotations();
+    if (annotationStore.pendingCount > 0) {
+      console.log(`📤 ${annotationStore.pendingCount} adet lokal anotasyon kaydediliyor...`);
+      await annotationStore.saveAllPendingAnnotations();
+      console.log('✅ Lokal anotasyonlar kaydedildi');
+    }
 
-    toast.success('Tüm değişiklikler (Hasta bilgileri, Global ve Lokal etiketler) kaydedildi.');
+    toast.success('Tüm değişiklikler başarıyla kaydedildi! 🎉');
     activePopover.value = null;
   } catch (e) {
     toast.error('Kaydetme hatası oluştu.');
-    console.error('Save Error:', e);
+    console.error('❌ Save Error:', e);
   }
 }
 </script>

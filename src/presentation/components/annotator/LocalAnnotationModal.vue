@@ -12,7 +12,11 @@
         >
           <div>
             <h3 class="font-bold text-gray-900 text-lg">Bölgesel İşaretleme</h3>
-            <p class="text-xs text-gray-500">Lütfen bu alan için geçerli etiketleri doldurun</p>
+            <p class="text-xs text-gray-500">
+              {{
+                isEditing ? 'Etiketi Düzenle veya Sil' : 'Lütfen bu alan için etiketleri doldurun'
+              }}
+            </p>
           </div>
           <button
             @click="handleCancel"
@@ -120,20 +124,32 @@
           </div>
         </div>
 
-        <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
-          <button
-            @click="handleCancel"
-            class="px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-200 rounded-xl transition-colors"
-          >
-            Vazgeç
-          </button>
-          <button
-            @click="handleSave"
-            :disabled="!isValid"
-            class="px-8 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-40 disabled:grayscale transition-all shadow-md hover:shadow-indigo-200"
-          >
-            Tamam
-          </button>
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-between gap-3">
+          <div>
+            <button
+              v-if="isEditing"
+              @click="handleDelete"
+              class="px-5 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border border-transparent hover:border-rose-100"
+            >
+              Sil
+            </button>
+          </div>
+
+          <div class="flex gap-3">
+            <button
+              @click="handleCancel"
+              class="px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-200 rounded-xl transition-colors"
+            >
+              Vazgeç
+            </button>
+            <button
+              @click="handleSave"
+              :disabled="!isValid"
+              class="px-8 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-40 disabled:grayscale transition-all shadow-md hover:shadow-indigo-200"
+            >
+              {{ isEditing ? 'Güncelle' : 'Kaydet' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -143,11 +159,21 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 
-const props = defineProps<{ isOpen: boolean; annotationTypes: any[] }>();
-const emit = defineEmits(['save', 'cancel']);
+const props = defineProps<{
+  isOpen: boolean;
+  annotationTypes: any[];
+  initialValues?: Record<string, any>;
+}>();
+
+const emit = defineEmits(['save', 'cancel', 'delete']);
 
 const formValues = ref<Record<string, any>>({});
 const localTypes = computed(() => props.annotationTypes.filter((t) => !t.global));
+
+// Düzenleme modunda mıyız?
+const isEditing = computed(
+  () => props.initialValues && Object.keys(props.initialValues).length > 0
+);
 
 const isValid = computed(() => {
   return Object.values(formValues.value).some((v) => v !== null && v !== undefined && v !== '');
@@ -157,7 +183,8 @@ watch(
   () => props.isOpen,
   (val) => {
     if (val) {
-      formValues.value = {};
+      // Başlangıç değerlerini yükle veya formu temizle
+      formValues.value = props.initialValues ? { ...props.initialValues } : {};
     }
   }
 );
@@ -176,6 +203,10 @@ function handleSave() {
 
 function handleCancel() {
   emit('cancel');
+}
+
+function handleDelete() {
+  emit('delete');
 }
 </script>
 

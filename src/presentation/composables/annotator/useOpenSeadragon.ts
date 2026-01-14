@@ -99,6 +99,9 @@ export function useOpenSeadragon(viewerId: string) {
     });
   }
 
+  /**
+   * Gerçek (DB'den gelen) anotasyonları yükler
+   */
   async function loadAnnotations(imageId: string) {
     if (!anno.value) return;
     anno.value.clearAnnotations();
@@ -107,11 +110,8 @@ export function useOpenSeadragon(viewerId: string) {
       await annotationStore.fetchAnnotationsByImage(imageId, undefined, { showToast: false });
 
       const annotations = annotationStore.annotations;
-      if (!annotations || annotations.length === 0) {
-        console.log('Bu görüntü için henüz bir anotasyon bulunmuyor.');
-        return;
-      }
 
+      // Gerçek anotasyonları W3C formatına çevir
       const w3cAnnotations = annotations
         .map((ann) => {
           if (!ann.polygon || ann.polygon.length === 0) return null;
@@ -139,12 +139,65 @@ export function useOpenSeadragon(viewerId: string) {
         })
         .filter((ann) => ann !== null);
 
+      // Gerçek anotasyonları ekle
       if (w3cAnnotations.length > 0) {
         anno.value.setAnnotations(w3cAnnotations);
+        console.log(`✅ ${w3cAnnotations.length} adet gerçek anotasyon yüklendi`);
+      } else {
+        console.log('ℹ️ Bu görüntü için henüz kaydedilmiş anotasyon bulunmuyor.');
       }
+
+      // Pending anotasyonları da yükle
+      await loadPendingAnnotations(imageId);
     } catch (e) {
       console.warn('Anotasyonlar yüklenirken bir sorun oluştu:', e);
     }
+  }
+
+  /**
+   * Pending (henüz kaydedilmemiş) anotasyonları yükler
+   */
+  async function loadPendingAnnotations(imageId: string) {
+    if (!anno.value) return;
+
+    // Bu görüntüye ait pending anotasyonları filtrele
+    const pendingForThisImage = annotationStore.pendingAnnotations.filter(
+      (p) => p.imageId === imageId
+    );
+
+    if (pendingForThisImage.length === 0) {
+      console.log('ℹ️ Bu görüntü için bekleyen (pending) anotasyon yok');
+      return;
+    }
+
+    console.log(`📋 ${pendingForThisImage.length} adet pending annotation yükleniyor...`);
+
+    // Her pending anotasyonu UI'a ekle
+    pendingForThisImage.forEach((pending) => {
+      if (!pending.polygon || pending.polygon.length === 0) return;
+
+      const polygonStr = pending.polygon.map((p) => `${p.x},${p.y}`).join(' ');
+
+      anno.value?.addAnnotation({
+        id: pending.tempId,
+        type: 'Annotation',
+        body: [
+          {
+            type: 'TextualBody',
+            value: `${pending.tag.tag_name}: ${pending.tag.value}`,
+            purpose: 'tagging',
+          },
+        ],
+        target: {
+          selector: {
+            type: 'SvgSelector',
+            value: `<svg><polygon points="${polygonStr}"></polygon></svg>`,
+          },
+        },
+      });
+    });
+
+    console.log(`✅ ${pendingForThisImage.length} adet pending anotasyon UI'a eklendi`);
   }
 
   async function loadImage(image: Image) {
@@ -190,6 +243,7 @@ export function useOpenSeadragon(viewerId: string) {
     loading,
     loadImage,
     loadAnnotations,
+    loadPendingAnnotations,
     startDrawing,
     stopDrawing,
     anno,

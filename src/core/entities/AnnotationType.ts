@@ -1,4 +1,4 @@
-import type { TagDefinition, TagResponseDTO, TagType } from '@/core/types/tags';
+import type { TagDefinition, TagType } from '@/core/types/tags';
 
 export interface ParentRef {
   id: string;
@@ -43,13 +43,18 @@ export class AnnotationType {
       };
     }
 
+    // Backend'den gelebilecek farklı isimlendirmeleri kontrol ediyoruz
+    const resolvedName = data.name || data.tag_name || data.tagName || 'İsimsiz Tip';
+    const resolvedType = data.type || data.tag_type || data.tagType || 'TEXT';
+
     const props: AnnotationTypeProps = {
-      id: data.id,
-      creatorId: data.creator_id,
-      name: data.name,
+      id: String(data.id), // ID'yi string'e çevirmeyi garantiye alalım
+      creatorId: data.creator_id || data.creatorId || '',
+
+      name: resolvedName,
       description: data.description ?? null,
 
-      type: data.type,
+      type: resolvedType,
       options: data.options || [],
       global: data.global || false,
       required: data.required || false,
@@ -59,8 +64,16 @@ export class AnnotationType {
       parent: parentRef,
       color: data.color ?? null,
 
-      createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,
-      updatedAt: typeof data.updated_at === 'string' ? new Date(data.updated_at) : data.updated_at,
+      createdAt: data.created_at
+        ? typeof data.created_at === 'string'
+          ? new Date(data.created_at)
+          : data.created_at
+        : new Date(),
+      updatedAt: data.updated_at
+        ? typeof data.updated_at === 'string'
+          ? new Date(data.updated_at)
+          : data.updated_at
+        : new Date(),
 
       tags: data.tags || data.fields || [],
       patientFields: data.patient_fields || data.metadata_fields || [],
