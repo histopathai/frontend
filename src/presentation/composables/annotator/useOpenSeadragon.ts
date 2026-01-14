@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted, shallowRef } from 'vue';
+import { ref, onMounted, onUnmounted, shallowRef, watch } from 'vue';
 import { useAnnotationStore } from '@/stores/annotation';
 import type { Image } from '@/core/entities/Image';
 import OpenSeadragon from 'openseadragon';
@@ -103,13 +103,45 @@ export function useOpenSeadragon(viewerId: string) {
    * Gerçek (DB'den gelen) anotasyonları yükler
    */
   async function loadAnnotations(imageId: string) {
-    if (!anno.value) return;
+    console.log('4. [useOpenSeadragon] loadAnnotations çağrıldı. ImageId:', imageId);
+
+    if (!anno.value) {
+      console.log('4. [useOpenSeadragon] HATA: Annotorious instance (anno) yok!');
+      return;
+    }
+
+    // Mevcut çizimleri temizle
     anno.value.clearAnnotations();
 
+    // --- YENİ EKLENEN KISIM: Race Condition Çözümü ---
+    // Eğer store o sırada başka bir işlem yapıyorsa (loading=true), işlemin bitmesini bekle.
+    if (annotationStore.isLoading) {
+      console.log('⏳ [useOpenSeadragon] Store şu an meşgul, bitmesi bekleniyor...');
+      await new Promise<void>((resolve) => {
+        const stopWatching = watch(
+          () => annotationStore.isLoading,
+          (isLoading) => {
+            if (!isLoading) {
+              stopWatching();
+              resolve();
+            }
+          }
+        );
+      });
+      console.log('✅ [useOpenSeadragon] Store işlemi tamamlandı, veri çekmeye devam ediliyor.');
+    }
+    // ------------------------------------------------
+
     try {
+      console.log('5. [useOpenSeadragon] Store isteği atılıyor...');
+
+      // Store'dan veriyi çek (veya zaten çekildiyse store state'ini güncelle)
       await annotationStore.fetchAnnotationsByImage(imageId, undefined, { showToast: false });
 
       const annotations = annotationStore.annotations;
+
+      // LOG 6: Store'dan dönen veri sayısı
+      console.log("6. [useOpenSeadragon] Store'dan dönen anotasyon sayısı:", annotations.length);
 
       // Gerçek anotasyonları W3C formatına çevir
       const w3cAnnotations = annotations
@@ -125,7 +157,7 @@ export function useOpenSeadragon(viewerId: string) {
             body: [
               {
                 type: 'TextualBody',
-                value: ann.tag?.value || '',
+                value: ann.tag ? `${ann.tag.tag_name}: ${ann.tag.value}` : 'Etiket Verisi Yok',
                 purpose: 'tagging',
               },
             ],
@@ -141,13 +173,13 @@ export function useOpenSeadragon(viewerId: string) {
 
       // Gerçek anotasyonları ekle
       if (w3cAnnotations.length > 0) {
+        console.log('7. [useOpenSeadragon] Anotasyonlar ekrana set ediliyor...');
         anno.value.setAnnotations(w3cAnnotations);
-        console.log(`✅ ${w3cAnnotations.length} adet gerçek anotasyon yüklendi`);
       } else {
-        console.log('ℹ️ Bu görüntü için henüz kaydedilmiş anotasyon bulunmuyor.');
+        console.log('ℹ️ [useOpenSeadragon] Gösterilecek kayıtlı anotasyon bulunamadı.');
       }
 
-      // Pending anotasyonları da yükle
+      // Pending (kaydedilmemiş) anotasyonları da yükle
       await loadPendingAnnotations(imageId);
     } catch (e) {
       console.warn('Anotasyonlar yüklenirken bir sorun oluştu:', e);
@@ -166,11 +198,8 @@ export function useOpenSeadragon(viewerId: string) {
     );
 
     if (pendingForThisImage.length === 0) {
-      console.log('ℹ️ Bu görüntü için bekleyen (pending) anotasyon yok');
       return;
     }
-
-    console.log(`📋 ${pendingForThisImage.length} adet pending annotation yükleniyor...`);
 
     // Her pending anotasyonu UI'a ekle
     pendingForThisImage.forEach((pending) => {
@@ -196,20 +225,25 @@ export function useOpenSeadragon(viewerId: string) {
         },
       });
     });
-
-    console.log(`✅ ${pendingForThisImage.length} adet pending anotasyon UI'a eklendi`);
   }
 
   async function loadImage(image: Image) {
     if (!viewer.value || !image.processedpath) return;
 
+    console.log('2. [useOpenSeadragon] loadImage başladı, ID:', image.id);
+
     loading.value = true;
     currentImageId.value = image.id;
 
-    viewer.value.removeAllHandlers('open');
-    if (anno.value) {
-      anno.value.clearAnnotations();
-    }
+    viewer.value.addHandler('open', async () => {
+      // LOG 3: OSD "open" eventi fırlattı
+      console.log('3. [useOpenSeadragon] OSD "open" event tetiklendi.');
+
+      if (currentImageId.value !== image.id) return;
+
+      await loadAnnotations(image.id); // <--- Anotasyonları çağıran yer
+      loading.value = false;
+    });
 
     viewer.value.addHandler('open', async () => {
       if (currentImageId.value !== image.id) return;

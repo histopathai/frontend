@@ -60,8 +60,6 @@ export function usePatientForm(
       history: form.history || undefined,
     };
 
-    console.log('Submitting patient form with payload:', payload);
-
     let success = false;
 
     if (isEditMode.value && props.patientToEdit) {

@@ -48,10 +48,16 @@ defineExpose({ startDrawing, stopDrawing });
 
 watch(
   () => props.selectedImage,
-  async (newImg) => {
-    if (newImg) {
-      await loadImage(newImg);
+  async (newImg, oldImg) => {
+    // oldImg parametresini ekleyin
+    // EĞER: Yeni resim yoksa VEYA (Eski resim varsa VE ID'ler aynıysa) işlem yapma.
+    if (!newImg || (oldImg && newImg.id === oldImg.id)) {
+      console.log('⚠️ [Viewer] Aynı resim veya geçersiz veri, atlanıyor.');
+      return;
     }
+
+    console.log('✅ [Viewer] Yeni resim yükleniyor:', newImg.id);
+    await loadImage(newImg);
   }
 );
 
@@ -74,31 +80,91 @@ onMounted(() => {
 
       // --- LOG EKLENDİ ---
       newAnno.on('selectAnnotation', (annotation: any) => {
-        const targetId = String(annotation.id).replace('#', '');
-        console.group('🎯 Annotation Selected (Click)');
-        console.log('Target ID:', targetId);
+        const rawId = String(annotation.id);
+        const targetId = rawId.startsWith('#') ? rawId.slice(1) : rawId;
 
+        console.log('🖱️ Poligon Seçildi. ID:', targetId);
+
+        // 2. Store'dan gerçek veriyi bul
         const realAnnotation = annotationStore.annotations.find((a) => String(a.id) === targetId);
-        if (realAnnotation) {
-          console.log('✅ Found in Store:', realAnnotation);
-          console.log('🏷️ Tag Data:', realAnnotation.tag);
-          selectedAnnotationData.value = realAnnotation;
-        } else {
-          const pendingAnnotation = annotationStore.pendingAnnotations.find(
-            (p) => p.tempId === targetId
+        let foundData = realAnnotation;
+        if (!foundData) {
+          const pending = annotationStore.pendingAnnotations.find(
+            (p) => String(p.tempId) === targetId
           );
-          if (pendingAnnotation) {
-            console.log('⏳ Found in Pending:', pendingAnnotation);
-            selectedAnnotationData.value = {
-              id: pendingAnnotation.tempId,
-              tag: pendingAnnotation.tag,
-              polygon: pendingAnnotation.polygon || [],
+          if (pending) {
+            console.log('⏳ Pending (Geçici) veri bulundu.');
+            // Pending veriyi Annotation formatına uydur
+            foundData = {
+              id: pending.tempId,
+              tag: pending.tag,
+              polygon: pending.polygon || [],
+              // Diğer zorunlu alanlar için dummy veriler gerekebilir
             } as any;
-          } else {
-            console.warn('❌ Annotation NOT FOUND in Store!');
           }
         }
-        console.groupEnd();
+
+        if (foundData) {
+          selectedAnnotationData.value = foundData;
+
+          // --- GÜNCELLENMİŞ VERİ EŞLEŞTİRME MANTIĞI ---
+          console.group('🔍 Veri Eşleştirme (Fix)');
+          const initialValues: Record<string, any> = {};
+
+          // Helper: İsimleri küçük harfe çevir ve boşlukları sil
+          const normalize = (str: any) =>
+            String(str || '')
+              .trim()
+              .toLowerCase();
+
+          // Sistemdeki tüm aktif tipleri dön ve veride karşılığını ara
+          activeAnnotationTypes.value.forEach((type) => {
+            const targetName = normalize(type.name); // Örn: "grade"
+            let foundValue = null;
+
+            // 1. Arama: 'tag' (Ana Obje) içinde var mı?
+            if (foundData!.tag) {
+              const tName = normalize(
+                foundData!.tag.tag_name || foundData!.tag.tagName || foundData!.tag.name
+              );
+              if (tName === targetName) {
+                foundValue = foundData!.tag.value;
+                console.log(`✅ [${type.name}] -> Tag Objesinde Bulundu: ${foundValue}`);
+              }
+            }
+
+            // 2. Arama: 'data' (Liste) içinde var mı? (Hala bulamadıysak)
+            if (foundValue === null && foundData!.data && Array.isArray(foundData!.data)) {
+              // Annotation.ts içinde normalize edilse bile burada da tag_name/name kontrolü yapmak güvenlidir
+              const foundItem = foundData!.data.find(
+                (d: any) => normalize(d.tagName || d.tag_name || d.name || d.label) === targetName
+              );
+
+              if (foundItem) {
+                foundValue = foundItem.value;
+                console.log(`✅ [${type.name}] -> Data Listesinde Bulundu: ${foundValue}`);
+              }
+            }
+
+            // Sonuç: Değer bulunduysa listeye ekle
+            if (foundValue !== null && foundValue !== undefined) {
+              initialValues[type.id] = foundValue;
+            } else {
+              console.log(`❌ [${type.name}] -> Hiçbir yerde bulunamadı.`);
+            }
+          });
+
+          console.log('🚀 Modal Değerleri:', initialValues);
+          console.groupEnd();
+
+          editInitialValues.value = initialValues;
+
+          // Modalı Aç
+          currentDrawingData.value = null;
+          isModalOpen.value = true;
+        } else {
+          console.warn('❌ Store içinde bu ID ile eşleşen veri bulunamadı:', targetId);
+        }
       });
 
       newAnno.on('deselectAnnotation', () => {
@@ -122,48 +188,32 @@ onUnmounted(() => {
 function handleDoubleClick() {
   console.group('🖱️ Double Click Event');
   if (!anno.value) {
-    console.log('❌ Annotorious instance not found');
     console.groupEnd();
     return;
   }
 
   const selected = anno.value.getSelected();
-  console.log('Selected Object (Annotorious):', selected);
-  console.log('Current Store Data:', selectedAnnotationData.value);
 
   if (selected && selectedAnnotationData.value) {
     const currentTag = selectedAnnotationData.value.tag;
 
     if (currentTag) {
-      console.log('🏷️ Processing Tag:', currentTag);
-      console.log(
-        '📋 Available Types:',
-        activeAnnotationTypes.value.map((t) => ({ id: t.id, name: t.name }))
-      );
-
-      // Eşleşme kontrolü logu
       const type = activeAnnotationTypes.value.find((t) => {
         const match = t.name === currentTag.tag_name;
-        if (match)
-          console.log(`✅ MATCH FOUND: Type "${t.name}" matches Tag "${currentTag.tag_name}"`);
-        return match;
+        if (match) return match;
       });
 
       if (type) {
         editInitialValues.value = { [type.id]: currentTag.value };
-        console.log('🚀 Setting Initial Values:', editInitialValues.value);
       } else {
-        console.warn(`⚠️ NO MATCHING TYPE FOUND for tag name: "${currentTag.tag_name}"`);
       }
     } else {
-      console.warn('⚠️ Selected annotation has NO TAG data');
       editInitialValues.value = {};
     }
 
     currentDrawingData.value = null;
     isModalOpen.value = true;
   } else {
-    console.log('❌ No selection or data missing');
   }
   console.groupEnd();
 }

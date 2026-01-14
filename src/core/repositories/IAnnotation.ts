@@ -22,7 +22,6 @@ export interface CreateNewAnnotationRequest {
   parent: ParentRefRequest;
   polygon?: Point[]; // Global etiketler için boş olabilir
   tag: TagValueRequest; // Backend tek bir 'tag' bekliyor, 'data' değil
-
   // Aşağıdaki alanlar backend struct'ında yoksa kaldırılabilir veya opsiyonel bırakılabilir
   description?: string;
 }

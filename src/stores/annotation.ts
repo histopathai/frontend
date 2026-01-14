@@ -21,6 +21,7 @@ interface PendingAnnotation {
     color: string;
     global: boolean;
   };
+  data?: Array<{ tagName: string; value: string }>;
   polygon?: Array<{ x: number; y: number }>;
 }
 
@@ -173,7 +174,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
    */
   const addPendingAnnotation = (annotation: PendingAnnotation): void => {
     pendingAnnotations.value.push(annotation);
-    console.log('✅ Pending annotation eklendi:', annotation);
   };
 
   /**
@@ -214,7 +214,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
    */
   const saveAllPendingAnnotations = async (): Promise<boolean> => {
     if (pendingAnnotations.value.length === 0) {
-      console.log('⚠️ Kaydedilecek pending annotation yok');
       return true;
     }
 
@@ -229,7 +228,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
         try {
           const createRequest: CreateNewAnnotationRequest = {
             tag: pending.tag,
-            polygon: pending.polygon as any, // TypeScript type assertion - API plain objects kabul ediyor
+            // YENİ: Varsa data alanını da backend'e gönderiyoruz
+            polygon: pending.polygon as any,
             parent: {
               id: pending.imageId,
               type: 'image',
@@ -245,7 +245,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
           annotationsByImage.value.set(pending.imageId, [newAnnotation, ...imageAnnotations]);
 
           successCount++;
-          console.log('✅ Annotation kaydedildi:', newAnnotation.id);
         } catch (err: any) {
           errorCount++;
           console.error('❌ Annotation kaydetme hatası:', err);
@@ -307,6 +306,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
     paginationOptions?: Partial<Pagination>,
     options: FetchOptions = {}
   ): Promise<void> => {
+    console.log('8. [Store] fetchAnnotationsByImage başladı. ID:', imageId);
     const { refresh = false, showToast: showErrorToast = true } = options;
     if (loading.value && !refresh) return;
 
@@ -322,24 +322,18 @@ export const useAnnotationStore = defineStore('annotation', () => {
         ...paginationOptions,
       };
 
-      console.group('🔍 Fetch Annotations Debug');
-      console.log('Fetching for Image ID:', imageId);
-
       const result = await annotationRepo.getByImageId(imageId, paginationParams);
+      console.log('9. [Store] API ham yanıt:', result);
       const rawData = result?.data || [];
-
-      console.log('📥 Backend Raw Data:', rawData);
 
       const entityAnnotations = rawData.map((item: any) => {
         const ann = Annotation.create(item);
-        // Her bir anotasyonun Tag verisini kontrol edelim
         if (!ann.tag) {
           console.warn(`⚠️ Annotation ${ann.id} has NO TAG data!`, item);
         }
         return ann;
       });
 
-      console.log('✅ Processed Entities:', entityAnnotations);
       console.groupEnd();
 
       annotationsByImage.value.set(imageId, entityAnnotations);
@@ -351,7 +345,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
         hasMore: result?.pagination?.hasMore ?? rawData.length === paginationParams.limit,
       };
     } catch (err: any) {
-      // ... hata yönetimi aynı ...
+      console.error('10. [Store] Fetch hatası:', err);
       if (err.response?.status === 404) {
         annotations.value = [];
         annotationsByImage.value.set(imageId, []);

@@ -125,9 +125,6 @@ export class MockAnnotationTypeRepository implements IAnnotationTypeRepository {
 
     allData.push(newRecord); // Listeye ekle
     this.saveStoredData(allData); // LocalStorage'a kaydet
-
-    console.log('Mock Annotation Type Created & Saved:', newRecord);
-
     return AnnotationType.create(newRecord);
   }
 

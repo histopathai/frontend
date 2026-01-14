@@ -164,7 +164,6 @@ export const usePatientStore = defineStore('patient', () => {
         workspaceId,
         paginationParams
       );
-      console.log('Repository result:', result);
       const mappedPatients = result.data;
       // -----------------------
 

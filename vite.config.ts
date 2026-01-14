@@ -21,7 +21,6 @@ export default defineConfig(({ command, mode }) => {
       key: fs.readFileSync(keyPath),
       cert: fs.readFileSync(certPath),
     };
-    console.log('🔒 HTTPS (SSL) aktif edildi.');
   } else {
     // Docker build sırasında veya sertifika yoksa burası çalışır
     // console.log('⚠️ SSL sertifikaları bulunamadı veya tanımlı değil, HTTP modunda devam ediliyor.');

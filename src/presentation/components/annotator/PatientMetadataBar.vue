@@ -291,8 +291,6 @@ async function handleSaveAll() {
   if (!props.patient || isLoading.value || unsavedCount.value === 0) return;
 
   try {
-    console.log('🔄 Kaydetme başlıyor...');
-
     // 1. Temel hasta bilgilerini güncelle (Yaş, Cinsiyet vb.)
     await patientStore.updatePatient(props.patient.id, {
       age: age.value,
@@ -300,7 +298,6 @@ async function handleSaveAll() {
       race: race.value,
       history: history.value,
     });
-    console.log('✅ Hasta bilgileri güncellendi');
 
     // 2. Global Etiketleri Anotasyon Olarak Kaydet
     // Sadece DEĞIŞEN değerleri kaydet
@@ -308,8 +305,6 @@ async function handleSaveAll() {
       const initial = initialMetadata.value[key];
       return val !== initial && val !== '' && val !== undefined && val !== null;
     });
-
-    console.log(`📋 ${changedGlobalEntries.length} adet global etiket kaydedilecek`);
 
     const globalPromises = changedGlobalEntries.map(async ([tagName, value]) => {
       if (!props.image?.id) {
@@ -322,8 +317,6 @@ async function handleSaveAll() {
         console.warn('⚠️ Tip tanımı bulunamadı:', tagName);
         return;
       }
-
-      console.log(`📤 Global etiket kaydediliyor: ${tagName} = ${value}`);
 
       return annotationStore.createAnnotation(props.image.id, {
         tag: {
@@ -338,16 +331,12 @@ async function handleSaveAll() {
     });
 
     await Promise.all(globalPromises.filter(Boolean));
-    console.log('✅ Global etiketler kaydedildi');
-
     // Başlangıç değerlerini güncelle
     Object.assign(initialMetadata.value, localMetadata);
 
     // 3. Lokal (Çizimli) Bekleyen Anotasyonları Kaydet
     if (annotationStore.pendingCount > 0) {
-      console.log(`📤 ${annotationStore.pendingCount} adet lokal anotasyon kaydediliyor...`);
       await annotationStore.saveAllPendingAnnotations();
-      console.log('✅ Lokal anotasyonlar kaydedildi');
     }
 
     toast.success('Tüm değişiklikler başarıyla kaydedildi! 🎉');

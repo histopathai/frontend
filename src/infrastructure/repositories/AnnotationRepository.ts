@@ -19,6 +19,7 @@ export class AnnotationRepository implements IAnnotationRepository {
       offset: pagination.offset,
       sort_by: pagination.sortBy,
       sort_dir: pagination.sortDir,
+      populate: ['tag'],
     });
     return {
       data: response.data.map((item: any) => Annotation.create(item)),

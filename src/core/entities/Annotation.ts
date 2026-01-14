@@ -1,3 +1,4 @@
+// src/core/entities/Annotation.ts
 import { Point } from '../value-objects/Point';
 import type { TagValue } from '@/core/types/tags';
 
@@ -6,7 +7,6 @@ export interface ParentRef {
   type: 'workspace' | 'patient' | 'image' | 'annotation_type' | string;
 }
 
-// Frontend'in her zaman beklediği standart yapı
 export interface AnnotationTag {
   tag_type: string;
   tag_name: string;
@@ -32,10 +32,18 @@ export class Annotation {
 
   static create(data: any): Annotation {
     let tagObj: AnnotationTag | null = null;
+    if (data.tag && typeof data.tag === 'object') {
+      const rawName =
+        data.tag.tag_name || data.tag.tagName || data.tag.name || data.tag.label || data.tag.value; // Hiçbiri yoksa value'yu isim yap
 
-    // 1. Durum: Veriler data'nın kökünde (flat) geliyorsa (Sizin DB yapınız)
-    // tag_type, name, tag_value gibi alanlar kontrol ediliyor.
-    if (
+      tagObj = {
+        tag_type: data.tag.tag_type || data.tag.tagType || data.tag.type || 'TEXT',
+        tag_name: rawName || 'İsimsiz Etiket',
+        value: data.tag.value ?? data.tag.tag_value ?? null,
+        color: data.tag.color || '#4F46E5',
+        global: data.tag.global ?? false,
+      };
+    } else if (
       data.tag_name ||
       data.tagName ||
       data.name ||
@@ -45,29 +53,15 @@ export class Annotation {
       data.tag_value
     ) {
       tagObj = {
-        // TİP: tag_type, tagType veya type
         tag_type: data.tag_type || data.tagType || data.type || 'TEXT',
-
-        // İSİM: tag_name YOKSA 'name' alanını kullan (DB'de 'name' var demiştiniz)
         tag_name: data.tag_name || data.tagName || data.name || 'İsimsiz Etiket',
-
-        // DEĞER: value YOKSA 'tag_value' alanını kullan
         value: data.value ?? data.tag_value ?? null,
-
-        color: data.color || '#4F46E5', // Varsayılan renk
+        color: data.color || '#4F46E5',
         global: data.global ?? false,
       };
     }
-    // 2. Durum: Veriler 'tag' objesi içinde geliyorsa (Pending veya bazı API yanıtları)
-    else if (data.tag) {
-      tagObj = {
-        tag_type: data.tag.tag_type || data.tag.tagType || 'TEXT',
-        tag_name: data.tag.tag_name || data.tag.tagName || data.tag.name || 'Bilinmeyen',
-        value: data.tag.value ?? data.tag.tag_value,
-        color: data.tag.color,
-        global: data.tag.global ?? false,
-      };
-    }
+
+    // console.groupEnd();
 
     let parentRef: ParentRef | null = null;
     if (data.parent) {
@@ -76,13 +70,19 @@ export class Annotation {
       parentRef = { id: data.image_id, type: 'image' };
     }
 
+    const normalizedData = (data.data || []).map((item: any) => ({
+      // item.tagName yoksa tag_name, name veya label alanlarına bak
+      tagName: item.tagName || item.tag_name || item.name || item.label || 'Bilinmeyen',
+      value: item.value || item.tag_value,
+    }));
+
     return new Annotation({
       id: String(data.id),
       parent: parentRef,
       annotatorId: data.annotator_id || data.creator_id || '',
       polygon: (data.polygon || []).map((p: any) => Point.from(p)),
-      data: data.data || [],
-      tag: tagObj, // Oluşturulan standart tag objesi
+      data: normalizedData,
+      tag: tagObj,
       description: data.description ?? null,
       createdAt: data.created_at ? new Date(data.created_at) : new Date(),
       updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(),

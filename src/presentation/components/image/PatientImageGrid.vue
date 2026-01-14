@@ -274,14 +274,12 @@ watch(
   (isProcessing) => {
     if (isProcessing) {
       if (!pollInterval) {
-        console.log('İşlenen görüntüler tespit edildi, otomatik kontrol başlatılıyor...');
         pollInterval = setInterval(() => {
           loadImages(true);
         }, 2000);
       }
     } else {
       if (pollInterval) {
-        console.log('Tüm görüntüler hazır, otomatik kontrol durduruldu.');
         clearInterval(pollInterval);
         pollInterval = null;
       }
