@@ -2,133 +2,356 @@
   <div class="relative w-full h-full bg-gray-800">
     <div :id="viewerId" class="w-full h-full"></div>
 
-    <div
-      class="absolute top-4 right-4 z-20 bg-white/90 backdrop-blur rounded-lg shadow-lg p-1.5 flex flex-col gap-2"
-    >
-      <button
-        @click="startDrawing"
-        class="p-2 rounded hover:bg-indigo-50 text-gray-700 hover:text-indigo-600 transition-colors group relative"
-        title="Çizim Yap (Poligon)"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke-width="1.5"
-          stroke="currentColor"
-          class="size-6"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M9.53 16.122a3 3 0 0 0-5.78 1.128 2.25 2.25 0 0 1-2.4 2.245 4.5 4.5 0 0 0 8.4-2.245c0-.399-.078-.78-.22-1.128Zm0 0a15.998 15.998 0 0 0 3.388-1.62m-5.043-.025a15.994 15.994 0 0 1 1.622-3.395m3.42 3.42a15.995 15.995 0 0 0 4.764-4.648l3.876-5.814a1.151 1.151 0 0 0-1.597-1.597L14.146 6.32a15.996 15.996 0 0 0-4.649 4.763m3.42 3.42a6.776 6.776 0 0 0-3.42-3.42"
-          />
-        </svg>
-
-        <span
-          class="absolute right-full mr-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity"
-        >
-          Çizim Modu
-        </span>
-      </button>
-
-      <button
-        @click="stopDrawing"
-        class="p-2 rounded hover:bg-indigo-50 text-gray-700 hover:text-indigo-600 transition-colors group relative"
-        title="Seç / Düzenle"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke-width="1.5"
-          stroke="currentColor"
-          class="w-6 h-6"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.227 7.917-3.286-.672ZM12 2.25V4.5m5.834.166-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243-1.59-1.59"
-          />
-        </svg>
-        <span
-          class="absolute right-full mr-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity"
-        >
-          Seçim Modu
-        </span>
-      </button>
-    </div>
-
-    <div
-      v-if="loading"
-      class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30"
-    >
-      <div class="text-center">
-        <div
-          class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-white border-t-transparent mb-2"
-        ></div>
-        <p class="text-white text-lg font-medium">Görüntü Yükleniyor...</p>
-      </div>
-    </div>
-
-    <button
-      @click="$emit('prev-image')"
-      class="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur text-white transition-all hover:scale-110 focus:outline-none z-10"
-      title="Önceki Görüntü"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke-width="2"
-        stroke="currentColor"
-        class="w-6 h-6"
-      >
-        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-      </svg>
-    </button>
-    <button
-      @click="$emit('next-image')"
-      class="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur text-white transition-all hover:scale-110 focus:outline-none z-10"
-      title="Sonraki Görüntü"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke-width="2"
-        stroke="currentColor"
-        class="w-6 h-6"
-      >
-        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-      </svg>
-    </button>
+    <LocalAnnotationModal
+      :is-open="isModalOpen"
+      :annotation-types="activeAnnotationTypes"
+      :initial-values="editInitialValues"
+      @save="handleModalSave"
+      @cancel="handleModalCancel"
+      @delete="handleModalDelete"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { type PropType, watch } from 'vue';
+import { ref, type PropType, watch, computed, onMounted, onUnmounted } from 'vue';
 import type { Image } from '@/core/entities/Image';
+import type { Annotation } from '@/core/entities/Annotation';
+import { Point } from '@/core/value-objects/Point';
 import { useOpenSeadragon } from '@/presentation/composables/annotator/useOpenSeadragon';
+import { useAnnotationTypeStore } from '@/stores/annotation_type';
+import { useAnnotationStore } from '@/stores/annotation';
+import LocalAnnotationModal from './LocalAnnotationModal.vue';
+import { useToast } from 'vue-toastification';
+
+const toast = useToast();
 
 const props = defineProps({
-  selectedImage: {
-    type: Object as PropType<Image | null>,
-    default: null,
-  },
+  selectedImage: { type: Object as PropType<Image | null>, default: null },
 });
 
-defineEmits(['prev-image', 'next-image']);
-
+const annotationTypeStore = useAnnotationTypeStore();
+const annotationStore = useAnnotationStore();
 const viewerId = 'osd-viewer-main';
-const { loading, loadImage, startDrawing, stopDrawing } = useOpenSeadragon(viewerId);
+const { loadAnnotations, loadImage, startDrawing, stopDrawing, anno } = useOpenSeadragon(viewerId);
+
+const isModalOpen = ref(false);
+const currentDrawingData = ref<any>(null);
+const selectedAnnotationData = ref<Annotation | null>(null);
+const editInitialValues = ref<Record<string, any>>({});
+
+const activeAnnotationTypes = computed(() =>
+  annotationTypeStore.annotationTypes.filter((t) => !t.global)
+);
+
+defineExpose({ startDrawing, stopDrawing });
 
 watch(
   () => props.selectedImage,
-  (newImage) => {
-    if (newImage) {
-      loadImage(newImage);
+  async (newImg, oldImg) => {
+    // oldImg parametresini ekleyin
+    // EĞER: Yeni resim yoksa VEYA (Eski resim varsa VE ID'ler aynıysa) işlem yapma.
+    if (!newImg || (oldImg && newImg.id === oldImg.id)) {
+      console.log('⚠️ [Viewer] Aynı resim veya geçersiz veri, atlanıyor.');
+      return;
     }
+
+    console.log('✅ [Viewer] Yeni resim yükleniyor:', newImg.id);
+    await loadImage(newImg);
   }
 );
+
+onMounted(() => {
+  const viewerEl = document.getElementById(viewerId);
+  if (viewerEl) {
+    viewerEl.addEventListener('dblclick', handleDoubleClick);
+  }
+
+  watch(
+    () => anno.value,
+    (newAnno) => {
+      if (!newAnno) return;
+
+      newAnno.on('createSelection', (selection: any) => {
+        currentDrawingData.value = selection;
+        editInitialValues.value = {};
+        isModalOpen.value = true;
+      });
+
+      // --- LOG EKLENDİ ---
+      newAnno.on('selectAnnotation', (annotation: any) => {
+        const rawId = String(annotation.id);
+        const targetId = rawId.startsWith('#') ? rawId.slice(1) : rawId;
+
+        console.log('🖱️ Poligon Seçildi. ID:', targetId);
+
+        // 2. Store'dan gerçek veriyi bul
+        const realAnnotation = annotationStore.annotations.find((a) => String(a.id) === targetId);
+        let foundData = realAnnotation;
+        if (!foundData) {
+          const pending = annotationStore.pendingAnnotations.find(
+            (p) => String(p.tempId) === targetId
+          );
+          if (pending) {
+            console.log('⏳ Pending (Geçici) veri bulundu.');
+            // Pending veriyi Annotation formatına uydur
+            foundData = {
+              id: pending.tempId,
+              tag: pending.tag,
+              polygon: pending.polygon || [],
+              // Diğer zorunlu alanlar için dummy veriler gerekebilir
+            } as any;
+          }
+        }
+
+        if (foundData) {
+          selectedAnnotationData.value = foundData;
+
+          // --- GÜNCELLENMİŞ VERİ EŞLEŞTİRME MANTIĞI ---
+          console.group('🔍 Veri Eşleştirme (Fix)');
+          const initialValues: Record<string, any> = {};
+
+          // Helper: İsimleri küçük harfe çevir ve boşlukları sil
+          const normalize = (str: any) =>
+            String(str || '')
+              .trim()
+              .toLowerCase();
+
+          // Sistemdeki tüm aktif tipleri dön ve veride karşılığını ara
+          activeAnnotationTypes.value.forEach((type) => {
+            const targetName = normalize(type.name); // Örn: "grade"
+            let foundValue = null;
+
+            // 1. Arama: 'tag' (Ana Obje) içinde var mı?
+            if (foundData!.tag) {
+              const tName = normalize(
+                foundData!.tag.tag_name || foundData!.tag.tagName || foundData!.tag.name
+              );
+              if (tName === targetName) {
+                foundValue = foundData!.tag.value;
+                console.log(`✅ [${type.name}] -> Tag Objesinde Bulundu: ${foundValue}`);
+              }
+            }
+
+            // 2. Arama: 'data' (Liste) içinde var mı? (Hala bulamadıysak)
+            if (foundValue === null && foundData!.data && Array.isArray(foundData!.data)) {
+              // Annotation.ts içinde normalize edilse bile burada da tag_name/name kontrolü yapmak güvenlidir
+              const foundItem = foundData!.data.find(
+                (d: any) => normalize(d.tagName || d.tag_name || d.name || d.label) === targetName
+              );
+
+              if (foundItem) {
+                foundValue = foundItem.value;
+                console.log(`✅ [${type.name}] -> Data Listesinde Bulundu: ${foundValue}`);
+              }
+            }
+
+            // Sonuç: Değer bulunduysa listeye ekle
+            if (foundValue !== null && foundValue !== undefined) {
+              initialValues[type.id] = foundValue;
+            } else {
+              console.log(`❌ [${type.name}] -> Hiçbir yerde bulunamadı.`);
+            }
+          });
+
+          console.log('🚀 Modal Değerleri:', initialValues);
+          console.groupEnd();
+
+          editInitialValues.value = initialValues;
+
+          // Modalı Aç
+          currentDrawingData.value = null;
+          isModalOpen.value = true;
+        } else {
+          console.warn('❌ Store içinde bu ID ile eşleşen veri bulunamadı:', targetId);
+        }
+      });
+
+      newAnno.on('deselectAnnotation', () => {
+        if (!isModalOpen.value) {
+          selectedAnnotationData.value = null;
+        }
+      });
+    },
+    { immediate: true }
+  );
+});
+
+onUnmounted(() => {
+  const viewerEl = document.getElementById(viewerId);
+  if (viewerEl) {
+    viewerEl.removeEventListener('dblclick', handleDoubleClick);
+  }
+});
+
+// --- LOG EKLENDİ ---
+function handleDoubleClick() {
+  console.group('🖱️ Double Click Event');
+  if (!anno.value) {
+    console.groupEnd();
+    return;
+  }
+
+  const selected = anno.value.getSelected();
+
+  if (selected && selectedAnnotationData.value) {
+    const currentTag = selectedAnnotationData.value.tag;
+
+    if (currentTag) {
+      const type = activeAnnotationTypes.value.find((t) => {
+        const match = t.name === currentTag.tag_name;
+        if (match) return match;
+      });
+
+      if (type) {
+        editInitialValues.value = { [type.id]: currentTag.value };
+      } else {
+      }
+    } else {
+      editInitialValues.value = {};
+    }
+
+    currentDrawingData.value = null;
+    isModalOpen.value = true;
+  } else {
+  }
+  console.groupEnd();
+}
+
+async function handleModalSave(results: Array<{ type: any; value: any }>) {
+  if (results.length === 0) return;
+
+  if (selectedAnnotationData.value && !currentDrawingData.value) {
+    const res = results[0];
+    if (!res) return;
+    const annId = String(selectedAnnotationData.value.id);
+
+    const newTagData = {
+      tag_type: res.type.type,
+      tag_name: res.type.name,
+      value: res.value,
+      color: res.type.color || '#ec4899',
+      global: false,
+    };
+
+    if (annId.startsWith('temp-')) {
+      annotationStore.updatePendingAnnotation(annId, { tag: newTagData });
+      toast.success('Geçici etiket güncellendi.');
+    } else {
+      await annotationStore.updateAnnotation(annId, { tag: newTagData });
+    }
+
+    if (anno.value) {
+      const w3cAnnotation = anno.value.getAnnotation(annId);
+      if (w3cAnnotation) {
+        w3cAnnotation.body = [
+          {
+            type: 'TextualBody',
+            value: `${res.type.name}: ${res.value}`,
+            purpose: 'tagging',
+          },
+        ];
+        anno.value.updateAnnotation(w3cAnnotation);
+      }
+      anno.value.cancelSelected();
+    }
+
+    isModalOpen.value = false;
+    editInitialValues.value = {};
+    return;
+  }
+
+  if (!currentDrawingData.value || !props.selectedImage) return;
+
+  const rawPoints = convertAnnotoriousToPoints(currentDrawingData.value);
+  const points = rawPoints.map((p: { x: number; y: number }) => Point.from(p));
+
+  results.forEach((res) => {
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
+
+    annotationStore.addPendingAnnotation({
+      tempId,
+      imageId: props.selectedImage!.id,
+      tag: {
+        tag_type: res.type.type,
+        tag_name: res.type.name,
+        value: res.value,
+        color: res.type.color || '#ec4899',
+        global: false,
+      },
+      polygon: points.map((p: { x: number; y: number }) => ({ x: p.x, y: p.y })),
+    });
+
+    if (anno.value) {
+      anno.value.addAnnotation({
+        id: tempId,
+        type: 'Annotation',
+        body: [
+          {
+            type: 'TextualBody',
+            value: `${res.type.name}: ${res.value}`,
+            purpose: 'tagging',
+          },
+        ],
+        target: {
+          selector: {
+            type: 'SvgSelector',
+            value: `<svg><polygon points="${rawPoints.map((p: { x: number; y: number }) => `${p.x},${p.y}`).join(' ')}"></polygon></svg>`,
+          },
+        },
+      });
+    }
+  });
+
+  if (anno.value) anno.value.cancelSelected();
+
+  isModalOpen.value = false;
+  currentDrawingData.value = null;
+  editInitialValues.value = {};
+
+  toast.info(`${results.length} etiket eklendi.`);
+}
+
+function handleModalCancel() {
+  if (anno.value) anno.value.cancelSelected();
+  isModalOpen.value = false;
+  editInitialValues.value = {};
+}
+
+function handleModalDelete() {
+  deleteSelected();
+  isModalOpen.value = false;
+  editInitialValues.value = {};
+}
+
+async function deleteSelected() {
+  if (!selectedAnnotationData.value || !props.selectedImage) return;
+
+  const annotationId = selectedAnnotationData.value.id;
+  if (!annotationId) return;
+
+  if (String(annotationId).startsWith('temp-')) {
+    annotationStore.removePendingAnnotation(String(annotationId));
+    if (anno.value) anno.value.removeAnnotation(annotationId);
+    toast.info('Geçici etiket silindi');
+  } else {
+    await annotationStore.deleteAnnotation(String(annotationId), props.selectedImage.id);
+    if (anno.value) anno.value.removeAnnotation(annotationId);
+  }
+
+  selectedAnnotationData.value = null;
+}
+
+function convertAnnotoriousToPoints(selection: any): Array<{ x: number; y: number }> {
+  const selector = selection.target?.selector || selection.selector;
+  const pointsStr = selector.value.match(/points="([^"]+)"/)?.[1] || '';
+  return pointsStr
+    .split(/[\s,]+/)
+    .reduce((acc: Array<{ x: number; y: number }>, val: string, i: number, arr: string[]) => {
+      if (i % 2 === 0 && val && arr[i + 1]) {
+        acc.push({ x: parseFloat(val), y: parseFloat(arr[i + 1]!) });
+      }
+      return acc;
+    }, []);
+}
 </script>

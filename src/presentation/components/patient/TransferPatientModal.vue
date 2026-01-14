@@ -57,10 +57,8 @@ import { useWorkspaceStore } from '@/stores/workspace';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
-  // Tekil işlem için
   patientId: { type: String, default: '' },
   patientName: { type: String, default: '' },
-  // Çoğul işlem için
   patientIds: { type: Array as () => string[], default: () => [] },
 
   currentWorkspaceId: { type: String, required: true },
@@ -75,7 +73,6 @@ const workspaceStore = useWorkspaceStore();
 const selectedWorkspaceId = ref('');
 const loading = computed(() => patientStore.isActionLoading);
 
-// Batch modu kontrolü
 const isBatch = computed(() => props.patientIds.length > 0);
 
 const availableWorkspaces = computed(() =>

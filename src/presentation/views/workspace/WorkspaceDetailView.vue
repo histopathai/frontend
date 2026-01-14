@@ -107,7 +107,6 @@
       v-if="isAnnotationSettingsModalOpen"
       :workspace-id="workspaceId"
       :workspace-name="workspace?.name"
-      :current-annotation-type-id="workspace?.annotationTypeId || undefined"
       @close="isAnnotationSettingsModalOpen = false"
       @saved="reloadWorkspace"
     />
@@ -122,11 +121,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { repositories } from '@/services';
+import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useToast } from 'vue-toastification';
-import type { Workspace } from '@/core/entities/Workspace';
+import { useWorkspaceStore } from '@/stores/workspace';
 import { usePatientStore } from '@/stores/patient';
 
 import PatientList from '@/presentation/components/patient/PatientList.vue';
@@ -139,16 +137,18 @@ const props = defineProps({
 
 const { t } = useI18n();
 const toast = useToast();
-const workspace = ref<Workspace | null>(null);
-const isAnnotationSettingsModalOpen = ref(false);
-const isCreatePatientModalOpen = ref(false);
+const workspaceStore = useWorkspaceStore();
 const patientStore = usePatientStore();
 
+const workspace = computed(() => workspaceStore.currentWorkspace);
+
+const isAnnotationSettingsModalOpen = ref(false);
+const isCreatePatientModalOpen = ref(false);
 const patientListRef = ref<InstanceType<typeof PatientList> | null>(null);
 
 async function loadWorkspace() {
   try {
-    workspace.value = await repositories.workspace.getById(props.workspaceId);
+    await workspaceStore.fetchWorkspaceById(props.workspaceId);
   } catch (e) {
     console.error('Workspace yüklenirken hata:', e);
   }
@@ -161,7 +161,8 @@ function reloadWorkspace() {
 
 async function handleCreatePatientClick() {
   if (!workspace.value) return;
-  if (!workspace.value.annotationTypeId) {
+
+  if (!workspace.value.hasAnnotationType()) {
     toast.warning('Hasta eklemeden önce anotasyon ayarlarını yapmalısınız.');
     isAnnotationSettingsModalOpen.value = true;
   } else {

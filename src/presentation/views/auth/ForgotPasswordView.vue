@@ -51,6 +51,5 @@
 import { RouterLink } from 'vue-router';
 import { usePasswordReset } from '@/presentation/composables/auth/usePasswordReset';
 
-// Yeni composable'ımızı kullanıyoruz
 const { email, loading, error, successMessage, handlePasswordReset } = usePasswordReset();
 </script>

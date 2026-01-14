@@ -109,15 +109,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'updated']);
 const { t } = useI18n();
 
-const {
-  form,
-  loading,
-  subtypeOptions,
-  loadingSubtypes,
-  isScoreEnabled,
-  isClassificationEnabled,
-  handleSubmit,
-} = usePatientForm(
+const { form, loading, handleSubmit } = usePatientForm(
   {
     workspaceId: props.workspaceId,
     patientToEdit: props.patient,

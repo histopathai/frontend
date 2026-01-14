@@ -2,20 +2,17 @@ import { ref, computed, onMounted } from 'vue';
 import { usePatientStore } from '@/stores/patient';
 import { useToast } from 'vue-toastification';
 import { useI18n } from 'vue-i18n';
-import type { Patient } from '@/core/entities/Patient';
 
 export function usePatientList(workspaceId: string) {
   const store = usePatientStore();
   const toast = useToast();
   const { t } = useI18n();
 
-  // State
   const limit = 20;
   const offset = ref(0);
   const selectedIds = ref<string[]>([]);
   const idsToDelete = ref<string[]>([]);
 
-  // Modals State
   const isCreateModalOpen = ref(false);
   const isEditModalOpen = ref(false);
   const isTransferModalOpen = ref(false);
@@ -26,7 +23,6 @@ export function usePatientList(workspaceId: string) {
   const isSingleDelete = ref(true);
   const deleteWarningText = ref('');
 
-  // Computed
   const patients = computed(() => store.patients);
   const loading = computed(() => store.loading);
   const actionLoading = computed(() => store.actionLoading);
@@ -41,7 +37,6 @@ export function usePatientList(workspaceId: string) {
     return selectedIds.value.length > 0 && selectedIds.value.length < patients.value.length;
   });
 
-  // Methods
   async function loadPatients() {
     await store.fetchPatientsByWorkspace(workspaceId, {
       limit,
@@ -65,7 +60,6 @@ export function usePatientList(workspaceId: string) {
     }
   }
 
-  // Modal Actions
   function openCreateModal() {
     isCreateModalOpen.value = true;
   }
@@ -91,7 +85,6 @@ export function usePatientList(workspaceId: string) {
     isImageUploadModalOpen.value = true;
   }
 
-  // Delete Logic
   function openDeleteModal(patient: any) {
     selectedPatient.value = patient;
     idsToDelete.value = [];
@@ -139,7 +132,6 @@ export function usePatientList(workspaceId: string) {
     selectedIds,
     selectedPatient,
 
-    // Modal States
     isCreateModalOpen,
     isEditModalOpen,
     isTransferModalOpen,
@@ -149,11 +141,9 @@ export function usePatientList(workspaceId: string) {
     deleteWarningText,
     idsToDelete,
 
-    // Selection States
     isAllSelected,
     isIndeterminate,
 
-    // Actions
     loadPatients,
     changePage,
     toggleSelectAll,
@@ -165,7 +155,6 @@ export function usePatientList(workspaceId: string) {
     openBatchDeleteModal,
     openImageUploadModal,
     handleDeleteConfirm,
-
     t,
   };
 }

@@ -2,7 +2,7 @@
   <div
     class="flex flex-col h-full bg-white border-r border-gray-200 shadow-[2px_0_8px_rgba(0,0,0,0.02)]"
   >
-    <div class="p-5 border-b border-gray-200 bg-gray-50/50">
+    <div class="p-4 border-b border-gray-200 bg-gray-50/50">
       <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
         Çalışma Alanı
       </label>
@@ -18,19 +18,6 @@
           </option>
         </select>
       </div>
-
-      <transition name="fade">
-        <div v-if="currentWorkspace" class="mt-3">
-          <div
-            class="flex items-center gap-2 text-xs text-gray-500 bg-white p-2 rounded border border-gray-100"
-          >
-            <span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-medium">{{
-              currentWorkspace.organType
-            }}</span>
-            <span class="truncate">{{ currentWorkspace.organization }}</span>
-          </div>
-        </div>
-      </transition>
     </div>
 
     <div class="flex-1 overflow-y-auto custom-scrollbar" @scroll="handleScroll">
@@ -250,19 +237,28 @@ import type { PropType } from 'vue';
 import type { Workspace } from '@/core/entities/Workspace';
 import type { Patient } from '@/core/entities/Patient';
 import type { Image } from '@/core/entities/Image';
+import type { AnnotationType } from '@/core/entities/AnnotationType';
 
 const props = defineProps({
   workspaces: { type: Array as PropType<Workspace[]>, required: true },
   patients: { type: Array as PropType<Patient[]>, required: true },
   images: { type: Array as PropType<Image[]>, required: true },
+  annotationTypes: { type: Array as PropType<AnnotationType[]>, default: () => [] },
+
   selectedWorkspaceId: String,
   selectedPatientId: String,
   selectedImageId: String,
+  selectedAnnotationTypeId: String,
   loading: Boolean,
 });
 
-// 'load-more' eventi eklendi
-const emit = defineEmits(['workspace-selected', 'patient-selected', 'image-selected', 'load-more']);
+const emit = defineEmits([
+  'workspace-selected',
+  'patient-selected',
+  'image-selected',
+  'type-selected',
+  'load-more',
+]);
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -299,13 +295,11 @@ function getThumbnailUrl(image: any): string {
   return `${API_BASE_URL}/api/v1/proxy/${image.processedpath}/thumbnail.jpg`;
 }
 
-// Scroll Handler
 function handleScroll(event: Event) {
   const element = event.target as HTMLElement;
 
   if (props.loading) return;
 
-  // Listenin sonuna 50px kala tetikle
   const bottomThreshold = 50;
   if (element.scrollTop + element.clientHeight >= element.scrollHeight - bottomThreshold) {
     emit('load-more');

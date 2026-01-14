@@ -15,7 +15,6 @@ export function useAdminDashboard() {
   const { users, loading: adminLoading } = storeToRefs(adminStore);
   const { workspaces, loading: workspaceLoading } = storeToRefs(workspaceStore);
 
-  // YENİ: Global sayılar
   const totalPatients = ref(0);
   const totalImages = ref(0);
 
@@ -28,7 +27,6 @@ export function useAdminDashboard() {
       workspaceStore.fetchWorkspaces({ limit: 100, offset: 0 });
     }
 
-    // YENİ: Toplam sayıları çek
     try {
       const [pCount, iCount] = await Promise.all([
         repositories.patient.count(),
@@ -92,17 +90,13 @@ export function useAdminDashboard() {
   return {
     loading: computed(() => adminLoading.value || workspaceLoading.value),
 
-    // Kartlar için
     pendingUsersCount,
     activeUsersCount,
     totalWorkspaces,
-    totalPatients, // YENİ
-    totalImages, // YENİ
-
-    // Tablo için
+    totalPatients,
+    totalImages,
     pendingUsersList,
 
-    // Grafik için
     userRegistrationChartData,
   };
 }

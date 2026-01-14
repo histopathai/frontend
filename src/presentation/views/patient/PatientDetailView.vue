@@ -145,8 +145,6 @@ import { repositories } from '@/services';
 import type { Workspace } from '@/core/entities/Workspace';
 import type { Patient } from '@/core/entities/Patient';
 import { useToast } from 'vue-toastification';
-
-// Components
 import PatientImageGrid from '@/presentation/components/image/PatientImageGrid.vue';
 import ImageUploadModal from '@/presentation/components/image/ImageUploadModal.vue';
 import TransferImageModal from '@/presentation/components/image/TransferImageModal.vue';
@@ -158,18 +156,12 @@ const props = defineProps({
 
 const { t } = useI18n();
 const toast = useToast();
-
-// State
 const workspace = ref<Workspace | null>(null);
 const patient = ref<Patient | null>(null);
 const pageLoading = ref(true);
-
-// Modal State
 const isImageUploadModalOpen = ref(false);
 const isTransferModalOpen = ref(false);
 const transferImageIds = ref<string[]>([]);
-
-// Refs
 const gridRef = ref<InstanceType<typeof PatientImageGrid> | null>(null);
 
 onMounted(async () => {
@@ -197,8 +189,6 @@ onMounted(async () => {
 function handleImageUploaded() {
   gridRef.value?.loadImages(true);
 }
-
-// --- Transfer İşlemleri ---
 
 function openTransferImageModal(image: any) {
   transferImageIds.value = [image.id];

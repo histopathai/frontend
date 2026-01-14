@@ -9,7 +9,7 @@ export interface CreateNewWorkspaceRequest {
   license: string;
   resource_url?: string;
   release_year?: number;
-  annotation_type_id?: string | null;
+  annotation_types?: string[];
 }
 
 export interface UpdateWorkspaceRequest {
@@ -20,7 +20,7 @@ export interface UpdateWorkspaceRequest {
   license?: string;
   resource_url?: string | null;
   release_year?: number | null;
-  annotation_type_id?: string | null;
+  annotation_types?: string[];
 }
 
 export interface IWorkspaceRepository {

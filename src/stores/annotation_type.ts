@@ -26,6 +26,7 @@ interface AnnotationTypeState {
 interface FetchOptions {
   refresh?: boolean;
   showToast?: boolean;
+  parentId?: string;
 }
 
 // ===========================
@@ -65,28 +66,15 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
   const totalAnnotationTypes = computed(() => annotationTypes.value.length);
   const hasMore = computed(() => pagination.value.hasMore ?? false);
 
-  // Get annotation type by ID
   const getAnnotationTypeById = computed(() => {
     return (id: string) => annotationTypes.value.find((at) => at.id === id);
   });
 
-  // Get annotation types with scoring enabled
-  const annotationTypesWithScoring = computed(() => {
-    return annotationTypes.value.filter((at) => at.supportsScoring());
-  });
-
-  // Get annotation types with classification enabled
-  const annotationTypesWithClassification = computed(() => {
-    return annotationTypes.value.filter((at) => at.supportsClassification());
-  });
-
-  // Get annotation type options for select/dropdown
   const annotationTypeOptions = computed(() => {
     return annotationTypes.value.map((at) => ({
       value: at.id,
       label: at.name,
-      scoreEnabled: at.scoreEnabled,
-      classificationEnabled: at.classificationEnabled,
+      parentId: at.parentId,
     }));
   });
 
@@ -140,9 +128,8 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     paginationOptions?: Partial<Pagination>,
     options: FetchOptions = {}
   ): Promise<void> => {
-    const { refresh = false, showToast: showErrorToast = true } = options;
+    const { refresh = false, showToast: showErrorToast = true, parentId } = options;
 
-    // Don't fetch if already loading
     if (loading.value && !refresh) return;
 
     loading.value = true;
@@ -154,12 +141,16 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
         ...paginationOptions,
       };
 
-      const result: PaginatedResult<AnnotationType> =
-        await annotationTypeRepo.list(paginationParams);
+      let result: PaginatedResult<AnnotationType>;
+
+      if (parentId) {
+        result = await annotationTypeRepo.getByParentId(parentId, paginationParams);
+      } else {
+        result = await annotationTypeRepo.list(paginationParams);
+      }
 
       annotationTypes.value = result.data;
 
-      // Update pagination metadata
       pagination.value = {
         ...paginationParams,
         ...result.pagination,
@@ -199,12 +190,14 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     }
   };
 
-  const loadMore = async (): Promise<void> => {
+  const loadMore = async (options: FetchOptions = {}): Promise<void> => {
     if (!hasMore.value || loading.value) return;
-
-    await fetchAnnotationTypes({
-      offset: pagination.value.offset + pagination.value.limit,
-    });
+    await fetchAnnotationTypes(
+      {
+        offset: pagination.value.offset + pagination.value.limit,
+      },
+      options
+    );
   };
 
   // ===========================
@@ -218,28 +211,14 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     resetError();
 
     try {
-      // Validate business rules
-      if (data.score_enabled) {
-        if (!data.score_name || data.score_min === undefined || data.score_max === undefined) {
-          throw new Error(t('annotation_type.validation.score_name_required'));
-        }
-        if (data.score_min >= data.score_max) {
-          throw new Error(t('annotation_type.validation.score_range_invalid'));
-        }
-      }
-
-      if (data.classification_enabled) {
-        if (!data.class_list || data.class_list.length === 0) {
-          throw new Error(t('annotation_type.validation.class_list_required'));
-        }
+      if (!data.name) {
+        throw new Error(t('annotation_type.validation.name_required') || 'Name is required');
       }
 
       const newAnnotationType = await annotationTypeRepo.create(data);
-
-      // Add to beginning of list
       annotationTypes.value = [newAnnotationType, ...annotationTypes.value];
-
       toast.success(t('annotation_type.messages.create_success'));
+
       return newAnnotationType;
     } catch (err: any) {
       handleError(err, t('annotation_type.messages.create_error'));
@@ -261,21 +240,7 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     resetError();
 
     try {
-      // Validate score range if both values are provided
-      if (data.score_min !== undefined && data.score_max !== undefined) {
-        if (data.score_min >= data.score_max) {
-          throw new Error(t('annotation_type.validation.score_range_invalid'));
-        }
-      }
-
-      // Validate class list if provided
-      if (data.class_list !== undefined && data.class_list.length === 0) {
-        throw new Error(t('annotation_type.validation.class_list_empty'));
-      }
-
       await annotationTypeRepo.update(annotationTypeId, data);
-
-      // Fetch updated annotation type
       const updatedAnnotationType = await annotationTypeRepo.getById(annotationTypeId);
 
       if (updatedAnnotationType) {
@@ -321,8 +286,6 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
 
     try {
       await annotationTypeRepo.batchDelete(annotationTypeIds);
-
-      // Remove all deleted annotation types from state
       annotationTypes.value = annotationTypes.value.filter(
         (at) => !annotationTypeIds.includes(at.id)
       );
@@ -376,61 +339,6 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
   };
 
   // ===========================
-  // Business Logic Helpers
-  // ===========================
-
-  const validateScoreForType = (
-    annotationTypeId: string,
-    score: number
-  ): { valid: boolean; message?: string } => {
-    const annotationType = getAnnotationTypeById.value(annotationTypeId);
-
-    if (!annotationType) {
-      return { valid: false, message: 'Annotation type not found' };
-    }
-
-    if (!annotationType.supportsScoring()) {
-      return { valid: false, message: 'This annotation type does not support scoring' };
-    }
-
-    const range = annotationType.scoreRange();
-    if (!range) {
-      return { valid: false, message: 'Score range not configured' };
-    }
-
-    if (score < range.min || score > range.max) {
-      return {
-        valid: false,
-        message: t('annotation.messages.score_out_of_range', { min: range.min, max: range.max }),
-      };
-    }
-
-    return { valid: true };
-  };
-
-  const validateClassForType = (
-    annotationTypeId: string,
-    className: string
-  ): { valid: boolean; message?: string } => {
-    const annotationType = getAnnotationTypeById.value(annotationTypeId);
-
-    if (!annotationType) {
-      return { valid: false, message: 'Annotation type not found' };
-    }
-
-    if (!annotationType.supportsClassification()) {
-      return { valid: false, message: 'This annotation type does not support classification' };
-    }
-
-    const classList = annotationType.classListForSerialization();
-    if (!classList || !classList.includes(className)) {
-      return { valid: false, message: 'Invalid class name for this annotation type' };
-    }
-
-    return { valid: true };
-  };
-
-  // ===========================
   // Return
   // ===========================
 
@@ -451,8 +359,6 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     totalAnnotationTypes,
     hasMore,
     getAnnotationTypeById,
-    annotationTypesWithScoring,
-    annotationTypesWithClassification,
     annotationTypeOptions,
 
     // Actions - Fetch
@@ -477,9 +383,5 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     refreshAnnotationType,
     getAnnotationTypeCount,
     resetError,
-
-    // Business Logic Helpers
-    validateScoreForType,
-    validateClassForType,
   };
 });

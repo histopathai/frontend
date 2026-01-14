@@ -267,7 +267,6 @@
 import { useRouter } from 'vue-router';
 import { usePatientList } from '@/presentation/composables/patient/usePatientList';
 
-// ImageUploadModal importunu kaldırıyoruz
 import EditPatientModal from '@/presentation/components/patient/EditPatientModal.vue';
 import TransferPatientModal from '@/presentation/components/patient/TransferPatientModal.vue';
 import DeleteConfirmationModal from '@/presentation/components/common/DeleteConfirmationModal.vue';

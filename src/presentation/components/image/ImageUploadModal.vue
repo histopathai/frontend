@@ -3,8 +3,15 @@
     class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
     @click.self="handleClose"
   >
-    <div class="card w-full max-w-2xl shadow-xl rounded-xl bg-white overflow-hidden">
-      <div class="card-header px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+    <div
+      class="card w-full shadow-xl rounded-xl bg-white overflow-hidden transition-all duration-300 flex flex-col"
+      :class="
+        mode === 'microscope' && !selectedFile ? 'max-w-7xl h-[90vh]' : 'max-w-2xl max-h-[90vh]'
+      "
+    >
+      <div
+        class="card-header px-6 py-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0"
+      >
         <h3 class="text-xl font-semibold text-gray-900">
           {{ t('image.upload.title') }}
         </h3>
@@ -21,7 +28,7 @@
         </button>
       </div>
 
-      <div class="border-b border-gray-200">
+      <div class="border-b border-gray-200 flex-shrink-0">
         <nav class="flex -mb-px" aria-label="Tabs">
           <button
             @click="switchMode('local')"
@@ -48,10 +55,9 @@
         </nav>
       </div>
 
-      <div class="card-body p-6">
-        <div v-if="mode === 'local'" class="space-y-4">
+      <div class="card-body p-6 flex-1 min-h-0 overflow-hidden flex flex-col">
+        <div v-if="mode === 'local' && !selectedFile" class="overflow-y-auto h-full">
           <div
-            v-if="!selectedFile"
             class="mt-2 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:bg-gray-50 transition-colors"
             @dragover.prevent
             @drop.prevent="handleDrop"
@@ -92,8 +98,8 @@
           </div>
         </div>
 
-        <div v-if="mode === 'microscope'" class="space-y-4">
-          <div v-if="!selectedFile && cameras.length > 0" class="flex items-center gap-2">
+        <div v-if="mode === 'microscope' && !selectedFile" class="flex flex-col h-full w-full">
+          <div v-if="cameras.length > 0" class="flex items-center gap-2 mb-4 flex-shrink-0">
             <label class="text-sm font-medium text-gray-700 whitespace-nowrap">Kaynak:</label>
             <select v-model="selectedDeviceId" class="form-input py-1.5 text-sm flex-1">
               <option v-for="camera in cameras" :key="camera.deviceId" :value="camera.deviceId">
@@ -102,130 +108,111 @@
             </select>
           </div>
 
-          <!-- Kamera Kontrol Parametreleri -->
           <div
-            v-if="!selectedFile && isPiCam"
-            class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3"
+            class="flex-1 min-h-0 grid gap-4"
+            :class="isPiCam ? 'grid-cols-1 lg:grid-cols-4' : 'grid-cols-1'"
           >
-            <div class="flex items-center justify-between">
-              <h4 class="text-sm font-semibold text-gray-700">Kamera Ayarları</h4>
-              <button
-                @click="resetCameraSettings"
-                class="text-xs text-indigo-600 hover:text-indigo-800"
-              >
-                Varsayılana Dön
-              </button>
-            </div>
-
-            <!-- Exposure Time -->
-            <div class="space-y-1">
-              <div class="flex items-center justify-between">
-                <label class="text-xs font-medium text-gray-700">
-                  Poz Süresi (Exposure Time)
-                </label>
-                <span class="text-xs text-gray-500">
-                  {{ exposureTime ? `${exposureTime} μs` : 'Otomatik' }}
-                </span>
-              </div>
-              <input
-                type="range"
-                v-model.number="exposureTime"
-                min="0"
-                max="100000"
-                step="1000"
-                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-              />
-              <div class="flex justify-between text-xs text-gray-500">
-                <span>Otomatik</span>
-                <span>1ms</span>
-                <span>10ms</span>
-                <span>100ms</span>
-              </div>
-            </div>
-
-            <!-- Gain (ISO) -->
-            <div class="space-y-1">
-              <div class="flex items-center justify-between">
-                <label class="text-xs font-medium text-gray-700">Gain (ISO)</label>
-                <span class="text-xs text-gray-500">
-                  {{ gain ? `${gain.toFixed(1)}x` : 'Otomatik' }}
-                </span>
-              </div>
-              <input
-                type="range"
-                v-model.number="gain"
-                min="0"
-                max="16"
-                step="0.1"
-                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-              />
-              <div class="flex justify-between text-xs text-gray-500">
-                <span>Auto</span>
-                <span>2x</span>
-                <span>4x</span>
-                <span>8x</span>
-                <span>16x</span>
-              </div>
-            </div>
-
-            <div class="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded p-2">
-              <strong>💡 İpucu:</strong>
-              {{
-                exposureTime > 0 && gain > 0
-                  ? 'Tam manuel mod aktif'
-                  : exposureTime > 0
-                    ? 'Poz sabit, gain otomatik'
-                    : gain > 0
-                      ? 'Gain sabit, poz otomatik'
-                      : 'Tam otomatik mod'
-              }}
-            </div>
-          </div>
-
-          <div
-            v-if="!selectedFile"
-            class="relative bg-black rounded-lg aspect-video flex items-center justify-center overflow-hidden border border-gray-300"
-          >
-            <video
-              v-if="mediaStream"
-              ref="videoRef"
-              autoplay
-              playsinline
-              muted
-              class="w-full h-full object-contain"
-            ></video>
-
-            <div v-else class="text-gray-400 flex flex-col items-center">
-              <span v-if="!microscopeError" class="text-3xl mb-2 animate-pulse">📷</span>
-              <span v-if="!microscopeError">Kamera Başlatılıyor...</span>
-            </div>
-
             <div
-              v-if="microscopeError"
-              class="absolute inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-10"
+              class="flex flex-col h-full overflow-hidden"
+              :class="isPiCam ? 'lg:col-span-3' : 'w-full'"
             >
-              <div class="text-center text-red-400">
-                <p class="font-bold">Bağlantı Hatası</p>
-                <p class="text-sm mb-2">{{ microscopeError }}</p>
-                <button
-                  @click="initCameraSystem"
-                  class="text-white underline text-sm hover:text-gray-200"
+              <div
+                class="relative bg-black rounded-lg w-full h-full flex items-center justify-center overflow-hidden border border-gray-300"
+              >
+                <video
+                  v-if="mediaStream"
+                  ref="videoRef"
+                  autoplay
+                  playsinline
+                  muted
+                  class="w-full h-full object-contain"
+                ></video>
+
+                <div v-else class="text-gray-400 flex flex-col items-center">
+                  <span v-if="!microscopeError" class="text-3xl mb-2 animate-pulse">📷</span>
+                  <span v-if="!microscopeError">Kamera Başlatılıyor...</span>
+                </div>
+
+                <div
+                  v-if="microscopeError"
+                  class="absolute inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-10"
                 >
-                  Tekrar Dene
-                </button>
+                  <div class="text-center text-red-400">
+                    <p class="font-bold">Bağlantı Hatası</p>
+                    <p class="text-sm mb-2">{{ microscopeError }}</p>
+                    <button
+                      @click="initCameraSystem"
+                      class="text-white underline text-sm hover:text-gray-200"
+                    >
+                      Tekrar Dene
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="isPiCam" class="lg:col-span-1 h-full flex flex-col min-h-0">
+              <div
+                class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 h-full overflow-y-auto"
+              >
+                <div
+                  class="flex items-center justify-between border-b border-gray-200 pb-2 flex-shrink-0"
+                >
+                  <h4 class="text-sm font-semibold text-gray-700">Ayarlar</h4>
+                  <button
+                    @click="resetCameraSettings"
+                    class="text-xs text-indigo-600 hover:text-indigo-800"
+                  >
+                    Sıfırla
+                  </button>
+                </div>
+                <div class="space-y-4">
+                  <div class="space-y-1">
+                    <div class="flex items-center justify-between">
+                      <label class="text-xs font-medium text-gray-700">Pozlama</label>
+                      <span class="text-xs text-gray-500">{{
+                        exposureTime ? `${exposureTime} μs` : 'Oto'
+                      }}</span>
+                    </div>
+                    <input
+                      type="range"
+                      v-model.number="exposureTime"
+                      min="0"
+                      max="100000"
+                      step="1000"
+                      class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    />
+                  </div>
+                  <div class="space-y-1">
+                    <div class="flex items-center justify-between">
+                      <label class="text-xs font-medium text-gray-700">Gain (ISO)</label>
+                      <span class="text-xs text-gray-500">{{
+                        gain ? `${gain.toFixed(1)}x` : 'Oto'
+                      }}</span>
+                    </div>
+                    <input
+                      type="range"
+                      v-model.number="gain"
+                      min="0"
+                      max="16"
+                      step="0.1"
+                      class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div v-if="!selectedFile" class="flex justify-center">
+          <div class="flex justify-center flex-shrink-0 mt-4">
             <button
               @click="captureFromMicroscope"
-              class="btn btn-primary flex items-center gap-2"
+              class="btn btn-primary flex items-center gap-2 px-6 py-2 shadow-lg hover:scale-105 transition-transform"
               :disabled="!mediaStream && !isPiCam"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                class="h-5 w-5"
+                class="h-6 w-6"
                 viewBox="0 0 20 20"
                 fill="currentColor"
               >
@@ -240,7 +227,7 @@
           </div>
         </div>
 
-        <div v-if="selectedFile" class="mt-4">
+        <div v-if="selectedFile" class="mt-4 overflow-y-auto">
           <div class="relative rounded-lg border border-gray-200 bg-gray-50 p-4">
             <div class="flex items-start space-x-4">
               <div class="flex-shrink-0">
@@ -260,9 +247,7 @@
                 </div>
               </div>
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-gray-900 truncate">
-                  {{ selectedFile.name }}
-                </p>
+                <p class="text-sm font-medium text-gray-900 truncate">{{ selectedFile.name }}</p>
                 <p class="text-sm text-gray-500">
                   {{ (selectedFile.size / 1024 / 1024).toFixed(2) }} MB
                 </p>
@@ -274,7 +259,6 @@
                 </button>
               </div>
             </div>
-
             <div v-if="loading" class="mt-4 w-full bg-gray-200 rounded-full h-2.5">
               <div
                 class="bg-indigo-600 h-2.5 rounded-full transition-all duration-300"
@@ -285,7 +269,9 @@
         </div>
       </div>
 
-      <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
+      <div
+        class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0"
+      >
         <button type="button" @click="handleClose" class="btn btn-outline" :disabled="loading">
           {{ t('image.actions.cancel') }}
         </button>

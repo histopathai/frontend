@@ -1,129 +1,111 @@
 <template>
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm"
     @click.self="$emit('close')"
   >
-    <div class="card w-full max-w-2xl shadow-lg rounded-xl bg-white">
-      <form @submit.prevent="handleSubmit">
-        <div class="card-header px-6 py-4 border-b border-gray-200">
-          <h3 class="text-xl font-semibold text-gray-900">
+    <div class="card w-full max-w-lg shadow-2xl rounded-xl bg-white flex flex-col max-h-[90vh]">
+      <form @submit.prevent="handleSubmit" class="flex flex-col flex-1 min-h-0">
+        <div class="card-header px-6 py-4 border-b border-gray-200 shrink-0">
+          <h3 class="text-xl font-bold text-gray-900">
             {{ t('patient.form.create_title') }}
           </h3>
         </div>
 
-        <div class="card-body p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+        <div class="card-body p-6 space-y-5 overflow-y-auto custom-scrollbar">
           <div>
-            <label for="p-name" class="form-label">{{ t('patient.form.name') }} (*)</label>
+            <label for="p-name" class="block text-sm font-medium text-gray-700 mb-1">
+              {{ t('patient.form.name') }} <span class="text-red-500">*</span>
+            </label>
             <input
               id="p-name"
               type="text"
               v-model="form.name"
-              class="form-input"
+              class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5 border"
               required
               :placeholder="t('patient.form.name_placeholder')"
+              autofocus
             />
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="grid grid-cols-2 gap-4">
             <div>
-              <label for="p-age" class="form-label">{{ t('patient.form.age') }}</label>
+              <label for="p-age" class="block text-sm font-medium text-gray-700 mb-1">
+                {{ t('patient.form.age') }}
+              </label>
               <input
                 id="p-age"
                 type="number"
-                v-model.number="form.age"
-                class="form-input"
+                v-model="form.age"
+                min="0"
+                max="150"
+                class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5 border"
                 :placeholder="t('patient.form.age_placeholder')"
               />
             </div>
+
             <div>
-              <label for="p-gender" class="form-label">{{ t('patient.form.gender') }}</label>
-              <select id="p-gender" v-model="form.gender" class="form-input">
-                <option value="">{{ t('patient.form.gender_placeholder') }}</option>
+              <label for="p-gender" class="block text-sm font-medium text-gray-700 mb-1">
+                {{ t('patient.form.gender') }}
+              </label>
+              <select
+                id="p-gender"
+                v-model="form.gender"
+                class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5 border bg-white"
+              >
+                <option value="" disabled>{{ t('patient.form.gender_placeholder') }}</option>
                 <option value="Male">{{ t('patient.genders.male') }}</option>
                 <option value="Female">{{ t('patient.genders.female') }}</option>
                 <option value="Other">{{ t('patient.genders.other') }}</option>
               </select>
             </div>
-            <div>
-              <label for="p-race" class="form-label">{{ t('patient.form.race') }}</label>
-              <input
-                id="p-race"
-                type="text"
-                v-model="form.race"
-                class="form-input"
-                :placeholder="t('patient.form.race_placeholder')"
-              />
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <template v-if="isClassificationEnabled">
-              <div>
-                <label for="p-disease" class="form-label">{{ t('patient.form.disease') }}</label>
-                <select id="p-disease" v-model="form.disease" class="form-input">
-                  <option value="" disabled>{{ t('patient.form.disease_placeholder') }}</option>
-                  <option value="Karsinom">Karsinom</option>
-                  <option value="Normal">Normal</option>
-                </select>
-              </div>
-
-              <div>
-                <label for="p-subtype" class="form-label">{{ t('patient.form.subtype') }}</label>
-                <select
-                  v-if="subtypeOptions.length > 0"
-                  id="p-subtype"
-                  v-model="form.subtype"
-                  class="form-input"
-                >
-                  <option value="">{{ t('patient.form.subtype_placeholder') }}</option>
-                  <option v-for="opt in subtypeOptions" :key="opt" :value="opt">
-                    {{ opt }}
-                  </option>
-                </select>
-                <input
-                  v-else
-                  id="p-subtype"
-                  type="text"
-                  v-model="form.subtype"
-                  :placeholder="loadingSubtypes ? '...' : t('patient.form.subtype_placeholder')"
-                  class="form-input"
-                />
-              </div>
-            </template>
-
-            <template v-if="isScoreEnabled">
-              <div>
-                <label for="p-grade" class="form-label">{{ t('patient.form.grade') }}</label>
-                <input
-                  id="p-grade"
-                  type="number"
-                  v-model.number="form.grade"
-                  class="form-input"
-                  :placeholder="t('patient.form.grade_placeholder')"
-                />
-              </div>
-            </template>
           </div>
 
           <div>
-            <label for="p-history" class="form-label">{{ t('patient.form.history') }}</label>
+            <label for="p-race" class="block text-sm font-medium text-gray-700 mb-1">
+              {{ t('patient.form.race') }}
+            </label>
+            <input
+              id="p-race"
+              type="text"
+              v-model="form.race"
+              class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5 border"
+              :placeholder="t('patient.form.race_placeholder')"
+            />
+          </div>
+
+          <div>
+            <label for="p-history" class="block text-sm font-medium text-gray-700 mb-1">
+              {{ t('patient.form.history') }}
+            </label>
             <textarea
               id="p-history"
               v-model="form.history"
-              class="form-input"
               rows="3"
+              class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5 border"
               :placeholder="t('patient.form.history_placeholder')"
             ></textarea>
           </div>
         </div>
 
         <div
-          class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 rounded-b-xl"
+          class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 rounded-b-xl shrink-0"
         >
-          <button type="button" @click="$emit('close')" class="btn btn-outline">
+          <button
+            type="button"
+            @click="$emit('close')"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
             {{ t('patient.actions.cancel') }}
           </button>
-          <button type="submit" :disabled="loading" class="btn btn-primary">
+          <button
+            type="submit"
+            :disabled="loading"
+            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center gap-2"
+          >
+            <span
+              v-if="loading"
+              class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"
+            ></span>
             {{ loading ? t('patient.list.loading') : t('patient.actions.create') }}
           </button>
         </div>
@@ -143,13 +125,18 @@ const props = defineProps({
 const emit = defineEmits(['close', 'saved']);
 const { t } = useI18n();
 
-const {
-  form,
-  loading,
-  subtypeOptions,
-  isScoreEnabled,
-  isClassificationEnabled,
-  loadingSubtypes,
-  handleSubmit,
-} = usePatientForm({ workspaceId: props.workspaceId }, emit);
+const { form, loading, handleSubmit } = usePatientForm({ workspaceId: props.workspaceId }, emit);
 </script>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #e5e7eb;
+  border-radius: 20px;
+}
+</style>

@@ -1,28 +1,38 @@
 import { AnnotationType } from '../entities/AnnotationType';
 import type { PaginatedResult, Pagination } from '../types/common';
+import type { TagType } from '../types/tags';
+
 export interface CreateNewAnnotationTypeRequest {
-  creator_id: string;
   name: string;
+  parent_id?: string;
   description?: string;
-  score_enabled: boolean;
-  classification_enabled: boolean;
-  score_name?: string;
-  score_min?: number;
-  score_max?: number;
-  class_list?: string[];
+  color?: string;
+
+  type: TagType | string;
+  options?: string[];
+  global?: boolean;
+  required?: boolean;
+  min?: number;
+  max?: number;
 }
 
 export interface UpdateAnnotationTypeRequest {
   name?: string;
   description?: string;
-  score_name?: string;
-  score_min?: number;
-  score_max?: number;
-  class_list?: string[];
+  parent_id?: string;
+  color?: string;
+
+  type?: TagType | string;
+  options?: string[];
+  global?: boolean;
+  required?: boolean;
+  min?: number;
+  max?: number;
 }
 
-export interface IAnnotationType {
+export interface IAnnotationTypeRepository {
   list(pagination: Pagination): Promise<PaginatedResult<AnnotationType>>;
+  getByParentId(parentId: string, pagination: Pagination): Promise<PaginatedResult<AnnotationType>>;
   getById(id: string): Promise<AnnotationType>;
   create(data: CreateNewAnnotationTypeRequest): Promise<AnnotationType>;
   update(id: string, data: UpdateAnnotationTypeRequest): Promise<void>;

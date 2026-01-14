@@ -3,13 +3,27 @@ import { ref, computed, shallowRef } from 'vue';
 import { repositories } from '@/services';
 import { useToast } from 'vue-toastification';
 import { useI18n } from 'vue-i18n';
-import type { Annotation } from '@/core/entities/Annotation';
+import { Annotation } from '@/core/entities/Annotation';
 import type { CreateNewAnnotationRequest } from '@/core/repositories/IAnnotation';
 import type { Pagination, PaginatedResult } from '@/core/types/common';
 
 // ===========================
 // Types & Interfaces
 // ===========================
+
+interface PendingAnnotation {
+  tempId: string;
+  imageId: string;
+  tag: {
+    tag_type: string;
+    tag_name: string;
+    value: string;
+    color: string;
+    global: boolean;
+  };
+  data?: Array<{ tagName: string; value: string }>;
+  polygon?: Array<{ x: number; y: number }>;
+}
 
 interface AnnotationState {
   annotations: Annotation[];
@@ -35,7 +49,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const { t } = useI18n();
   const toast = useToast();
   const annotationRepo = repositories.annotation;
-  const unsavedAnnotations = ref<any[]>([]);
 
   // ===========================
   // State
@@ -49,13 +62,15 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const actionLoading = ref(false);
   const error = ref<string | null>(null);
   const pagination = ref<Pagination>({
-    limit: 100,
+    limit: 10,
     offset: 0,
     sortBy: 'created_at',
     sortDir: 'desc',
     hasMore: false,
   });
-  const hasUnsavedChanges = computed(() => unsavedAnnotations.value.length > 0);
+
+  // YENİ: Bekleyen (henüz kaydedilmemiş) anotasyonları tutmak için
+  const pendingAnnotations = ref<PendingAnnotation[]>([]);
 
   // ===========================
   // Getters
@@ -70,6 +85,10 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const selectedCount = computed(() => selectedAnnotations.value.size);
   const hasSelection = computed(() => selectedAnnotations.value.size > 0);
 
+  // YENİ: Bekleyen anotasyon sayısı
+  const pendingCount = computed(() => pendingAnnotations.value.length);
+  const hasPendingChanges = computed(() => pendingAnnotations.value.length > 0);
+
   const getAnnotationById = computed(() => {
     return (id: string) => annotations.value.find((ann) => ann.id === id);
   });
@@ -77,54 +96,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const getAnnotationsByImageId = computed(() => {
     return (imageId: string) => annotationsByImage.value.get(imageId) || [];
   });
-
-  const annotationsWithScore = computed(() => {
-    return annotations.value.filter((ann) => ann.hasScore());
-  });
-
-  const annotationsWithClass = computed(() => {
-    return annotations.value.filter((ann) => ann.hasClassification());
-  });
-
-  function addUnsavedAnnotation(annotation: any) {
-    unsavedAnnotations.value.push(annotation);
-  }
-
-  function updateUnsavedAnnotation(tempId: string, data: any) {
-    const index = unsavedAnnotations.value.findIndex((a) => a.tempId === tempId);
-    if (index !== -1) {
-      unsavedAnnotations.value[index] = { ...unsavedAnnotations.value[index], ...data };
-    }
-  }
-
-  function removeUnsavedAnnotation(tempId: string) {
-    const index = unsavedAnnotations.value.findIndex((a) => a.tempId === tempId);
-    if (index !== -1) {
-      unsavedAnnotations.value.splice(index, 1);
-    }
-  }
-
-  async function saveAllPendingAnnotations() {
-    if (unsavedAnnotations.value.length === 0) return;
-
-    actionLoading.value = true;
-    try {
-      for (const annData of unsavedAnnotations.value) {
-        const { tempId, image_id, ...payload } = annData;
-
-        if (image_id) {
-          await createAnnotation(image_id, payload);
-        }
-      }
-
-      unsavedAnnotations.value = [];
-      toast.success(t('annotation.messages.create_success'));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      actionLoading.value = false;
-    }
-  }
 
   // ===========================
   // Helper Functions
@@ -145,7 +116,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
   };
 
   const updateAnnotationInState = (updatedAnnotation: Annotation): void => {
-    // Update in main annotations array
     const index = annotations.value.findIndex((ann) => ann.id === updatedAnnotation.id);
     if (index !== -1) {
       annotations.value = [
@@ -155,8 +125,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
       ];
     }
 
-    // Note: We can't determine imageId from annotation entity directly
-    // So we update in all image-specific annotations where it exists
     annotationsByImage.value.forEach((anns, imageId) => {
       const imgIndex = anns.findIndex((ann) => ann.id === updatedAnnotation.id);
       if (imgIndex !== -1) {
@@ -166,17 +134,13 @@ export const useAnnotationStore = defineStore('annotation', () => {
       }
     });
 
-    // Update current annotation if it matches
     if (currentAnnotation.value?.id === updatedAnnotation.id) {
       currentAnnotation.value = updatedAnnotation;
     }
   };
 
   const removeAnnotationFromState = (annotationId: string, imageId?: string): void => {
-    // Remove from main annotations array
     annotations.value = annotations.value.filter((ann) => ann.id !== annotationId);
-
-    // Remove from image-specific annotations
     if (imageId) {
       const imageAnnotations = annotationsByImage.value.get(imageId);
       if (imageAnnotations) {
@@ -186,7 +150,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
         );
       }
     } else {
-      // Remove from all images if imageId not provided
       annotationsByImage.value.forEach((anns, imgId) => {
         annotationsByImage.value.set(
           imgId,
@@ -195,13 +158,117 @@ export const useAnnotationStore = defineStore('annotation', () => {
       });
     }
 
-    // Clear current annotation if it matches
     if (currentAnnotation.value?.id === annotationId) {
       currentAnnotation.value = null;
     }
 
-    // Remove from selection
     selectedAnnotations.value.delete(annotationId);
+  };
+
+  // ===========================
+  // YENİ: Pending Annotation Functions
+  // ===========================
+
+  /**
+   * Yeni bir geçici (pending) anotasyon ekler
+   */
+  const addPendingAnnotation = (annotation: PendingAnnotation): void => {
+    pendingAnnotations.value.push(annotation);
+  };
+
+  /**
+   * Geçici bir anotasyonu günceller
+   */
+  const updatePendingAnnotation = (tempId: string, updates: Partial<PendingAnnotation>): void => {
+    const index = pendingAnnotations.value.findIndex((a) => a.tempId === tempId);
+    if (index !== -1) {
+      const current = pendingAnnotations.value[index];
+      if (current) {
+        pendingAnnotations.value[index] = {
+          ...current,
+          ...updates,
+        } as PendingAnnotation;
+      }
+    }
+  };
+
+  /**
+   * Geçici bir anotasyonu siler
+   */
+  const removePendingAnnotation = (tempId: string): void => {
+    const index = pendingAnnotations.value.findIndex((a) => a.tempId === tempId);
+    if (index !== -1) {
+      pendingAnnotations.value.splice(index, 1);
+    }
+  };
+
+  /**
+   * Tüm bekleyen anotasyonları temizler
+   */
+  const clearPendingAnnotations = (): void => {
+    pendingAnnotations.value = [];
+  };
+
+  /**
+   * TÜM bekleyen anotasyonları veritabanına kaydeder
+   */
+  const saveAllPendingAnnotations = async (): Promise<boolean> => {
+    if (pendingAnnotations.value.length === 0) {
+      return true;
+    }
+
+    actionLoading.value = true;
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      console.log(`📤 ${pendingAnnotations.value.length} adet annotation kaydediliyor...`);
+
+      for (const pending of pendingAnnotations.value) {
+        try {
+          const createRequest: CreateNewAnnotationRequest = {
+            tag: pending.tag,
+            // YENİ: Varsa data alanını da backend'e gönderiyoruz
+            polygon: pending.polygon as any,
+            parent: {
+              id: pending.imageId,
+              type: 'image',
+            },
+          };
+
+          const responseData = await annotationRepo.create(createRequest);
+          const newAnnotation = Annotation.create(responseData);
+
+          // State'e ekle
+          annotations.value = [newAnnotation, ...annotations.value];
+          const imageAnnotations = annotationsByImage.value.get(pending.imageId) || [];
+          annotationsByImage.value.set(pending.imageId, [newAnnotation, ...imageAnnotations]);
+
+          successCount++;
+        } catch (err: any) {
+          errorCount++;
+          console.error('❌ Annotation kaydetme hatası:', err);
+          handleError(err, `${pending.tag.tag_name} kaydedilemedi`, false);
+        }
+      }
+
+      // Başarılı olanları temizle
+      if (successCount > 0) {
+        clearPendingAnnotations();
+        toast.success(`${successCount} adet annotation başarıyla kaydedildi`);
+      }
+
+      if (errorCount > 0) {
+        toast.warning(`${errorCount} adet annotation kaydedilemedi`);
+      }
+
+      return errorCount === 0;
+    } catch (err: any) {
+      handleError(err, 'Toplu kaydetme sırasında hata oluştu');
+      return false;
+    } finally {
+      actionLoading.value = false;
+    }
   };
 
   // ===========================
@@ -239,8 +306,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
     paginationOptions?: Partial<Pagination>,
     options: FetchOptions = {}
   ): Promise<void> => {
+    console.log('8. [Store] fetchAnnotationsByImage başladı. ID:', imageId);
     const { refresh = false, showToast: showErrorToast = true } = options;
-
     if (loading.value && !refresh) return;
 
     loading.value = true;
@@ -255,26 +322,36 @@ export const useAnnotationStore = defineStore('annotation', () => {
         ...paginationOptions,
       };
 
-      const result: PaginatedResult<Annotation> = await annotationRepo.getByImageId(
-        imageId,
-        paginationParams
-      );
+      const result = await annotationRepo.getByImageId(imageId, paginationParams);
+      console.log('9. [Store] API ham yanıt:', result);
+      const rawData = result?.data || [];
 
-      // Store in image-specific map
-      annotationsByImage.value.set(imageId, result.data);
+      const entityAnnotations = rawData.map((item: any) => {
+        const ann = Annotation.create(item);
+        if (!ann.tag) {
+          console.warn(`⚠️ Annotation ${ann.id} has NO TAG data!`, item);
+        }
+        return ann;
+      });
 
-      // Also update main annotations array
-      annotations.value = result.data;
+      console.groupEnd();
 
-      // Update pagination
+      annotationsByImage.value.set(imageId, entityAnnotations);
+      annotations.value = entityAnnotations;
+
       pagination.value = {
         ...paginationParams,
-        ...result.pagination,
-        hasMore: result.pagination?.hasMore ?? result.data.length === paginationParams.limit,
+        ...(result?.pagination || {}),
+        hasMore: result?.pagination?.hasMore ?? rawData.length === paginationParams.limit,
       };
     } catch (err: any) {
-      handleError(err, t('annotation.messages.fetch_error'), showErrorToast);
-      throw err;
+      console.error('10. [Store] Fetch hatası:', err);
+      if (err.response?.status === 404) {
+        annotations.value = [];
+        annotationsByImage.value.set(imageId, []);
+      } else {
+        handleError(err, t('annotation.messages.fetch_error'), showErrorToast);
+      }
     } finally {
       loading.value = false;
     }
@@ -296,7 +373,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
   const createAnnotation = async (
     imageId: string,
-    data: Omit<CreateNewAnnotationRequest, 'image_id'>
+    data: Omit<CreateNewAnnotationRequest, 'parent'>
   ): Promise<Annotation | null> => {
     actionLoading.value = true;
     resetError();
@@ -304,15 +381,16 @@ export const useAnnotationStore = defineStore('annotation', () => {
     try {
       const createRequest: CreateNewAnnotationRequest = {
         ...data,
-        image_id: imageId,
+        parent: {
+          id: imageId,
+          type: 'image',
+        },
       };
 
-      const newAnnotation = await annotationRepo.create(createRequest);
+      const responseData = await annotationRepo.create(createRequest);
+      const newAnnotation = Annotation.create(responseData);
 
-      // Add to main annotations array
       annotations.value = [newAnnotation, ...annotations.value];
-
-      // Add to image-specific annotations
       const imageAnnotations = annotationsByImage.value.get(imageId) || [];
       annotationsByImage.value.set(imageId, [newAnnotation, ...imageAnnotations]);
 
@@ -339,8 +417,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
     try {
       await annotationRepo.update(annotationId, data);
-
-      // Fetch updated annotation
       const updatedAnnotation = await annotationRepo.getById(annotationId);
 
       if (updatedAnnotation) {
@@ -367,9 +443,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
     try {
       await annotationRepo.delete(annotationId);
-
       removeAnnotationFromState(annotationId, imageId);
-
       toast.success(t('annotation.messages.delete_success'));
       return true;
     } catch (err: any) {
@@ -389,10 +463,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
     try {
       await annotationRepo.batchDelete(annotationIds);
-
-      // Remove all deleted annotations from state
       annotationIds.forEach((id) => removeAnnotationFromState(id, imageId));
-
       toast.success(t('annotation.messages.batch_delete_success'));
       return true;
     } catch (err: any) {
@@ -407,8 +478,15 @@ export const useAnnotationStore = defineStore('annotation', () => {
   // Actions - Selection
   // ===========================
 
-  const selectAnnotation = (annotationId: string): void => {
-    selectedAnnotations.value.add(annotationId);
+  const selectAnnotation = (annotationId: string | null) => {
+    if (!annotationId) {
+      currentAnnotation.value = null;
+      return;
+    }
+    const found = annotations.value.find((a) => a.id === annotationId);
+    if (found) {
+      currentAnnotation.value = found;
+    }
   };
 
   const deselectAnnotation = (annotationId: string): void => {
@@ -496,6 +574,11 @@ export const useAnnotationStore = defineStore('annotation', () => {
     error,
     pagination,
 
+    // YENİ: Pending state
+    pendingAnnotations,
+    pendingCount,
+    hasPendingChanges,
+
     // Getters
     isLoading,
     isActionLoading,
@@ -507,8 +590,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
     hasSelection,
     getAnnotationById,
     getAnnotationsByImageId,
-    annotationsWithScore,
-    annotationsWithClass,
 
     // Actions - Fetch
     fetchAnnotationById,
@@ -542,12 +623,11 @@ export const useAnnotationStore = defineStore('annotation', () => {
     getAnnotationCount,
     resetError,
 
-    // Unsaved Annotations
-    unsavedAnnotations,
-    hasUnsavedChanges,
-    addUnsavedAnnotation,
-    updateUnsavedAnnotation,
-    removeUnsavedAnnotation,
+    // YENİ: Pending annotation actions
+    addPendingAnnotation,
+    updatePendingAnnotation,
+    removePendingAnnotation,
+    clearPendingAnnotations,
     saveAllPendingAnnotations,
   };
 });

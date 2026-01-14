@@ -1,15 +1,18 @@
 export interface PatientProps {
   id: string;
-  creatorId: string;
   workspaceId: string;
+  creatorId: string;
   name: string;
-  age: number | null;
   gender: string | null;
+  birthDate: Date | null;
+  age: number | null;
   race: string | null;
   disease: string | null;
   subtype: string | null;
-  grade: string | null;
+  grade: number | null;
   history: string | null;
+
+  metadata: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,79 +21,97 @@ export class Patient {
   private constructor(private props: PatientProps) {}
 
   static create(data: any): Patient {
+    const {
+      id,
+      workspace_id,
+      creator_id,
+      name,
+      gender,
+      birth_date,
+      age,
+      race,
+      disease,
+      subtype,
+      grade,
+      history,
+      created_at,
+      updated_at,
+      ...rest
+    } = data;
+
     return new Patient({
-      id: data.id,
-      creatorId: data.creator_id,
-      workspaceId: data.workspace_id,
-      name: data.name,
-      age: data.age ?? null,
-      gender: data.gender ?? null,
-      race: data.race ?? null,
-      disease: data.disease ?? null,
-      subtype: data.subtype ?? null,
-      grade: data.grade ?? null,
-      history: data.history ?? null,
-      createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,
-      updatedAt: typeof data.updated_at === 'string' ? new Date(data.updated_at) : data.updated_at,
+      id,
+      workspaceId: workspace_id,
+      creatorId: creator_id,
+      name,
+      gender: gender ?? null,
+      birthDate: birth_date ? new Date(birth_date) : null,
+      age: age ?? null,
+      race: race ?? null,
+      disease: disease ?? null,
+      subtype: subtype ?? null,
+      grade: grade ?? null,
+      history: history ?? null,
+
+      metadata: rest || {},
+
+      createdAt: typeof created_at === 'string' ? new Date(created_at) : created_at,
+      updatedAt: typeof updated_at === 'string' ? new Date(updated_at) : updated_at,
     });
   }
 
   get id(): string {
     return this.props.id;
   }
-  get creatorId(): string {
-    return this.props.creatorId;
-  }
-
   get workspaceId(): string {
     return this.props.workspaceId;
   }
-
+  get creatorId(): string {
+    return this.props.creatorId;
+  }
   get name(): string {
     return this.props.name;
+  }
+  get gender(): string | null {
+    return this.props.gender;
+  }
+  get birthDate(): Date | null {
+    return this.props.birthDate;
   }
 
   get age(): number | null {
     return this.props.age;
   }
-
-  get gender(): string | null {
-    return this.props.gender;
-  }
   get race(): string | null {
     return this.props.race;
   }
-
   get disease(): string | null {
     return this.props.disease;
   }
-
   get subtype(): string | null {
     return this.props.subtype;
   }
-
-  get grade(): string | null {
+  get grade(): number | null {
     return this.props.grade;
   }
-
   get history(): string | null {
     return this.props.history;
   }
 
+  get metadata(): Record<string, any> {
+    return this.props.metadata;
+  }
   get createdAt(): Date {
     return this.props.createdAt;
   }
-
   get updatedAt(): Date {
     return this.props.updatedAt;
   }
 
-  // Business logic
-  hasDemographics(): boolean {
-    return this.age !== null || this.gender !== null || this.race !== null;
-  }
-
   toJSON() {
-    return { ...this.props };
+    return {
+      ...this.props,
+      ...this.props.metadata,
+    };
   }
 }

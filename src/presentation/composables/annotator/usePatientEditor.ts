@@ -9,6 +9,7 @@ export function usePatientEditor(patient: Ref<Patient | null>) {
 
   const age = ref<number | undefined>();
   const gender = ref<string | undefined>();
+  const race = ref<string | undefined>('');
   const disease = ref<string | undefined>();
   const subtype = ref<string | undefined>();
   const grade = ref<number | undefined>();
@@ -35,6 +36,7 @@ export function usePatientEditor(patient: Ref<Patient | null>) {
     const payload: UpdatePatientRequest = {
       age: age.value,
       gender: gender.value,
+      race: race.value,
       disease: disease.value,
       subtype: subtype.value,
       grade: grade.value,
@@ -48,6 +50,7 @@ export function usePatientEditor(patient: Ref<Patient | null>) {
     loading,
     age,
     gender,
+    race,
     disease,
     subtype,
     grade,

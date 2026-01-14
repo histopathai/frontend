@@ -242,7 +242,6 @@ import { usePasswordChange } from '@/presentation/composables/auth/userPasswordC
 const authStore = useAuthStore();
 const user = computed(() => authStore.user);
 
-// Şifre görünürlük durumları
 const showCurrentPassword = ref(false);
 const showNewPassword = ref(false);
 const showConfirmNewPassword = ref(false);
