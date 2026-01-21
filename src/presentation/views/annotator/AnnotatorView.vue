@@ -21,8 +21,12 @@
         :patient="selectedPatient"
         :image="selectedImage"
         :is-drawing-mode="isDrawingMode"
+        :current-index="selectedImageIndex"
+        :total-count="totalImagesCount"
         @start-drawing="handleStartDrawing"
         @stop-drawing="handleStopDrawing"
+        @prev="prevImage"
+        @next="nextImage"
       />
 
       <div class="flex-1 w-full overflow-hidden relative group">
@@ -38,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useAnnotatorNavigation } from '@/presentation/composables/annotator/useAnnotatorNavigation';
 import AnnotatorSidebar from '@/presentation/components/annotator/AnnotatorSidebar.vue';
 import PatientMetadataBar from '@/presentation/components/annotator/PatientMetadataBar.vue';
@@ -54,6 +58,7 @@ const {
   selectedImageId,
   selectedPatient,
   selectedImage,
+  selectedImageIndex,
   selectWorkspace,
   selectPatient,
   selectImage,
@@ -61,6 +66,8 @@ const {
   prevImage,
   loadMorePatients,
 } = useAnnotatorNavigation();
+
+const totalImagesCount = computed(() => currentImages.value.length);
 
 const isDrawingMode = ref(false);
 const viewerRef = ref<InstanceType<typeof Viewer> | null>(null);

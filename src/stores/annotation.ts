@@ -7,10 +7,6 @@ import { Annotation } from '@/core/entities/Annotation';
 import type { CreateNewAnnotationRequest } from '@/core/repositories/IAnnotation';
 import type { Pagination, PaginatedResult } from '@/core/types/common';
 
-// ===========================
-// Types & Interfaces
-// ===========================
-
 interface PendingAnnotation {
   tempId: string;
   imageId: string;
@@ -41,19 +37,10 @@ interface FetchOptions {
   showToast?: boolean;
 }
 
-// ===========================
-// Store Definition
-// ===========================
-
 export const useAnnotationStore = defineStore('annotation', () => {
   const { t } = useI18n();
   const toast = useToast();
   const annotationRepo = repositories.annotation;
-
-  // ===========================
-  // State
-  // ===========================
-
   const annotations = shallowRef<Annotation[]>([]);
   const annotationsByImage = ref<Map<string, Annotation[]>>(new Map());
   const currentAnnotation = ref<Annotation | null>(null);
@@ -69,13 +56,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
     hasMore: false,
   });
 
-  // YENİ: Bekleyen (henüz kaydedilmemiş) anotasyonları tutmak için
   const pendingAnnotations = ref<PendingAnnotation[]>([]);
-
-  // ===========================
-  // Getters
-  // ===========================
-
   const isLoading = computed(() => loading.value);
   const isActionLoading = computed(() => actionLoading.value);
   const hasError = computed(() => !!error.value);
@@ -84,8 +65,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const hasMore = computed(() => pagination.value.hasMore ?? false);
   const selectedCount = computed(() => selectedAnnotations.value.size);
   const hasSelection = computed(() => selectedAnnotations.value.size > 0);
-
-  // YENİ: Bekleyen anotasyon sayısı
   const pendingCount = computed(() => pendingAnnotations.value.length);
   const hasPendingChanges = computed(() => pendingAnnotations.value.length > 0);
 
@@ -96,10 +75,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const getAnnotationsByImageId = computed(() => {
     return (imageId: string) => annotationsByImage.value.get(imageId) || [];
   });
-
-  // ===========================
-  // Helper Functions
-  // ===========================
 
   const handleError = (err: any, defaultMessage: string, showToast = true): void => {
     const errorMessage = err.response?.data?.message || err.message || defaultMessage;
@@ -165,20 +140,10 @@ export const useAnnotationStore = defineStore('annotation', () => {
     selectedAnnotations.value.delete(annotationId);
   };
 
-  // ===========================
-  // YENİ: Pending Annotation Functions
-  // ===========================
-
-  /**
-   * Yeni bir geçici (pending) anotasyon ekler
-   */
   const addPendingAnnotation = (annotation: PendingAnnotation): void => {
     pendingAnnotations.value.push(annotation);
   };
 
-  /**
-   * Geçici bir anotasyonu günceller
-   */
   const updatePendingAnnotation = (tempId: string, updates: Partial<PendingAnnotation>): void => {
     const index = pendingAnnotations.value.findIndex((a) => a.tempId === tempId);
     if (index !== -1) {
@@ -192,9 +157,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
     }
   };
 
-  /**
-   * Geçici bir anotasyonu siler
-   */
   const removePendingAnnotation = (tempId: string): void => {
     const index = pendingAnnotations.value.findIndex((a) => a.tempId === tempId);
     if (index !== -1) {
@@ -202,16 +164,10 @@ export const useAnnotationStore = defineStore('annotation', () => {
     }
   };
 
-  /**
-   * Tüm bekleyen anotasyonları temizler
-   */
   const clearPendingAnnotations = (): void => {
     pendingAnnotations.value = [];
   };
 
-  /**
-   * TÜM bekleyen anotasyonları veritabanına kaydeder
-   */
   const saveAllPendingAnnotations = async (): Promise<boolean> => {
     if (pendingAnnotations.value.length === 0) {
       return true;
@@ -226,7 +182,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
         try {
           const createRequest: CreateNewAnnotationRequest = {
             tag: pending.tag,
-            // YENİ: Varsa data alanını da backend'e gönderiyoruz
             polygon: pending.polygon as any,
             parent: {
               id: pending.imageId,
@@ -237,7 +192,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
           const responseData = await annotationRepo.create(createRequest);
           const newAnnotation = Annotation.create(responseData);
 
-          // State'e ekle
           annotations.value = [newAnnotation, ...annotations.value];
           const imageAnnotations = annotationsByImage.value.get(pending.imageId) || [];
           annotationsByImage.value.set(pending.imageId, [newAnnotation, ...imageAnnotations]);
@@ -249,8 +203,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
           handleError(err, `${pending.tag.tag_name} kaydedilemedi`, false);
         }
       }
-
-      // Başarılı olanları temizle
       if (successCount > 0) {
         clearPendingAnnotations();
         toast.success(`${successCount} adet annotation başarıyla kaydedildi`);
@@ -268,10 +220,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
       actionLoading.value = false;
     }
   };
-
-  // ===========================
-  // Actions - Fetch
-  // ===========================
 
   const fetchAnnotationById = async (
     annotationId: string,
@@ -363,10 +311,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
     });
   };
 
-  // ===========================
-  // Actions - Create
-  // ===========================
-
   const createAnnotation = async (
     imageId: string,
     data: Omit<CreateNewAnnotationRequest, 'parent'>
@@ -400,10 +344,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
     }
   };
 
-  // ===========================
-  // Actions - Update
-  // ===========================
-
   const updateAnnotation = async (
     annotationId: string,
     data: Partial<Omit<CreateNewAnnotationRequest, 'image_id' | 'annotator_id'>>
@@ -428,10 +368,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
       actionLoading.value = false;
     }
   };
-
-  // ===========================
-  // Actions - Delete
-  // ===========================
 
   const deleteAnnotation = async (annotationId: string, imageId: string): Promise<boolean> => {
     actionLoading.value = true;
@@ -469,10 +405,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
       actionLoading.value = false;
     }
   };
-
-  // ===========================
-  // Actions - Selection
-  // ===========================
 
   const selectAnnotation = (annotationId: string | null) => {
     if (!annotationId) {
@@ -518,10 +450,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
     return success;
   };
 
-  // ===========================
-  // Actions - Utility
-  // ===========================
-
   const setCurrentAnnotation = (annotation: Annotation | null): void => {
     currentAnnotation.value = annotation;
   };
@@ -555,10 +483,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
     }
   };
 
-  // ===========================
-  // Return
-  // ===========================
-
   return {
     // State
     annotations,
@@ -570,7 +494,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
     error,
     pagination,
 
-    // YENİ: Pending state
     pendingAnnotations,
     pendingCount,
     hasPendingChanges,
@@ -619,7 +542,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
     getAnnotationCount,
     resetError,
 
-    // YENİ: Pending annotation actions
     addPendingAnnotation,
     updatePendingAnnotation,
     removePendingAnnotation,

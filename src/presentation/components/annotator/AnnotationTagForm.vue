@@ -88,13 +88,12 @@ import type { AnnotationType } from '@/core/entities/AnnotationType';
 
 const props = defineProps<{
   annotationTypes: AnnotationType[];
-  modelValue: Record<string, any>; // Key: AnnotationType.id, Value: value
+  modelValue: Record<string, any>;
 }>();
 
 const emit = defineEmits(['update:modelValue', 'save']);
 
 function updateValue(typeId: string, value: any) {
-  // Mevcut değerleri kopyala ve yeni değeri güncelle
   const newValues = { ...props.modelValue, [typeId]: value };
   emit('update:modelValue', newValues);
 }
@@ -113,15 +112,13 @@ function handleMultiSelect(typeId: string, option: string, isChecked: boolean) {
 }
 
 function handleSave() {
-  // Form verilerini (Record) Event payload formatına (Array) çevir
   const results = props.annotationTypes
     .map((type) => {
       const val = props.modelValue[type.id];
-      // Boş veya undefined değerleri filtrele (0 ve false geçerli değerlerdir)
       if (val === undefined || val === null || val === '') return null;
 
       return {
-        type: type, // Tip bilgisini komple gönderiyoruz (Name, Type vb. için)
+        type: type,
         value: val,
       };
     })

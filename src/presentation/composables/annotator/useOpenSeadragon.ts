@@ -99,19 +99,13 @@ export function useOpenSeadragon(viewerId: string) {
     });
   }
 
-  /**
-   * Gerçek (DB'den gelen) anotasyonları yükler
-   */
   async function loadAnnotations(imageId: string) {
     if (!anno.value) {
       return;
     }
 
-    // Mevcut çizimleri temizle
     anno.value.clearAnnotations();
 
-    // --- YENİ EKLENEN KISIM: Race Condition Çözümü ---
-    // Eğer store o sırada başka bir işlem yapıyorsa (loading=true), işlemin bitmesini bekle.
     if (annotationStore.isLoading) {
       await new Promise<void>((resolve) => {
         const stopWatching = watch(
@@ -125,17 +119,11 @@ export function useOpenSeadragon(viewerId: string) {
         );
       });
     }
-    // ------------------------------------------------
 
     try {
-      // Store'dan veriyi çek (veya zaten çekildiyse store state'ini güncelle)
       await annotationStore.fetchAnnotationsByImage(imageId, undefined, { showToast: false });
 
       const annotations = annotationStore.annotations;
-
-      // LOG 6: Store'dan dönen veri sayısı
-
-      // Gerçek anotasyonları W3C formatına çevir
       const w3cAnnotations = annotations
         .map((ann) => {
           if (!ann.polygon || ann.polygon.length === 0) return null;
@@ -163,26 +151,20 @@ export function useOpenSeadragon(viewerId: string) {
         })
         .filter((ann) => ann !== null);
 
-      // Gerçek anotasyonları ekle
       if (w3cAnnotations.length > 0) {
         anno.value.setAnnotations(w3cAnnotations);
       } else {
       }
 
-      // Pending (kaydedilmemiş) anotasyonları da yükle
       await loadPendingAnnotations(imageId);
     } catch (e) {
       console.warn('Anotasyonlar yüklenirken bir sorun oluştu:', e);
     }
   }
 
-  /**
-   * Pending (henüz kaydedilmemiş) anotasyonları yükler
-   */
   async function loadPendingAnnotations(imageId: string) {
     if (!anno.value) return;
 
-    // Bu görüntüye ait pending anotasyonları filtrele
     const pendingForThisImage = annotationStore.pendingAnnotations.filter(
       (p) => p.imageId === imageId
     );
@@ -191,7 +173,6 @@ export function useOpenSeadragon(viewerId: string) {
       return;
     }
 
-    // Her pending anotasyonu UI'a ekle
     pendingForThisImage.forEach((pending) => {
       if (!pending.polygon || pending.polygon.length === 0) return;
 
@@ -224,11 +205,9 @@ export function useOpenSeadragon(viewerId: string) {
     currentImageId.value = image.id;
 
     viewer.value.addHandler('open', async () => {
-      // LOG 3: OSD "open" eventi fırlattı
-
       if (currentImageId.value !== image.id) return;
 
-      await loadAnnotations(image.id); // <--- Anotasyonları çağıran yer
+      await loadAnnotations(image.id);
       loading.value = false;
     });
 

@@ -26,13 +26,16 @@ export class PatientRepository implements IPatientRepository {
     workspaceId: string,
     pagination: Pagination
   ): Promise<PaginatedResult<Patient>> {
+    const { limit, offset, sortBy, sortDir, hasMore, ...extraParams } = pagination;
+
     const response = await this.apiClient.get<any>(
       `/api/v1/proxy/workspaces/${workspaceId}/patients`,
       {
-        limit: pagination.limit,
-        offset: pagination.offset,
-        sort_by: pagination.sortBy,
-        sort_dir: pagination.sortDir,
+        limit: limit,
+        offset: offset,
+        sort_by: sortBy,
+        sort_dir: sortDir,
+        ...extraParams,
       }
     );
 

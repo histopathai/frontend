@@ -1,4 +1,3 @@
-// src/core/entities/Annotation.ts
 import { Point } from '../value-objects/Point';
 import type { TagValue } from '@/core/types/tags';
 
@@ -71,7 +70,6 @@ export class Annotation {
     }
 
     const normalizedData = (data.data || []).map((item: any) => ({
-      // item.tagName yoksa tag_name, name veya label alanlarına bak
       tagName: item.tagName || item.tag_name || item.name || item.label || 'Bilinmeyen',
       value: item.value || item.tag_value,
     }));

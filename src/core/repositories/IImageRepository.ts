@@ -23,7 +23,7 @@ export interface UploadImageParams {
   payload: ImageUploadPayload;
   contentType?: string;
   file: File;
-  onUploadProgress?: OnUploadProgress; // Optional progress callback to track upload progress
+  onUploadProgress?: OnUploadProgress;
 }
 
 export interface IImageRepository {

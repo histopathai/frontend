@@ -107,7 +107,6 @@ export class User {
     return '?';
   }
 
-  // Serialization
   toJSON() {
     return {
       userId: this.userId,

@@ -86,7 +86,6 @@ export class Workspace {
     return this.props.updatedAt;
   }
 
-  // Business logic
   hasAnnotationType(): boolean {
     return this.annotationTypeIds.length > 0;
   }

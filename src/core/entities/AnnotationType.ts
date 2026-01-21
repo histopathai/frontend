@@ -43,12 +43,11 @@ export class AnnotationType {
       };
     }
 
-    // Backend'den gelebilecek farklı isimlendirmeleri kontrol ediyoruz
     const resolvedName = data.name || data.tag_name || data.tagName || 'İsimsiz Tip';
     const resolvedType = data.type || data.tag_type || data.tagType || 'TEXT';
 
     const props: AnnotationTypeProps = {
-      id: String(data.id), // ID'yi string'e çevirmeyi garantiye alalım
+      id: String(data.id),
       creatorId: data.creator_id || data.creatorId || '',
 
       name: resolvedName,
