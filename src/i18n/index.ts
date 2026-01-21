@@ -37,5 +37,4 @@ export const i18n = createI18n({
   globalInjection: true,
 });
 
-// Export a typed version of the global t function
 export type MessageSchema = typeof messages;

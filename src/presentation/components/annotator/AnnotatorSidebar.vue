@@ -2,21 +2,102 @@
   <div
     class="flex flex-col h-full bg-white border-r border-gray-200 shadow-[2px_0_8px_rgba(0,0,0,0.02)]"
   >
-    <div class="p-4 border-b border-gray-200 bg-gray-50/50">
-      <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-        Çalışma Alanı
-      </label>
-      <div class="relative group">
-        <select
-          :value="selectedWorkspaceId"
-          @change="onWorkspaceChange"
-          class="block w-full pl-3 pr-10 py-2.5 text-sm bg-white border border-gray-300 text-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm transition-all cursor-pointer hover:border-indigo-300"
+    <div class="p-4 border-b border-gray-200 bg-gray-50/50 space-y-3">
+      <div>
+        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+          Çalışma Alanı
+        </label>
+        <div class="relative group">
+          <select
+            :value="selectedWorkspaceId"
+            @change="onWorkspaceChange"
+            class="appearance-none block w-full pl-3 pr-8 py-2 text-xs bg-white border border-gray-300 text-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm transition-all cursor-pointer hover:border-indigo-300"
+          >
+            <option :value="undefined" disabled>Seçiniz...</option>
+            <option v-for="ws in workspaces" :key="ws.id" :value="ws.id">
+              {{ ws.name }}
+            </option>
+          </select>
+          <div
+            class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500"
+          >
+            <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="selectedWorkspaceId">
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg
+              class="h-3.5 w-3.5 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+          <input
+            type="text"
+            v-model="searchQuery"
+            placeholder="Listede ara..."
+            class="block w-full pl-9 pr-8 py-2 text-xs border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+          />
+          <button
+            v-if="searchQuery"
+            @click="searchQuery = ''"
+            class="absolute inset-y-0 right-0 pr-2 flex items-center text-gray-400 hover:text-gray-600 cursor-pointer"
+          >
+            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fill-rule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div v-if="searchQuery && hasMoreData && !isLoadingAll" class="mt-2">
+          <button
+            @click="loadAllData"
+            class="w-full text-[10px] bg-indigo-50 text-indigo-700 py-1.5 rounded border border-indigo-100 hover:bg-indigo-100 transition flex items-center justify-center gap-1 group"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-3 w-3 group-hover:animate-bounce"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            Aradığınız kişi yüklenmemiş olabilir. <strong>Hepsini Yükle</strong>
+          </button>
+        </div>
+
+        <div
+          v-if="isLoadingAll"
+          class="mt-2 text-[10px] text-indigo-600 flex items-center justify-center bg-indigo-50 py-1.5 rounded animate-pulse border border-indigo-100"
         >
-          <option :value="undefined" disabled>Bir Veri Seti Seçin...</option>
-          <option v-for="ws in workspaces" :key="ws.id" :value="ws.id">
-            {{ ws.name }}
-          </option>
-        </select>
+          <span>Verisetinin tamamı taranıyor...</span>
+        </div>
       </div>
     </div>
 
@@ -33,35 +114,25 @@
 
       <div
         v-else-if="!selectedWorkspaceId"
-        class="flex flex-col items-center justify-center h-64 text-center px-6 text-gray-400"
+        class="flex flex-col items-center justify-center h-48 text-center px-6 text-gray-400"
       >
-        <div class="bg-gray-50 p-4 rounded-full mb-3">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-8 w-8 text-gray-300"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="1.5"
-              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-            />
-          </svg>
-        </div>
-        <p class="text-sm font-medium text-gray-500">Veri Seti Seçilmedi</p>
-        <p class="text-xs mt-1">İşlem yapmak için yukarıdan seçim yapın.</p>
+        <p class="text-xs font-medium text-gray-500">Veri Seti Seçilmedi</p>
       </div>
 
       <div v-else class="py-2">
-        <div v-if="patients.length === 0" class="p-6 text-center text-gray-400 text-sm italic">
-          Kayıtlı hasta bulunamadı.
+        <div
+          v-if="filteredPatients.length === 0"
+          class="p-6 text-center text-gray-400 text-xs italic"
+        >
+          <span v-if="searchQuery">
+            "{{ searchQuery }}" bulunamadı.
+            <br />
+          </span>
+          <span v-else>Kayıtlı hasta bulunamadı.</span>
         </div>
 
         <div
-          v-for="patient in sortedPatients"
+          v-for="patient in filteredPatients"
           :key="patient.id"
           class="border-b border-gray-50 last:border-0"
         >
@@ -81,12 +152,12 @@
                 :class="
                   isSelected(patient.id)
                     ? 'bg-indigo-100 text-indigo-600'
-                    : 'bg-gray-100 text-gray-500 group-hover:bg-white group-hover:shadow-sm'
+                    : 'bg-gray-100 text-gray-500 group-hover:bg-white'
                 "
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4"
+                  class="h-3.5 w-3.5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -95,19 +166,18 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     stroke-width="2"
-                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                   />
                 </svg>
               </div>
-
               <div class="flex flex-col min-w-0">
                 <span
-                  class="text-sm font-medium text-gray-700 truncate"
+                  class="text-xs font-medium text-gray-700 truncate"
                   :class="{ 'text-indigo-700': isSelected(patient.id) }"
                 >
                   {{ patient.name }}
                 </span>
-                <span v-if="isSelected(patient.id)" class="text-[10px] text-gray-500">
+                <span v-if="isSelected(patient.id)" class="text-[10px] text-gray-400">
                   {{ images.length }} Görüntü
                 </span>
               </div>
@@ -115,7 +185,7 @@
 
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              class="h-4 w-4 text-gray-400 transition-transform duration-300"
+              class="h-3.5 w-3.5 text-gray-400 transition-transform duration-300"
               :class="{ 'rotate-90 text-indigo-500': isSelected(patient.id) }"
               fill="none"
               viewBox="0 0 24 24"
@@ -140,23 +210,19 @@
           >
             <div v-if="isSelected(patient.id)" class="overflow-hidden bg-gray-50/50 shadow-inner">
               <ul class="py-2 pl-4 pr-2 space-y-1">
-                <li
-                  v-if="images.length === 0"
-                  class="py-3 pl-8 text-xs text-gray-400 italic flex items-center"
-                >
-                  <span class="w-1.5 h-1.5 bg-gray-300 rounded-full mr-2"></span>
+                <li v-if="images.length === 0" class="py-2 pl-9 text-xs text-gray-400 italic">
                   Görüntü bulunamadı
                 </li>
 
                 <li
-                  v-for="image in sortedImages"
+                  v-for="image in images"
                   :key="image.id"
                   @click="$emit('image-selected', image)"
                   class="relative group flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all border"
                   :class="getImageClasses(image)"
                 >
                   <div
-                    class="h-10 w-10 flex-shrink-0 rounded bg-gray-200 overflow-hidden border border-gray-200 relative"
+                    class="h-9 w-9 flex-shrink-0 rounded bg-gray-200 overflow-hidden border border-gray-200 relative"
                   >
                     <img
                       :src="getThumbnailUrl(image)"
@@ -168,51 +234,29 @@
                       v-if="!image.processedpath"
                       class="absolute inset-0 bg-black/10 flex items-center justify-center"
                     >
-                      <div class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                      <div class="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></div>
                     </div>
                   </div>
 
                   <div class="min-w-0 flex-1">
                     <p
-                      class="text-xs font-medium truncate transition-colors"
+                      class="text-[11px] font-medium truncate"
                       :class="image.id === selectedImageId ? 'text-indigo-700' : 'text-gray-700'"
                     >
                       {{ image.name }}
                     </p>
-                    <div class="flex items-center mt-0.5 gap-2">
-                      <span
-                        v-if="image.width"
-                        class="text-[10px] text-gray-400 bg-gray-100 px-1 rounded"
-                      >
-                        {{ image.width }}x{{ image.height }}
-                      </span>
-                      <span v-else class="text-[10px] text-yellow-600 flex items-center">
-                        <svg
-                          class="w-2 h-2 mr-1 animate-spin"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                          />
-                        </svg>
-                        İşleniyor
-                      </span>
-                    </div>
+                    <span class="text-[9px] text-gray-400 block" v-if="image.width"
+                      >{{ image.width }}x{{ image.height }}</span
+                    >
                   </div>
 
                   <div
                     v-if="image.id !== selectedImageId && annotatedImageSet.has(image.id)"
-                    class="absolute right-2 flex items-center justify-center w-5 h-5 bg-emerald-100 rounded-full shadow-sm"
-                    title="Anotasyon içeriyor"
+                    class="absolute right-2 flex items-center justify-center w-4 h-4 bg-emerald-100 rounded-full shadow-sm"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      class="h-3 w-3 text-emerald-600"
+                      class="h-2.5 w-2.5 text-emerald-600"
                       viewBox="0 0 20 20"
                       fill="currentColor"
                     >
@@ -226,7 +270,7 @@
 
                   <div
                     v-if="image.id === selectedImageId"
-                    class="absolute right-2 w-2 h-2 rounded-full bg-indigo-500 shadow-sm ring-2 ring-indigo-100"
+                    class="absolute right-2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-sm"
                   ></div>
                 </li>
               </ul>
@@ -236,10 +280,10 @@
 
         <div
           v-if="loading && patients.length > 0"
-          class="py-3 text-center text-xs text-gray-400 flex items-center justify-center gap-2"
+          class="py-3 text-center text-[10px] text-gray-400 flex items-center justify-center gap-2"
         >
-          <div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-          Daha fazla yükleniyor...
+          <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse"></div>
+          Yükleniyor...
         </div>
       </div>
     </div>
@@ -269,16 +313,16 @@ import type { Image } from '@/core/entities/Image';
 import type { AnnotationType } from '@/core/entities/AnnotationType';
 import AnnotationTagForm from './AnnotationTagForm.vue';
 import { useAnnotationStore } from '@/stores/annotation';
-import { useAuthStore } from '@/stores/auth'; // Auth Store Eklendi
+import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
+import { ApiClient } from '@/infrastructure/api/ApiClient';
+import { usePatientStore } from '@/stores/patient';
 
-// Props
 const props = defineProps({
   workspaces: { type: Array as PropType<Workspace[]>, required: true },
   patients: { type: Array as PropType<Patient[]>, required: true },
   images: { type: Array as PropType<Image[]>, required: true },
   annotationTypes: { type: Array as PropType<AnnotationType[]>, default: () => [] },
-
   selectedWorkspaceId: String,
   selectedPatientId: String,
   selectedImageId: String,
@@ -289,40 +333,48 @@ const emit = defineEmits(['workspace-selected', 'patient-selected', 'image-selec
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const annotationStore = useAnnotationStore();
-const authStore = useAuthStore(); // Auth Store instance
+const authStore = useAuthStore();
+const patientStore = usePatientStore();
 const toast = useToast();
+const apiClient = new ApiClient(API_BASE_URL);
 
+const searchQuery = ref('');
+const isLoadingAll = ref(false);
 const globalFormValues = ref<Record<string, any>>({});
-// Reaktif bir Set yerine ref(Set) kullanarak value değişiminde reaktiviteyi tetikliyoruz
 const annotatedImageSet = ref(new Set<string>());
 
-// --- SIRALAMA İŞLEMLERİ (Numeric ve Alfabetik) ---
-
-// 1. Hastaları Sırala
-const sortedPatients = computed(() => {
-  return [...props.patients].sort((a, b) => {
-    const nameA = a.name || '';
-    const nameB = b.name || '';
-    return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
-  });
+const filteredPatients = computed(() => {
+  if (!searchQuery.value) return props.patients;
+  const lowerQuery = searchQuery.value.toLocaleLowerCase('tr');
+  return props.patients.filter((p) => p.name?.toLocaleLowerCase('tr').includes(lowerQuery));
 });
 
-// 2. Görüntüleri Sırala
-const sortedImages = computed(() => {
-  return [...props.images].sort((a, b) => {
-    const nameA = a.name || '';
-    const nameB = b.name || '';
-    return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
-  });
-});
+const hasMoreData = computed(() => patientStore.pagination.hasMore);
 
-const globalAnnotationTypes = computed(() => {
-  return props.annotationTypes.filter((t) => t.global === true);
-});
+async function loadAllData() {
+  if (!props.selectedWorkspaceId || isLoadingAll.value) return;
 
-// --- YEŞİL ARKA PLAN VE ANOTASYON KONTROL MANTIĞI ---
+  isLoadingAll.value = true;
+  toast.info('Tüm liste taranıyor, bu işlem biraz sürebilir...', { timeout: 3000 });
 
-// 1. Görüntüler değiştiğinde (Hasta klasörü açıldığında) backend'e sor
+  try {
+    while (patientStore.pagination.hasMore) {
+      await patientStore.loadMorePatients(props.selectedWorkspaceId);
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    toast.success('Tüm kayıtlar yüklendi.');
+  } catch (error) {
+    console.error(error);
+    toast.error('Veri yüklenirken hata oluştu.');
+  } finally {
+    isLoadingAll.value = false;
+  }
+}
+
+const globalAnnotationTypes = computed(() =>
+  props.annotationTypes.filter((t) => t.global === true)
+);
+
 watch(
   () => props.images,
   async (newImages) => {
@@ -330,97 +382,47 @@ watch(
       annotatedImageSet.value = new Set();
       return;
     }
+    if (!authStore.token && !localStorage.getItem('token')) return;
 
-    // Token'ı güvenli şekilde Store'dan alıyoruz
-    const token = authStore.token || localStorage.getItem('token');
-    if (!token) {
-      // Token yoksa sessizce çık, set'i temizle
-      annotatedImageSet.value = new Set();
-      return;
-    }
-
-    // Geçici bir Set oluştur, API sonuçlarını buraya doldur
     const tempSet = new Set<string>();
-
-    // Eğer hali hazırda seçili bir resim varsa ve Store'da onun anotasyonları yüklüyse,
-    // API cevabını beklemeden onu "var" olarak işaretle. Bu kullanıcı deneyimini hızlandırır.
-    if (
-      props.selectedImageId &&
-      annotationStore.annotations &&
-      annotationStore.annotations.length > 0
-    ) {
-      // Sadece seçili resmin anotasyonları store'da olur
+    if (props.selectedImageId && annotationStore.annotations.length > 0) {
       tempSet.add(props.selectedImageId);
     }
 
     const promises = newImages.map(async (img) => {
-      // Zaten store'dan bildiğimiz resim için tekrar istek atma
       if (tempSet.has(img.id)) return img.id;
-
       try {
-        // Limit 1 yeterli, sadece var mı yok mu bakıyoruz
-        const url = `${API_BASE_URL}/api/v1/proxy/annotations/image/${img.id}?limit=1`;
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          if (result.data && Array.isArray(result.data) && result.data.length > 0) {
-            return img.id;
-          }
+        const result = await apiClient.get<{ data: any[] }>(
+          `/api/v1/proxy/annotations/image/${img.id}?limit=1`
+        );
+        if (result && result.data && Array.isArray(result.data) && result.data.length > 0) {
+          return img.id;
         }
-      } catch (e) {
-        // Hata durumunda yoksay
-      }
+      } catch (e) {}
       return null;
     });
 
-    // İstekleri bekle
     const results = await Promise.all(promises);
-
-    // Sonuçları sete ekle
     results.forEach((id) => {
       if (id) tempSet.add(id);
     });
-
-    // Ana referansı güncelle (Vue reaktivitesini tetikler)
     annotatedImageSet.value = tempSet;
   },
-  { immediate: true } // Component mount edildiğinde de çalışır
+  { immediate: true }
 );
 
-// 2. Kullanıcı çizim yaparken/silerken anlık güncelleme (Store Watcher)
 watch(
   () => annotationStore.annotations,
   (newAnnotations) => {
-    // Sadece şu an seçili bir resim varsa işlem yap
     if (!props.selectedImageId) return;
-
-    // Mevcut seti kopyala (Reaktivite için yeni referans oluşturacağız)
     const newSet = new Set(annotatedImageSet.value);
-
-    if (newAnnotations.length > 0) {
-      // Seçili resme anotasyon eklendiyse sete ekle
-      newSet.add(props.selectedImageId);
-    } else {
-      // Seçili resmin tüm anotasyonları silindiyse setten çıkar
-      newSet.delete(props.selectedImageId);
-    }
-
-    // Referansı güncelle
+    if (newAnnotations.length > 0) newSet.add(props.selectedImageId);
+    else newSet.delete(props.selectedImageId);
     annotatedImageSet.value = newSet;
-
     updateGlobalFormValues(newAnnotations);
   },
   { deep: true }
 );
-
-// --- YARDIMCI FONKSİYONLAR ---
 
 function updateGlobalFormValues(annotations: any[]) {
   const currentGlobals: Record<string, any> = {};
@@ -428,23 +430,15 @@ function updateGlobalFormValues(annotations: any[]) {
     String(s || '')
       .trim()
       .toLowerCase();
-
   annotations.forEach((ann) => {
     if (!ann.tag) return;
-
-    const annTagName = normalize(ann.tag.tag_name);
-    const isMarkedGlobal = ann.tag.global === true;
-
-    const matchingType = props.annotationTypes.find((t) => {
-      const typeName = normalize(t.name);
-      return typeName === annTagName;
-    });
-
-    if (matchingType && (isMarkedGlobal || matchingType.global)) {
+    const matchingType = props.annotationTypes.find(
+      (t) => normalize(t.name) === normalize(ann.tag.tag_name)
+    );
+    if (matchingType && (ann.tag.global || matchingType.global)) {
       currentGlobals[matchingType.id] = ann.tag.value;
     }
   });
-
   globalFormValues.value = currentGlobals;
 }
 
@@ -453,72 +447,51 @@ function isSelected(patientId: string) {
 }
 
 function getImageClasses(image: any) {
-  // 1. Seçili Resim (Mavi çerçeve, beyaz arka plan)
-  if (image.id === props.selectedImageId) {
+  if (image.id === props.selectedImageId)
     return 'bg-white border-indigo-500 shadow-md ring-1 ring-indigo-200 z-10';
-  }
-
-  // 2. Anotasyonu Olan Resim (Yeşil Arka Plan)
-  // Anotasyon setinde ID var mı kontrolü
-  if (annotatedImageSet.value.has(String(image.id))) {
-    return 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm';
-  }
-
-  // 3. Standart Resim
-  return 'border-transparent hover:bg-white hover:border-gray-300 hover:shadow-sm text-gray-600 bg-transparent';
+  if (annotatedImageSet.value.has(String(image.id)))
+    return 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100';
+  return 'border-transparent hover:bg-white hover:border-gray-300 hover:shadow-sm text-gray-600';
 }
 
 function onWorkspaceChange(event: Event) {
-  const select = event.target as HTMLSelectElement;
-  const workspaceId = select.value;
-  const workspace = props.workspaces.find((w) => w.id === workspaceId);
-  if (workspace) {
-    emit('workspace-selected', workspace);
+  const ws = props.workspaces.find((w) => w.id === (event.target as HTMLSelectElement).value);
+  if (ws) {
+    emit('workspace-selected', ws);
+    searchQuery.value = '';
   }
 }
 
 function togglePatient(patient: Patient) {
-  if (props.selectedPatientId === patient.id) {
-    emit('patient-selected', null);
-  } else {
-    emit('patient-selected', patient);
-  }
+  emit('patient-selected', props.selectedPatientId === patient.id ? null : patient);
 }
 
 function getThumbnailUrl(image: any): string {
-  if (!image || !image.processedpath) {
+  if (!image || !image.processedpath)
     return 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
-  }
   return `${API_BASE_URL}/api/v1/proxy/${image.processedpath}/thumbnail.jpg`;
 }
 
 function handleScroll(event: Event) {
-  const element = event.target as HTMLElement;
-  if (props.loading) return;
-  const bottomThreshold = 50;
-  if (element.scrollTop + element.clientHeight >= element.scrollHeight - bottomThreshold) {
-    emit('load-more');
-  }
+  if (searchQuery.value || isLoadingAll.value) return;
+
+  const el = event.target as HTMLElement;
+  if (!props.loading && el.scrollTop + el.clientHeight >= el.scrollHeight - 50) emit('load-more');
 }
 
-async function handleGlobalSave(results: Array<{ type: any; value: any }>) {
+async function handleGlobalSave(results: Array<any>) {
   if (!props.selectedImageId || results.length === 0) return;
-
   try {
     const existingAnnotations = annotationStore.annotations;
     const normalize = (s: any) =>
       String(s || '')
         .trim()
         .toLowerCase();
-
     for (const res of results) {
       const targetName = normalize(res.type.name);
-
-      const existingAnn = existingAnnotations.find((a) => {
-        const aName = normalize(a.tag?.tag_name);
-        return aName === targetName;
-      });
-
+      const existingAnn = existingAnnotations.find(
+        (a) => normalize(a.tag?.tag_name) === targetName
+      );
       const tagData = {
         tag_type: res.type.type,
         tag_name: res.type.name,
@@ -527,18 +500,16 @@ async function handleGlobalSave(results: Array<{ type: any; value: any }>) {
         global: true,
       };
 
-      if (existingAnn) {
+      if (existingAnn)
         await annotationStore.updateAnnotation(String(existingAnn.id), { tag: tagData });
-      } else {
+      else
         await annotationStore.createAnnotation(props.selectedImageId, {
           polygon: [],
           tag: tagData,
         });
-      }
     }
     toast.success('Global etiketler kaydedildi.');
-  } catch (error) {
-    console.error('Global save error:', error);
+  } catch (e) {
     toast.error('Kayıt başarısız.');
   }
 }
@@ -546,7 +517,7 @@ async function handleGlobalSave(results: Array<{ type: any; value: any }>) {
 
 <style scoped>
 .custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
+  width: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;

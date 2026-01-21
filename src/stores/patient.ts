@@ -29,7 +29,6 @@ export const usePatientStore = defineStore('patient', () => {
   const toast = useToast();
   const patientRepo = repositories.patient;
 
-  // --- STATE ---
   const patients = shallowRef<Patient[]>([]);
   const patientsByWorkspace = ref<Map<string, Patient[]>>(new Map());
   const currentPatient = ref<Patient | null>(null);
@@ -41,11 +40,10 @@ export const usePatientStore = defineStore('patient', () => {
     limit: 20,
     offset: 0,
     sortBy: 'created_at',
-    sortDir: 'desc',
+    sortDir: 'asc',
     hasMore: false,
   });
 
-  // --- GETTERS ---
   const isLoading = computed(() => loading.value);
   const isActionLoading = computed(() => actionLoading.value);
   const hasError = computed(() => !!error.value);
@@ -143,6 +141,7 @@ export const usePatientStore = defineStore('patient', () => {
   const fetchPatientsByWorkspace = async (
     workspaceId: string,
     paginationOptions?: Partial<Pagination>,
+    searchQuery?: string,
     options: FetchOptions = {}
   ): Promise<void> => {
     const { refresh = false, showToast: showErrorToast = true, append = false } = options;
@@ -153,22 +152,26 @@ export const usePatientStore = defineStore('patient', () => {
     resetError();
 
     try {
+      const extraParams: any = {};
+      if (searchQuery && searchQuery.length > 0) {
+        extraParams.name = searchQuery;
+      }
       const paginationParams: Pagination = {
         limit: 20,
         offset: 0,
         sortBy: 'created_at',
-        sortDir: 'desc',
+        sortDir: 'asc',
         ...paginationOptions,
+        ...extraParams,
       };
       const result: PaginatedResult<Patient> = await patientRepo.getByWorkspaceId(
         workspaceId,
         paginationParams
       );
       const mappedPatients = result.data;
-      // -----------------------
 
-      const currentList = patientsByWorkspace.value.get(workspaceId) || [];
-      const newList = (append ? [...currentList, ...mappedPatients] : mappedPatients) as Patient[];
+      const currentList = append ? patientsByWorkspace.value.get(workspaceId) || [] : [];
+      const newList = [...currentList, ...mappedPatients] as Patient[];
 
       patientsByWorkspace.value.set(workspaceId, newList);
       patients.value = newList;
@@ -191,11 +194,9 @@ export const usePatientStore = defineStore('patient', () => {
 
     const currentPatients = patientsByWorkspace.value.get(workspaceId) || [];
 
-    await fetchPatientsByWorkspace(
-      workspaceId,
-      { offset: currentPatients.length },
-      { append: true }
-    );
+    await fetchPatientsByWorkspace(workspaceId, { offset: currentPatients.length }, undefined, {
+      append: true,
+    });
   };
 
   const createPatient = async (data: CreateNewPatientRequest): Promise<Patient | null> => {

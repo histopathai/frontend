@@ -1,8 +1,5 @@
-// infrastructure/api/ApiClient.ts
-import axios, { type AxiosInstance, AxiosError } from 'axios';
-import type { ApiError } from '@/core/types/common';
+import axios, { type AxiosInstance, AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/stores/auth';
-
 import { i18n } from '@/i18n';
 
 const t = i18n.global.t;
@@ -24,10 +21,13 @@ export class ApiClient {
   }
 
   private setupInterceptors() {
-    // Request interceptor
     this.client.interceptors.request.use(
-      (config) => {
+      (config: InternalAxiosRequestConfig) => {
         config.metadata = { startTime: new Date() };
+        const authStore = useAuthStore();
+        if (authStore.token) {
+          config.headers.Authorization = `Bearer ${authStore.token}`;
+        }
         return config;
       },
       (error) => {
@@ -35,18 +35,15 @@ export class ApiClient {
       }
     );
 
-    // Response interceptor
     this.client.interceptors.response.use(
       (response) => {
         return response;
       },
-      (error: AxiosError<ApiError>) => {
-        // 401 Unauthorized
+      (error: AxiosError<any>) => {
         if (error.response?.status === 401) {
           const authStore = useAuthStore();
           authStore.forceLogout();
 
-          // Custom error mesajı
           return Promise.reject({
             message: t('errors.401'),
             status: 401,
@@ -54,7 +51,6 @@ export class ApiClient {
           });
         }
 
-        // 403 Forbidden - Yetki yok
         if (error.response?.status === 403) {
           return Promise.reject({
             message: t('errors.403'),
@@ -63,7 +59,6 @@ export class ApiClient {
           });
         }
 
-        // 404 Not Found
         if (error.response?.status === 404) {
           return Promise.reject({
             message: t('errors.404'),
@@ -72,7 +67,6 @@ export class ApiClient {
           });
         }
 
-        // 409 Conflict
         if (error.response?.status === 409) {
           return Promise.reject({
             message: error.response.data?.message || t('errors.409'),
@@ -81,7 +75,6 @@ export class ApiClient {
           });
         }
 
-        // 422 Validation Error
         if (error.response?.status === 422) {
           return Promise.reject({
             message: error.response.data?.message || t('errors.422'),
@@ -91,7 +84,6 @@ export class ApiClient {
           });
         }
 
-        // 500+ Server Error
         if (error.response && error.response.status >= 500) {
           return Promise.reject({
             message: t('errors.500'),
@@ -100,7 +92,6 @@ export class ApiClient {
           });
         }
 
-        // Network hatası veya timeout
         if (error.code === 'ECONNABORTED') {
           return Promise.reject({
             message: t('errors.timeout'),
@@ -117,7 +108,6 @@ export class ApiClient {
           });
         }
 
-        // Diğer hatalar
         return Promise.reject({
           message: error.response?.data?.message || t('errors.unknown'),
           status: error.response?.status || 0,
@@ -172,7 +162,6 @@ export class ApiClient {
   }
 }
 
-// Type augmentation for metadata
 declare module 'axios' {
   export interface AxiosRequestConfig {
     metadata?: {

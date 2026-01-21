@@ -52,7 +52,9 @@ export function useAnnotatorNavigation() {
     return currentImages.value.find((img) => img.id === selectedImageId.value) || null;
   });
 
+  // BU KISIM ARTIK DIŞARIYA AKTARILIYOR (EXPORT)
   const selectedImageIndex = computed((): number => {
+    if (!selectedImageId.value || currentImages.value.length === 0) return -1;
     return currentImages.value.findIndex((img) => img.id === selectedImageId.value);
   });
 
@@ -101,7 +103,10 @@ export function useAnnotatorNavigation() {
   }
 
   function nextImage() {
-    if (selectedImageIndex.value < currentImages.value.length - 1) {
+    if (
+      selectedImageIndex.value !== -1 &&
+      selectedImageIndex.value < currentImages.value.length - 1
+    ) {
       const nextImg = currentImages.value[selectedImageIndex.value + 1];
       if (nextImg) {
         selectImage(nextImg);
@@ -126,6 +131,15 @@ export function useAnnotatorNavigation() {
         selectPatient(prevPatient);
       }
     }
+  }
+
+  function searchPatients(query: string) {
+    if (!selectedWorkspaceId.value) return;
+
+    patientStore.fetchPatientsByWorkspace(selectedWorkspaceId.value, { offset: 0 }, query, {
+      refresh: true,
+      append: false,
+    });
   }
 
   function loadMorePatients() {
@@ -180,6 +194,7 @@ export function useAnnotatorNavigation() {
     selectedImageId,
     selectedPatient,
     selectedImage,
+    selectedImageIndex, // YENİ: Dışarı aktarıldı
     selectedAnnotationTypeId,
 
     selectWorkspace,
@@ -188,7 +203,7 @@ export function useAnnotatorNavigation() {
     selectAnnotationType,
     nextImage,
     prevImage,
-
+    searchPatients,
     loadMorePatients,
   };
 }

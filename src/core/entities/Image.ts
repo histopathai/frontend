@@ -83,7 +83,6 @@ export class Image {
     return this.props.updatedAt;
   }
 
-  // Business logic
   isProcessed(): boolean {
     return this.status.isProcessed();
   }
