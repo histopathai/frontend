@@ -1,10 +1,11 @@
+import { ParentRefUtils, ParentType, type ParentRef } from '../value-objects';
+
 export interface PatientProps {
   id: string;
-  workspaceId: string;
+  parent: ParentRef;
   creatorId: string;
   name: string;
   gender: string | null;
-  birthDate: Date | null;
   age: number | null;
   race: string | null;
   disease: string | null;
@@ -23,11 +24,11 @@ export class Patient {
   static create(data: any): Patient {
     const {
       id,
+      parent,
       workspace_id,
       creator_id,
       name,
       gender,
-      birth_date,
       age,
       race,
       disease,
@@ -39,13 +40,19 @@ export class Patient {
       ...rest
     } = data;
 
+    if (!parent) {
+      throw new Error('Parent reference is required');
+    }
+    if (!ParentRefUtils.isValid(parent)) {
+      throw new Error('Invalid parent reference');
+    }
+
     return new Patient({
       id,
-      workspaceId: workspace_id,
+      parent,
       creatorId: creator_id,
       name,
       gender: gender ?? null,
-      birthDate: birth_date ? new Date(birth_date) : null,
       age: age ?? null,
       race: race ?? null,
       disease: disease ?? null,
@@ -63,8 +70,11 @@ export class Patient {
   get id(): string {
     return this.props.id;
   }
+  get parent(): ParentRef {
+    return this.props.parent;
+  }
   get workspaceId(): string {
-    return this.props.workspaceId;
+    return this.props.parent.id;
   }
   get creatorId(): string {
     return this.props.creatorId;
@@ -74,9 +84,6 @@ export class Patient {
   }
   get gender(): string | null {
     return this.props.gender;
-  }
-  get birthDate(): Date | null {
-    return this.props.birthDate;
   }
 
   get age(): number | null {

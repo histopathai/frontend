@@ -1,9 +1,13 @@
+import { OrganType, OrganTypeUtils } from '../value-objects/OrganType';
+import { type ParentRef, ParentType } from '../value-objects/ParentRef';
+
 export interface WorkspaceProps {
   id: string;
   creatorId: string;
+  parent: ParentRef;
   annotationTypeIds: string[];
   name: string;
-  organType: string;
+  organType: OrganType;
   organization: string;
   description: string;
   license: string;
@@ -17,9 +21,20 @@ export class Workspace {
   private constructor(private props: WorkspaceProps) {}
 
   static create(data: any): Workspace {
+    const parentRef: ParentRef = {
+      id: 'None',
+      type: ParentType.None,
+    };
+
+    //check organ type
+    if (!OrganTypeUtils.isValid(data.organ_type)) {
+      throw new Error('Invalid organ type');
+    }
+
     return new Workspace({
       id: data.id,
       creatorId: data.creator_id,
+      parent: parentRef,
       annotationTypeIds:
         data.annotationTypeIds ||
         data.annotation_type_ids ||

@@ -1,16 +1,26 @@
-import { ImageStatus } from '../value-objects/ImageStatus';
+import {
+  type OpticalMagnification,
+  ImageStatus,
+  type ParentRef,
+  ParentRefUtils,
+} from '../value-objects';
 
 export interface ImageProps {
   id: string;
-  patientId: string;
-  creatorId: string;
+  wsId: string;
+  parent: ParentRef;
   name: string;
+  creatorId: string;
+
+  // Basic image properties
   format: string;
   width: number | null;
   height: number | null;
+
+  // WSI-specific properties
+  magnification: OpticalMagnification | null;
+
   status: ImageStatus;
-  originpath: string | null;
-  processedpath: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,17 +29,31 @@ export class Image {
   private constructor(private props: ImageProps) {}
 
   static create(data: any): Image {
+    if (!data.parent) {
+      throw new Error('Parent reference is required');
+    }
+    if (!ParentRefUtils.isValid(data.parent)) {
+      throw new Error('Invalid parent reference');
+    }
+    let magnification: OpticalMagnification | null = null;
+    if (data.magnification) {
+      magnification = {
+        objective: data.magnification.objective,
+        nativeLevel: data.magnification.native,
+        scanMagnification: data.magnification.scan_magnification,
+      };
+    }
     return new Image({
       id: data.id,
-      patientId: data.patient_id,
+      wsId: data.ws_id,
+      parent: data.parent,
       creatorId: data.creator_id,
       name: data.name,
       format: data.format,
       width: data.width ?? null,
       height: data.height ?? null,
+      magnification: magnification,
       status: ImageStatus.fromString(data.status || 'PROCESSING'),
-      originpath: data.origin_path ?? null,
-      processedpath: data.processed_path ?? null,
       createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,
       updatedAt: typeof data.updated_at === 'string' ? new Date(data.updated_at) : data.updated_at,
     });
@@ -39,8 +63,12 @@ export class Image {
     return this.props.id;
   }
 
-  get patientId(): string {
-    return this.props.patientId;
+  get parent(): ParentRef {
+    return this.props.parent;
+  }
+
+  get parentId(): string {
+    return this.props.parent.id;
   }
 
   get creatorId(): string {
@@ -67,12 +95,8 @@ export class Image {
     return this.props.status;
   }
 
-  get originpath(): string | null {
-    return this.props.originpath;
-  }
-
-  get processedpath(): string | null {
-    return this.props.processedpath;
+  get magnification(): OpticalMagnification | null {
+    return this.props.magnification;
   }
 
   get createdAt(): Date {
