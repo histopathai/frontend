@@ -36,11 +36,7 @@ export class Workspace {
       creatorId: data.creator_id,
       parent: parentRef,
       annotationTypeIds:
-        data.annotationTypeIds ||
-        data.annotation_type_ids ||
-        data.annotation_types ||
-        (data.annotationTypeId ? [data.annotationTypeId] : []) ||
-        [],
+        data.annotationTypeIds || data.annotation_type_ids || data.annotation_types || [],
       name: data.name,
       organType: data.organ_type,
       organization: data.organization,

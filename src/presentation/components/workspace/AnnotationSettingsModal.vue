@@ -247,11 +247,11 @@
                   v-model="form.type"
                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3 border bg-white"
                 >
-                  <option value="TEXT">📝 Metin (Text)</option>
-                  <option value="NUMBER">🔢 Sayı (Number)</option>
-                  <option value="BOOLEAN">✅ Mantıksal (Evet/Hayır)</option>
-                  <option value="SELECT">🔘 Tekli Seçim (Select)</option>
-                  <option value="MULTI_SELECT">🏷️ Çoklu Seçim (Multi Select)</option>
+                  <option :value="TagType.Text">📝 Metin (Text)</option>
+                  <option :value="TagType.Number">🔢 Sayı (Number)</option>
+                  <option :value="TagType.Boolean">✅ Mantıksal (Evet/Hayır)</option>
+                  <option :value="TagType.Select">🔘 Tekli Seçim (Select)</option>
+                  <option :value="TagType.MultiSelect">🏷️ Çoklu Seçim (Multi Select)</option>
                 </select>
               </div>
 
@@ -303,7 +303,7 @@
             <hr class="border-gray-100" />
 
             <div
-              v-if="['SELECT', 'MULTI_SELECT'].includes(form.type)"
+              v-if="[TagType.Select, TagType.MultiSelect].includes(form.type)"
               class="space-y-4 animate-slide-in"
             >
               <div class="flex justify-between items-center">
@@ -352,7 +352,7 @@
               </div>
             </div>
 
-            <div v-if="form.type === 'NUMBER'" class="space-y-4 animate-slide-in">
+            <div v-if="form.type === TagType.Number" class="space-y-4 animate-slide-in">
               <label class="block text-sm font-medium text-gray-700">Değer Aralığı</label>
               <div class="grid grid-cols-2 gap-4 bg-gray-50 p-5 rounded-xl border border-gray-200">
                 <div>
@@ -386,7 +386,7 @@ import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useToast } from 'vue-toastification';
 import type { AnnotationType } from '@/core/entities/AnnotationType';
-import type { TagType } from '@/core/types/tags';
+import { TagType } from '@/core/value-objects';
 
 const props = defineProps({
   workspaceId: { type: String, required: true },
@@ -422,7 +422,7 @@ interface FormState {
 
 const form = reactive<FormState>({
   name: '',
-  type: 'TEXT',
+  type: TagType.Text,
   color: '#4F46E5',
   global: false,
   required: false,
@@ -502,7 +502,7 @@ async function loadLibrary() {
 function startNewType() {
   currentTypeId.value = null;
   form.name = '';
-  form.type = 'TEXT';
+  form.type = TagType.Text;
   form.color = '#4F46E5';
   form.global = false;
   form.required = false;
@@ -542,11 +542,11 @@ function removeOption(idx: number) {
 
 function getShortType(type: string) {
   const map: Record<string, string> = {
-    TEXT: 'TXT',
-    NUMBER: 'NUM',
-    BOOLEAN: 'BOOL',
-    SELECT: 'SEL',
-    MULTI_SELECT: 'TAGS',
+    [TagType.Text]: 'TXT',
+    [TagType.Number]: 'NUM',
+    [TagType.Boolean]: 'BOOL',
+    [TagType.Select]: 'SEL',
+    [TagType.MultiSelect]: 'TAGS',
   };
   return map[type] || type;
 }
@@ -592,7 +592,7 @@ async function handleSave() {
     return;
   }
 
-  if (['SELECT', 'MULTI_SELECT'].includes(form.type)) {
+  if ([TagType.Select, TagType.MultiSelect].includes(form.type)) {
     form.options = form.options.filter((o) => o.trim() !== '');
     if (form.options.length === 0) {
       toast.warning('En az bir seçenek eklemelisiniz.');
@@ -604,14 +604,14 @@ async function handleSave() {
   try {
     const payload = {
       name: form.name,
-      parent_id: props.workspaceId,
+      // parent_id removed as it is not in the interface
       color: form.color,
-      type: form.type,
-      options: ['SELECT', 'MULTI_SELECT'].includes(form.type) ? form.options : undefined,
-      global: form.global,
-      required: form.required,
-      min: form.type === 'NUMBER' ? form.min : undefined,
-      max: form.type === 'NUMBER' ? form.max : undefined,
+      tag_type: form.type,
+      options: [TagType.Select, TagType.MultiSelect].includes(form.type) ? form.options : undefined,
+      is_global: form.global,
+      is_required: form.required,
+      min: form.type === TagType.Number ? form.min : undefined,
+      max: form.type === TagType.Number ? form.max : undefined,
     };
 
     let createdOrUpdatedType: AnnotationType | null = null;

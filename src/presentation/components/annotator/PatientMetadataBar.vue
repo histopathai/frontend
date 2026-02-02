@@ -380,11 +380,26 @@ const imageAnnotations = computed(() =>
 watch(
   imageAnnotations,
   (annotations) => {
-    const globalAnns = annotations.filter((a) => a.tag?.global);
-    globalAnns.forEach((ann) => {
-      if (ann.tag && ann.tag.tag_name) {
-        localMetadata[ann.tag.tag_name] = ann.tag.value;
-        initialMetadata.value[ann.tag.tag_name] = ann.tag.value;
+    // Filter global annotations based on annotation type (assuming logic exists to determine global)
+    // Here we might need access to types store or assume naming convention/property
+    // Actually we should rely on annotationTypeId to check against global types
+
+    // Since we don't have types here easily available (activeAnnotationTypes is defined later),
+    // let's iterate and populate.
+
+    // Wait, activeAnnotationTypes IS defined below. but we can use store directly?
+    // Let's use what we have in annotation properties if possible.
+    // Annotation entity has 'value', 'name'.
+    // We need to match with type to know if it's GLOBAL.
+    // Or assume all annotations loaded here are relevant?
+
+    // We can rely on activeAnnotationTypes if we move it up or use store.
+
+    annotations.forEach((ann) => {
+      const type = annotationTypeStore.getAnnotationTypeById(ann.annotationTypeId);
+      if (type && type.global) {
+        localMetadata[type.name] = ann.value;
+        initialMetadata.value[type.name] = ann.value;
       }
     });
   },
@@ -460,24 +475,23 @@ async function handleSaveAll() {
       if (!props.image?.id) return true;
       const typeDef = activeAnnotationTypes.value.find((t) => t.name === tagName && t.global);
       if (!typeDef) return true;
-      const existingAnn = imageAnnotations.value.find(
-        (a) => a.tag?.global && a.tag.tag_name === tagName
-      );
+      const existingAnn = imageAnnotations.value.find((a) => a.annotationTypeId === typeDef.id);
       const tagData = {
         tag_type: typeDef.type,
-        tag_name: tagName,
+        name: tagName,
         value: value,
         color: typeDef.color || '#4f46e5',
-        global: true,
+        is_global: true,
       };
       if (existingAnn)
-        return await annotationStore.updateAnnotation(existingAnn.id, { tag: tagData });
+        return await annotationStore.updateAnnotation(existingAnn.id, tagData as any);
       else {
         try {
           await annotationStore.createAnnotation(props.image.id, {
-            tag: tagData,
+            ...tagData,
             polygon: undefined,
-          });
+            ws_id: props.image.parent.id, // Image entity has parent ref.
+          } as any);
           return true;
         } catch (e) {
           return false;

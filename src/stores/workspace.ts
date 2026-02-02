@@ -48,9 +48,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const pagination = ref<Pagination>({
     limit: 10,
     offset: 0,
-    sortBy: 'created_at',
-    sortDir: 'desc',
     hasMore: false,
+  });
+
+  const sort = ref({
+    by: 'created_at',
+    dir: 'desc' as 'asc' | 'desc',
   });
 
   // ===========================
@@ -129,7 +132,10 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         ...paginationOptions,
       };
 
-      const result: PaginatedResult<Workspace> = await workspaceRepo.list(paginationParams);
+      const result: PaginatedResult<Workspace> = await workspaceRepo.list({
+        pagination: paginationParams,
+        sort: [{ field: sort.value.by, direction: sort.value.dir }],
+      });
       workspaces.value = result.data;
       pagination.value = {
         ...paginationParams,
@@ -310,8 +316,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     pagination.value = {
       limit: 10,
       offset: 0,
-      sortBy: 'created_at',
-      sortDir: 'desc',
       hasMore: false,
     };
   };

@@ -1,12 +1,20 @@
 export class ImageStatus {
-  private static readonly VALID_VALUES = ['UPLOADED', 'PROCESSING', 'PROCESSED', 'FAILED'] as const;
-  private readonly value: typeof ImageStatus.VALID_VALUES[number];
+  private static readonly VALID_VALUES = [
+    'pending',
+    'processing',
+    'processed',
+    'failed',
+    'failed_permanent',
+    'deleting',
+    'uploaded',
+  ] as const;
+  private readonly value: (typeof ImageStatus.VALID_VALUES)[number];
 
   private constructor(value: string) {
     if (!ImageStatus.VALID_VALUES.includes(value as any)) {
       throw new Error(`Invalid image status: ${value}`);
     }
-    this.value = value as typeof ImageStatus.VALID_VALUES[number];
+    this.value = value as (typeof ImageStatus.VALID_VALUES)[number];
   }
 
   static fromString(value: string): ImageStatus {
@@ -14,7 +22,7 @@ export class ImageStatus {
   }
 
   static uploaded(): ImageStatus {
-    return new ImageStatus('UPLOADED');
+    return new ImageStatus('uploaded');
   }
 
   toString(): string {
@@ -22,14 +30,14 @@ export class ImageStatus {
   }
 
   isProcessed(): boolean {
-    return this.value === 'PROCESSED';
+    return this.value === 'processed';
   }
 
   isFailed(): boolean {
-    return this.value === 'FAILED';
+    return this.value === 'failed';
   }
 
   canRetry(): boolean {
-    return this.value === 'FAILED';
+    return this.value === 'failed';
   }
 }

@@ -1,29 +1,24 @@
 import { Annotation } from '../entities/Annotation';
-import type { PaginatedResult, Pagination } from '../types/common';
+import type { PaginatedResult, QueryOptions } from '../types/common';
 import { Point } from '../value-objects/Point';
 
-export interface TagValueRequest {
-  tag_type: string;
-  tag_name: string;
-  value: any;
-  color?: string;
-  global?: boolean;
-}
-
-export interface ParentRefRequest {
+export interface ParentRef {
   id: string;
-  type: 'image' | 'patient' | 'workspace';
+  type: string;
 }
-
 export interface CreateNewAnnotationRequest {
-  parent: ParentRefRequest;
+  parent: ParentRef;
+  ws_id: string;
+  name: string;
+  tag_type: string;
+  value: any;
+  is_global?: boolean;
+  color?: string;
   polygon?: Point[];
-  tag: TagValueRequest;
-  description?: string;
 }
 
 export interface IAnnotationRepository {
-  getByImageId(imageId: string, pagination: Pagination): Promise<PaginatedResult<Annotation>>;
+  listByImage(imageId: string, options?: QueryOptions): Promise<PaginatedResult<Annotation>>;
   create(data: CreateNewAnnotationRequest): Promise<Annotation>;
   getById(id: string): Promise<Annotation>;
   update(id: string, data: Partial<CreateNewAnnotationRequest>): Promise<void>;

@@ -1,5 +1,5 @@
 import { Workspace } from '../entities/Workspace';
-import type { PaginatedResult, Pagination } from '../types/common';
+import type { PaginatedResult, QueryOptions } from '../types/common';
 
 export interface CreateNewWorkspaceRequest {
   name: string;
@@ -24,7 +24,7 @@ export interface UpdateWorkspaceRequest {
 }
 
 export interface IWorkspaceRepository {
-  list(pagination: Pagination): Promise<PaginatedResult<Workspace>>;
+  list(options?: QueryOptions): Promise<PaginatedResult<Workspace>>;
   getById(id: string): Promise<Workspace | null>;
   create(data: CreateNewWorkspaceRequest): Promise<Workspace>;
   update(id: string, data: UpdateWorkspaceRequest): Promise<void>;

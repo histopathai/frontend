@@ -10,7 +10,7 @@ export interface PatientProps {
   race: string | null;
   disease: string | null;
   subtype: string | null;
-  grade: number | null;
+  grade: string | null;
   history: string | null;
 
   metadata: Record<string, any>;
@@ -98,7 +98,7 @@ export class Patient {
   get subtype(): string | null {
     return this.props.subtype;
   }
-  get grade(): number | null {
+  get grade(): string | null {
     return this.props.grade;
   }
   get history(): string | null {

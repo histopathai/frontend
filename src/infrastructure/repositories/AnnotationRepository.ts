@@ -2,7 +2,7 @@ import type {
   CreateNewAnnotationRequest,
   IAnnotationRepository,
 } from '@/core/repositories/IAnnotation';
-import type { PaginatedResult, Pagination } from '@/core/types/common';
+import type { PaginatedResult, QueryOptions } from '@/core/types/common';
 
 import { Annotation } from '@/core/entities/Annotation';
 import { ApiClient } from '../api/ApiClient';
@@ -10,20 +10,40 @@ import { ApiClient } from '../api/ApiClient';
 export class AnnotationRepository implements IAnnotationRepository {
   constructor(private apiClient: ApiClient) {}
 
-  async getByImageId(
-    imageId: string,
-    pagination: Pagination
-  ): Promise<PaginatedResult<Annotation>> {
-    const response = await this.apiClient.get<any>(`/api/v1/proxy/annotations/image/${imageId}`, {
-      limit: pagination.limit,
-      offset: pagination.offset,
-      sort_by: pagination.sortBy,
-      sort_dir: pagination.sortDir,
-      populate: ['tag'],
-    });
+  async listByImage(imageId: string, options?: QueryOptions): Promise<PaginatedResult<Annotation>> {
+    const params: any = {};
+    if (options?.pagination) {
+      params.limit = options.pagination.limit;
+      params.offset = options.pagination.offset;
+    }
+    if (options?.sort && options.sort.length > 0) {
+      const sortOpt = options.sort[0];
+      if (sortOpt) {
+        params.sort_by = sortOpt.field;
+        params.sort_dir = sortOpt.direction;
+      }
+    }
+    params.populate = ['tag'];
+
+    const response = await this.apiClient.get<any>(
+      `/api/v1/proxy/annotations/image/${imageId}`,
+      params
+    );
+
+    let items = [];
+    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+
+    if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
+      items = response.data.data;
+      if (response.data.pagination) pagination = response.data.pagination;
+    } else if (Array.isArray(response.data)) {
+      items = response.data;
+      if (response.pagination) pagination = response.pagination;
+    }
+
     return {
-      data: response.data.map((item: any) => Annotation.create(item)),
-      pagination: response.pagination,
+      data: items.map((item: any) => Annotation.create(item)),
+      pagination: pagination as any,
     };
   }
 

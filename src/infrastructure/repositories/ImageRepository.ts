@@ -4,7 +4,7 @@ import type {
   UploadImageParams,
   IImageRepository,
 } from '@/core/repositories/IImageRepository';
-import type { PaginatedResult, Pagination } from '@/core/types/common';
+import type { PaginatedResult, QueryOptions, Pagination } from '@/core/types/common';
 
 import { ApiClient } from '../api/ApiClient';
 import { Image } from '@/core/entities/Image';
@@ -12,7 +12,7 @@ import axios, { type AxiosProgressEvent } from 'axios';
 import type { BatchTransfer } from '@/core/repositories/common';
 
 interface BackendUploadResponse {
-  data: ImageUploadPayload & { message: string };
+  data: ImageUploadPayload[];
   [key: string]: any;
 }
 
@@ -30,7 +30,7 @@ interface BackendImageListResponse {
 export class ImageRepository implements IImageRepository {
   constructor(private apiClient: ApiClient) {}
 
-  async create(data: CreateNewImageRequest): Promise<ImageUploadPayload> {
+  async create(data: CreateNewImageRequest): Promise<ImageUploadPayload[]> {
     const response = await this.apiClient.post<BackendUploadResponse>('/api/v1/proxy/images', data);
     return response.data;
   }
@@ -38,20 +38,26 @@ export class ImageRepository implements IImageRepository {
   async upload(params: UploadImageParams): Promise<void> {
     const { payload, file, contentType, onUploadProgress } = params;
     const finalContentType = contentType || file.type;
-    await axios.put(payload.upload_url, file, {
-      headers: {
-        ...payload.headers,
-        'Content-Type': finalContentType,
-      },
+    console.log('DEBUG: ImageRepository.upload called with url:', payload.upload_url);
+    try {
+      await axios.put(payload.upload_url, file, {
+        headers: {
+          ...payload.headers,
+          'Content-Type': finalContentType,
+        },
 
-      onUploadProgress: (progressEvent: AxiosProgressEvent) => {
-        if (onUploadProgress && progressEvent.total) {
-          const percentage = Math.round((progressEvent.loaded / progressEvent.total) * 100);
-
-          onUploadProgress(percentage);
-        }
-      },
-    });
+        onUploadProgress: (progressEvent: AxiosProgressEvent) => {
+          if (onUploadProgress && progressEvent.total) {
+            const percentage = Math.round((progressEvent.loaded / progressEvent.total) * 100);
+            onUploadProgress(percentage);
+          }
+        },
+      });
+      console.log('DEBUG: ImageRepository.upload axios.put completed');
+    } catch (error) {
+      console.error('DEBUG: ImageRepository.upload failed:', error);
+      throw error;
+    }
   }
 
   async getById(imageId: string): Promise<Image> {
@@ -66,20 +72,78 @@ export class ImageRepository implements IImageRepository {
     await this.apiClient.delete(`/api/v1/proxy/images/${imageId}`);
   }
 
-  async getByPatientId(patientId: string, pagination: Pagination): Promise<PaginatedResult<Image>> {
-    const response = await this.apiClient.get<BackendImageListResponse>(
-      `/api/v1/proxy/patients/${patientId}/images`,
-      {
-        limit: pagination.limit,
-        offset: pagination.offset,
-        sort_by: pagination.sortBy,
-        sort_dir: pagination.sortDir,
+  async list(options?: QueryOptions): Promise<PaginatedResult<Image>> {
+    const params: any = {};
+    if (options?.pagination) {
+      params.limit = options.pagination.limit;
+      params.offset = options.pagination.offset;
+    }
+    if (options?.sort && options.sort.length > 0) {
+      const sortOpt = options.sort[0];
+      if (sortOpt) {
+        params.sort_by = sortOpt.field;
+        params.sort_dir = sortOpt.direction;
       }
+    }
+    const response = await this.apiClient.get<BackendImageListResponse>(
+      '/api/v1/proxy/images',
+      params
     );
 
+    let items = [];
+    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+
+    // Cast response to any to handle flexible structure
+    const respAny = response as any;
+
+    if (respAny.data && !Array.isArray(respAny.data) && Array.isArray(respAny.data.data)) {
+      items = respAny.data.data;
+      if (respAny.data.pagination) pagination = respAny.data.pagination;
+    } else if (Array.isArray(respAny.data)) {
+      items = respAny.data;
+      if (respAny.pagination) pagination = respAny.pagination;
+    }
+
     return {
-      data: response.data.map(Image.create),
-      pagination: response.pagination,
+      data: items.map(Image.create),
+      pagination: pagination as any,
+    };
+  }
+
+  async listByPatient(patientId: string, options?: QueryOptions): Promise<PaginatedResult<Image>> {
+    const params: any = {};
+    if (options?.pagination) {
+      params.limit = options.pagination.limit;
+      params.offset = options.pagination.offset;
+    }
+    if (options?.sort && options.sort.length > 0) {
+      const sortOpt = options.sort[0];
+      if (sortOpt) {
+        params.sort_by = sortOpt.field;
+        params.sort_dir = sortOpt.direction;
+      }
+    }
+
+    const response = await this.apiClient.get<BackendImageListResponse>(
+      `/api/v1/proxy/patients/${patientId}/images`,
+      params
+    );
+
+    let items = [];
+    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+    const respAny = response as any;
+
+    if (respAny.data && !Array.isArray(respAny.data) && Array.isArray(respAny.data.data)) {
+      items = respAny.data.data;
+      if (respAny.data.pagination) pagination = respAny.data.pagination;
+    } else if (Array.isArray(respAny.data)) {
+      items = respAny.data;
+      if (respAny.pagination) pagination = respAny.pagination;
+    }
+
+    return {
+      data: items.map(Image.create),
+      pagination: pagination as any,
     };
   }
 

@@ -39,7 +39,7 @@ export class Image {
     if (data.magnification) {
       magnification = {
         objective: data.magnification.objective,
-        nativeLevel: data.magnification.native,
+        nativeLevel: data.magnification.native_level,
         scanMagnification: data.magnification.scan_magnification,
       };
     }

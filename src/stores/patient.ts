@@ -39,9 +39,12 @@ export const usePatientStore = defineStore('patient', () => {
   const pagination = ref<Pagination>({
     limit: 20,
     offset: 0,
-    sortBy: 'created_at',
-    sortDir: 'asc',
     hasMore: false,
+  });
+
+  const sort = ref({
+    by: 'created_at',
+    dir: 'asc' as 'asc' | 'desc',
   });
 
   const isLoading = computed(() => loading.value);
@@ -164,10 +167,11 @@ export const usePatientStore = defineStore('patient', () => {
         ...paginationOptions,
         ...extraParams,
       };
-      const result: PaginatedResult<Patient> = await patientRepo.getByWorkspaceId(
-        workspaceId,
-        paginationParams
-      );
+      const result: PaginatedResult<Patient> = await patientRepo.listByWorkspace(workspaceId, {
+        pagination: paginationParams,
+        sort: [{ field: sort.value.by, direction: sort.value.dir }],
+        search: extraParams.name,
+      });
       const mappedPatients = result.data;
 
       const currentList = append ? patientsByWorkspace.value.get(workspaceId) || [] : [];

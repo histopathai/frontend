@@ -3,7 +3,7 @@ import type {
   IAnnotationTypeRepository,
   UpdateAnnotationTypeRequest,
 } from '@/core/repositories/IAnnotationType';
-import type { PaginatedResult, Pagination } from '@/core/types/common';
+import type { PaginatedResult, QueryOptions } from '@/core/types/common';
 
 import { AnnotationType } from '@/core/entities/AnnotationType';
 import { ApiClient } from '../api/ApiClient';
@@ -11,34 +11,73 @@ import { ApiClient } from '../api/ApiClient';
 export class AnnotationTypeRepository implements IAnnotationTypeRepository {
   constructor(private apiClient: ApiClient) {}
 
-  async list(pagination: Pagination): Promise<PaginatedResult<AnnotationType>> {
-    const response = await this.apiClient.get<any>('/api/v1/proxy/annotation-types', {
-      limit: pagination.limit,
-      offset: pagination.offset,
-      sort_by: pagination.sortBy,
-      sort_dir: pagination.sortDir,
-    });
+  async list(options?: QueryOptions): Promise<PaginatedResult<AnnotationType>> {
+    const params: any = {};
+    if (options?.pagination) {
+      params.limit = options.pagination.limit;
+      params.offset = options.pagination.offset;
+    }
+    if (options?.sort && options.sort.length > 0) {
+      const sortOpt = options.sort[0];
+      if (sortOpt) {
+        params.sort_by = sortOpt.field;
+        params.sort_dir = sortOpt.direction;
+      }
+    }
+
+    const response = await this.apiClient.get<any>('/api/v1/proxy/annotation-types', params);
+
+    let items = [];
+    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+
+    if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
+      items = response.data.data;
+      if (response.data.pagination) pagination = response.data.pagination;
+    } else if (Array.isArray(response.data)) {
+      items = response.data;
+      if (response.pagination) pagination = response.pagination;
+    }
+
     return {
-      data: response.data.map((item: any) => AnnotationType.create(item)),
-      pagination: response.pagination,
+      data: items.map((item: any) => AnnotationType.create(item)),
+      pagination: pagination as any,
     };
   }
 
-  async getByParentId(
+  async listByParent(
     parentId: string,
-    pagination: Pagination
+    options?: QueryOptions
   ): Promise<PaginatedResult<AnnotationType>> {
-    const response = await this.apiClient.get<any>('/api/v1/proxy/annotation-types', {
-      limit: pagination.limit,
-      offset: pagination.offset,
-      sort_by: pagination.sortBy,
-      sort_dir: pagination.sortDir,
-      parent_id: parentId,
-    });
+    const params: any = {};
+    if (options?.pagination) {
+      params.limit = options.pagination.limit;
+      params.offset = options.pagination.offset;
+    }
+    if (options?.sort && options.sort.length > 0) {
+      const sortOpt = options.sort[0];
+      if (sortOpt) {
+        params.sort_by = sortOpt.field;
+        params.sort_dir = sortOpt.direction;
+      }
+    }
+    params.parent_id = parentId;
+
+    const response = await this.apiClient.get<any>('/api/v1/proxy/annotation-types', params);
+
+    let items = [];
+    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+
+    if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
+      items = response.data.data;
+      if (response.data.pagination) pagination = response.data.pagination;
+    } else if (Array.isArray(response.data)) {
+      items = response.data;
+      if (response.pagination) pagination = response.pagination;
+    }
 
     return {
-      data: response.data.map((item: any) => AnnotationType.create(item)),
-      pagination: response.pagination,
+      data: items.map((item: any) => AnnotationType.create(item)),
+      pagination: pagination as any,
     };
   }
 

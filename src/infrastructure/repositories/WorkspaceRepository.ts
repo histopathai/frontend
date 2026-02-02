@@ -3,7 +3,7 @@ import type {
   CreateNewWorkspaceRequest,
   UpdateWorkspaceRequest,
 } from '@/core/repositories/IWorkspaceRepository';
-import type { PaginatedResult, Pagination } from '@/core/types/common';
+import type { PaginatedResult, QueryOptions } from '@/core/types/common';
 
 import { Workspace } from '@/core/entities/Workspace';
 import { ApiClient } from '../api/ApiClient';
@@ -11,16 +11,41 @@ import { ApiClient } from '../api/ApiClient';
 export class WorkspaceRepository implements IWorkspaceRepository {
   constructor(private apiClient: ApiClient) {}
 
-  async list(pagination: Pagination): Promise<PaginatedResult<Workspace>> {
-    const response = await this.apiClient.get<any>('/api/v1/proxy/workspaces', {
-      limit: pagination.limit,
-      offset: pagination.offset,
-      sort_by: pagination.sortBy,
-      sort_dir: pagination.sortDir,
-    });
+  async list(options?: QueryOptions): Promise<PaginatedResult<Workspace>> {
+    const params: any = {};
+    if (options?.pagination) {
+      params.limit = options.pagination.limit;
+      params.offset = options.pagination.offset;
+    }
+    if (options?.sort && options.sort.length > 0) {
+      const sortOpt = options.sort[0];
+      if (sortOpt) {
+        params.sort_by = sortOpt.field;
+        params.sort_dir = sortOpt.direction;
+      }
+    }
+
+    const response = await this.apiClient.get<any>('/api/v1/proxy/workspaces', params);
+
+    let items = [];
+    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+
+    // Handle nested structure from backend { data: { data: [], pagination: {} } }
+    if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
+      items = response.data.data;
+      if (response.data.pagination) pagination = response.data.pagination;
+    } else if (Array.isArray(response.data)) {
+      items = response.data;
+      if (response.pagination) pagination = response.pagination;
+    } else if (response.data && Array.isArray(response.data.items)) {
+      // Fallback for other potential structures
+      items = response.data.items;
+      if (response.data.pagination) pagination = response.data.pagination;
+    }
+
     return {
-      data: response.data.map((item: any) => Workspace.create(item)),
-      pagination: response.pagination,
+      data: items.map((item: any) => Workspace.create(item)),
+      pagination: pagination as any,
     };
   }
 

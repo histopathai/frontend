@@ -2,7 +2,7 @@ import type {
   CreateNewPatientRequest,
   IPatientRepository,
 } from '@/core/repositories/IPatientRepository';
-import type { PaginatedResult, Pagination } from '@/core/types/common';
+import type { PaginatedResult, QueryOptions } from '@/core/types/common';
 
 import { Patient } from '@/core/entities/Patient';
 import { ApiClient } from '../api/ApiClient';
@@ -22,28 +22,85 @@ export class PatientRepository implements IPatientRepository {
     return null;
   }
 
-  async getByWorkspaceId(
+  async list(options?: QueryOptions): Promise<PaginatedResult<Patient>> {
+    const params: any = {};
+    if (options?.pagination) {
+      params.limit = options.pagination.limit;
+      params.offset = options.pagination.offset;
+    }
+    if (options?.sort && options.sort.length > 0) {
+      const sortOpt = options.sort[0];
+      if (sortOpt) {
+        params.sort_by = sortOpt.field;
+        params.sort_dir = sortOpt.direction;
+      }
+    }
+
+    // Add search/filter params as needed
+    if (options?.search) {
+      params.name = options.search;
+    }
+
+    const response = await this.apiClient.get<any>('/api/v1/proxy/patients', params);
+
+    let items = [];
+    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+
+    if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
+      items = response.data.data;
+      if (response.data.pagination) pagination = response.data.pagination;
+    } else if (Array.isArray(response.data)) {
+      items = response.data;
+      if (response.pagination) pagination = response.pagination;
+    }
+
+    return {
+      data: items.map((item: any) => Patient.create(item)),
+      pagination: pagination as any,
+    };
+  }
+
+  async listByWorkspace(
     workspaceId: string,
-    pagination: Pagination
+    options?: QueryOptions
   ): Promise<PaginatedResult<Patient>> {
-    const { limit, offset, sortBy, sortDir, hasMore, ...extraParams } = pagination;
+    const params: any = {};
+    if (options?.pagination) {
+      params.limit = options.pagination.limit;
+      params.offset = options.pagination.offset;
+    }
+    if (options?.sort && options.sort.length > 0) {
+      const sortOpt = options.sort[0];
+      if (sortOpt) {
+        params.sort_by = sortOpt.field;
+        params.sort_dir = sortOpt.direction;
+      }
+    }
+    if (options?.search) {
+      params.name = options.search;
+    }
 
     const response = await this.apiClient.get<any>(
       `/api/v1/proxy/workspaces/${workspaceId}/patients`,
-      {
-        limit: limit,
-        offset: offset,
-        sort_by: sortBy,
-        sort_dir: sortDir,
-        ...extraParams,
-      }
+      params
     );
 
+    let items = [];
+    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+
+    if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
+      items = response.data.data;
+      if (response.data.pagination) pagination = response.data.pagination;
+    } else if (Array.isArray(response.data)) {
+      items = response.data;
+      if (response.pagination) pagination = response.pagination;
+    }
+
     return {
-      data: response.data.map((item: any) =>
+      data: items.map((item: any) =>
         Patient.create({ ...item, workspace_id: item.workspace_id || workspaceId })
       ),
-      pagination: response.pagination,
+      pagination: pagination as any,
     };
   }
 

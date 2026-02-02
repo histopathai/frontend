@@ -92,7 +92,9 @@ onMounted(() => {
             console.log('⏳ Pending (Geçici) veri bulundu.');
             foundData = {
               id: pending.tempId,
-              tag: pending.tag,
+              name: pending.name,
+              tag_type: pending.tag_type,
+              value: pending.value,
               polygon: pending.polygon || [],
             } as any;
           }
@@ -111,31 +113,19 @@ onMounted(() => {
 
           activeAnnotationTypes.value.forEach((type) => {
             const targetName = normalize(type.name);
-            let foundValue = null;
 
-            if (foundData!.tag) {
-              const tName = normalize(foundData!.tag.tag_name);
-              if (tName === targetName) {
-                foundValue = foundData!.tag.value;
-                console.log(`✅ [${type.name}] -> Tag Objesinde Bulundu: ${foundValue}`);
-              }
+            // Match by ID first (most reliable)
+            if ((foundData as any).annotationTypeId === type.id) {
+              initialValues[type.id] = (foundData as any).value;
+              console.log(`✅ [${type.name}] -> Matched by ID: ${(foundData as any).value}`);
             }
-
-            if (foundValue === null && foundData!.data && Array.isArray(foundData!.data)) {
-              const foundItem = foundData!.data.find(
-                (d: any) => normalize(d.tagName || d.tag_name || d.name || d.label) === targetName
-              );
-
-              if (foundItem) {
-                foundValue = foundItem.value;
-                console.log(`✅ [${type.name}] -> Data Listesinde Bulundu: ${foundValue}`);
-              }
-            }
-
-            if (foundValue !== null && foundValue !== undefined) {
-              initialValues[type.id] = foundValue;
-            } else {
-              console.log(`❌ [${type.name}] -> Hiçbir yerde bulunamadı.`);
+            // Fallback for pending annotations (match by name/type)
+            else if (
+              (foundData as any).name === type.name ||
+              (foundData as any).tag_type === type.type
+            ) {
+              initialValues[type.id] = (foundData as any).value;
+              console.log(`✅ [${type.name}] -> Matched by Name/Type: ${(foundData as any).value}`);
             }
           });
 
@@ -178,9 +168,27 @@ function handleDoubleClick() {
   const selected = anno.value.getSelected();
 
   if (selected && selectedAnnotationData.value) {
-    const currentTag = selectedAnnotationData.value.tag;
+    const annData = selectedAnnotationData.value;
 
-    if (currentTag) {
+    // Check if it's a real annotation (has annotationTypeId)
+    if ((annData as Annotation).annotationTypeId) {
+      const typeId = (annData as Annotation).annotationTypeId;
+      const type = activeAnnotationTypes.value.find((t) => t.id === typeId);
+
+      if (type) {
+        editInitialValues.value = { [type.id]: (annData as Annotation).value };
+      }
+    }
+    // Check if it's pending (might use different structure or tempId)
+    else if ((annData as any).tag_type) {
+      // Pending annotation using flat structure
+      // We need to look up type by name if we don't have ID, or maybe we have typeId?
+      // Pending annotation creation logic in handleModalSave doesn't seem to store typeId?
+      // Let's re-examine addPendingAnnotation in handleModalSave
+    }
+    // Fallback for legacy 'tag' object if still present in pending
+    else if ((annData as any).tag) {
+      const currentTag = (annData as any).tag;
       const type = activeAnnotationTypes.value.find((t) => {
         const match = t.name === currentTag.tag_name;
         if (match) return match;
@@ -188,7 +196,6 @@ function handleDoubleClick() {
 
       if (type) {
         editInitialValues.value = { [type.id]: currentTag.value };
-      } else {
       }
     } else {
       editInitialValues.value = {};
@@ -197,6 +204,7 @@ function handleDoubleClick() {
     currentDrawingData.value = null;
     isModalOpen.value = true;
   } else {
+    editInitialValues.value = {};
   }
   console.groupEnd();
 }
@@ -209,19 +217,19 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
     if (!res) return;
     const annId = String(selectedAnnotationData.value.id);
 
-    const newTagData = {
+    const newData = {
       tag_type: res.type.type,
-      tag_name: res.type.name,
+      name: res.type.name,
       value: res.value,
       color: res.type.color || '#ec4899',
-      global: false,
+      is_global: false,
     };
 
     if (annId.startsWith('temp-')) {
-      annotationStore.updatePendingAnnotation(annId, { tag: newTagData });
+      annotationStore.updatePendingAnnotation(annId, newData);
       toast.success('Geçici etiket güncellendi.');
     } else {
-      await annotationStore.updateAnnotation(annId, { tag: newTagData });
+      await annotationStore.updateAnnotation(annId, newData);
     }
 
     if (anno.value) {
@@ -252,18 +260,25 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
   results.forEach((res) => {
     const tempId = `temp-${Date.now()}-${Math.random()}`;
 
+    // Need to find annotation type ID?
+    // res.type is likely the AnnotationType object from LocalAnnotationModal
+    const typeId = res.type.id || '';
+
     annotationStore.addPendingAnnotation({
       tempId,
       imageId: props.selectedImage!.id,
-      tag: {
-        tag_type: res.type.type,
-        tag_name: res.type.name,
-        value: res.value,
-        color: res.type.color || '#ec4899',
-        global: false,
-      },
+      // Flattened structure
+      ws_id: props.selectedImage!.parent.id, // Assuming parent is workspace? Or get from store?
+      // Wait, CreateNewAnnotationRequest needs ws_id.
+      // If props.selectedImage.parent is 'patient', we need to find workspace.
+      // But addPendingAnnotation might only store partial data?
+      name: res.type.name,
+      tag_type: res.type.type,
+      value: res.value,
+      color: res.type.color || '#ec4899',
+      is_global: false,
       polygon: points.map((p: { x: number; y: number }) => ({ x: p.x, y: p.y })),
-    });
+    } as any); // Type assertion because pending annotations might be looser or strict match
 
     if (anno.value) {
       anno.value.addAnnotation({

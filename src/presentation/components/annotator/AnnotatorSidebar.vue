@@ -231,7 +231,7 @@
                       loading="lazy"
                     />
                     <div
-                      v-if="!image.processedpath"
+                      v-if="!image.status.isProcessed()"
                       class="absolute inset-0 bg-black/10 flex items-center justify-center"
                     >
                       <div class="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></div>
@@ -431,12 +431,15 @@ function updateGlobalFormValues(annotations: any[]) {
       .trim()
       .toLowerCase();
   annotations.forEach((ann) => {
-    if (!ann.tag) return;
+    // Check if annotation has type and value
     const matchingType = props.annotationTypes.find(
-      (t) => normalize(t.name) === normalize(ann.tag.tag_name)
+      (t) => normalize(t.name) === normalize(ann.name) || t.id === ann.annotationTypeId
     );
-    if (matchingType && (ann.tag.global || matchingType.global)) {
-      currentGlobals[matchingType.id] = ann.tag.value;
+    // Assuming annotation maps to a global type
+    // If we have annotationTypeId, we can check matchingType.global
+    // If not (pending), we rely on matching logic
+    if (matchingType && matchingType.global /* || ann.is_global if available? */) {
+      currentGlobals[matchingType.id] = ann.value;
     }
   });
   globalFormValues.value = currentGlobals;
@@ -467,9 +470,9 @@ function togglePatient(patient: Patient) {
 }
 
 function getThumbnailUrl(image: any): string {
-  if (!image || !image.processedpath)
+  if (!image || !image.status.isProcessed())
     return 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
-  return `${API_BASE_URL}/api/v1/proxy/${image.processedpath}/thumbnail.jpg`;
+  return `${API_BASE_URL}/api/v1/proxy/${image.id}/thumbnail.jpg`;
 }
 
 function handleScroll(event: Event) {
@@ -490,23 +493,27 @@ async function handleGlobalSave(results: Array<any>) {
     for (const res of results) {
       const targetName = normalize(res.type.name);
       const existingAnn = existingAnnotations.find(
-        (a) => normalize(a.tag?.tag_name) === targetName
+        (a) =>
+          normalize(a.name) === targetName ||
+          (a.annotationTypeId &&
+            props.annotationTypes.find((t) => t.name === targetName && t.id === a.annotationTypeId))
       );
       const tagData = {
         tag_type: res.type.type,
-        tag_name: res.type.name,
+        name: res.type.name,
         value: res.value,
         color: res.type.color || '#333',
-        global: true,
+        is_global: true,
       };
 
       if (existingAnn)
-        await annotationStore.updateAnnotation(String(existingAnn.id), { tag: tagData });
+        await annotationStore.updateAnnotation(String(existingAnn.id), tagData as any);
       else
         await annotationStore.createAnnotation(props.selectedImageId, {
+          ...tagData,
           polygon: [],
-          tag: tagData,
-        });
+          ws_id: props.workspaces.find((w) => w.id === props.selectedWorkspaceId)?.id || '',
+        } as any);
     }
     toast.success('Global etiketler kaydedildi.');
   } catch (e) {

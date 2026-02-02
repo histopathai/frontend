@@ -10,13 +10,12 @@ import type { Pagination, PaginatedResult } from '@/core/types/common';
 interface PendingAnnotation {
   tempId: string;
   imageId: string;
-  tag: {
-    tag_type: string;
-    tag_name: string;
-    value: string;
-    color: string;
-    global: boolean;
-  };
+  ws_id: string;
+  name: string;
+  tag_type: string;
+  value: any;
+  color: string;
+  is_global: boolean;
   data?: Array<{ tagName: string; value: string }>;
   polygon?: Array<{ x: number; y: number }>;
 }
@@ -51,9 +50,12 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const pagination = ref<Pagination>({
     limit: 10,
     offset: 0,
-    sortBy: 'created_at',
-    sortDir: 'desc',
     hasMore: false,
+  });
+
+  const sort = ref({
+    by: 'created_at',
+    dir: 'desc' as 'asc' | 'desc',
   });
 
   const pendingAnnotations = ref<PendingAnnotation[]>([]);
@@ -181,7 +183,12 @@ export const useAnnotationStore = defineStore('annotation', () => {
       for (const pending of pendingAnnotations.value) {
         try {
           const createRequest: CreateNewAnnotationRequest = {
-            tag: pending.tag,
+            ws_id: pending.ws_id,
+            name: pending.name,
+            tag_type: pending.tag_type,
+            value: pending.value,
+            color: pending.color,
+            is_global: pending.is_global,
             polygon: pending.polygon as any,
             parent: {
               id: pending.imageId,
@@ -200,7 +207,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
         } catch (err: any) {
           errorCount++;
           console.error('❌ Annotation kaydetme hatası:', err);
-          handleError(err, `${pending.tag.tag_name} kaydedilemedi`, false);
+          handleError(err, `${pending.name} kaydedilemedi`, false);
         }
       }
       if (successCount > 0) {
@@ -262,18 +269,19 @@ export const useAnnotationStore = defineStore('annotation', () => {
       const paginationParams: Pagination = {
         limit: 10,
         offset: 0,
-        sortBy: 'created_at',
-        sortDir: 'desc',
         ...paginationOptions,
       };
 
-      const result = await annotationRepo.getByImageId(imageId, paginationParams);
+      const result = await annotationRepo.listByImage(imageId, {
+        pagination: paginationParams,
+        sort: [{ field: sort.value.by, direction: sort.value.dir }],
+      });
       const rawData = result?.data || [];
 
       const entityAnnotations = rawData.map((item: any) => {
         const ann = Annotation.create(item);
-        if (!ann.tag) {
-          console.warn(`⚠️ Annotation ${ann.id} has NO TAG data!`, item);
+        if (!(ann as any).annotationTypeId) {
+          console.warn(`⚠️ Annotation ${ann.id} has NO AnnotationType ID!`, item);
         }
         return ann;
       });

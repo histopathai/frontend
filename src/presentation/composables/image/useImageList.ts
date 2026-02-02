@@ -20,9 +20,9 @@ export function useImageList(patientId: string, emit: any) {
   });
 
   function getThumbnailUrl(image: any): string {
-    if (!image || !image.processedpath) return '';
+    if (!image || !image.status.isProcessed()) return '';
 
-    return `${API_BASE_URL}/api/v1/proxy/${image.processedpath}/thumbnail.jpg`;
+    return `${API_BASE_URL}/api/v1/proxy/${image.id}/thumbnail.jpg`;
   }
 
   function toggleSelection(id: string) {
@@ -54,8 +54,6 @@ export function useImageList(patientId: string, emit: any) {
         {
           limit: limit,
           offset: offset.value,
-          sortBy: 'created_at',
-          sortDir: 'desc',
         },
         { append: !reset, showToast: false }
       );

@@ -4,6 +4,7 @@ import { repositories } from '@/services';
 import { useToast } from 'vue-toastification';
 import { useI18n } from 'vue-i18n';
 import type { Image } from '@/core/entities/Image';
+import { useWorkspaceStore } from './workspace';
 import type {
   CreateNewImageRequest,
   ImageUploadPayload,
@@ -68,9 +69,13 @@ export const useImageStore = defineStore('image', () => {
   const pagination = ref<Pagination>({
     limit: 10,
     offset: 0,
-    sortBy: 'created_at',
-    sortDir: 'desc',
     hasMore: false,
+  });
+
+  // Keep track of sort separately since it was removed from Pagination
+  const sort = ref({
+    by: 'created_at',
+    dir: 'desc' as 'asc' | 'desc',
   });
 
   // --- GETTERS ---
@@ -118,14 +123,14 @@ export const useImageStore = defineStore('image', () => {
         ...images.value.slice(index + 1),
       ];
     }
-    const patientImages = imagesByPatient.value.get(updatedImage.patientId);
+    const patientImages = imagesByPatient.value.get(updatedImage.parentId);
     if (patientImages) {
       const ptIndex = patientImages.findIndex((img) => img.id === updatedImage.id);
       if (ptIndex !== -1) {
         const newPatientImages = [...patientImages];
         newPatientImages[ptIndex] = updatedImage;
         const newMap = new Map(imagesByPatient.value);
-        newMap.set(updatedImage.patientId, newPatientImages);
+        newMap.set(updatedImage.parentId, newPatientImages);
         imagesByPatient.value = newMap;
       }
     }
@@ -200,10 +205,10 @@ export const useImageStore = defineStore('image', () => {
         ...paginationOptions,
       };
 
-      const result: PaginatedResult<Image> = await imageRepo.getByPatientId(
-        patientId,
-        paginationParams
-      );
+      const result: PaginatedResult<Image> = await imageRepo.listByPatient(patientId, {
+        pagination: paginationParams,
+        sort: [{ field: sort.value.by, direction: sort.value.dir }],
+      });
       const currentList = imagesByPatient.value.get(patientId) || [];
       const newList = append ? [...currentList, ...result.data] : result.data;
       const newMap = new Map(imagesByPatient.value);
@@ -256,33 +261,61 @@ export const useImageStore = defineStore('image', () => {
       if (!contentType) {
         contentType = 'application/octet-stream';
       }
+
+      const workspaceStore = useWorkspaceStore();
+      const wsId = workspaceStore.currentWorkspace?.id || '';
+
       const createRequest: CreateNewImageRequest = {
         parent: { id: patientId, type: 'patient' },
-        content_type: contentType,
+        ws_id: wsId,
         name: file.name,
         format: file.name.split('.').pop() || 'unknown',
-        size: file.size,
+        contents: [
+          {
+            content_type: contentType,
+            name: file.name,
+            size: file.size,
+          },
+        ],
       };
-      const uploadPayload: ImageUploadPayload = await imageRepo.create(createRequest);
+
+      console.log('DEBUG: uploadImage started');
+      const uploadPayloads: ImageUploadPayload[] = await imageRepo.create(createRequest);
+      console.log('DEBUG: create request successful, payloads:', uploadPayloads);
+
+      const uploadPayload = uploadPayloads[0];
+
+      if (!uploadPayload) {
+        throw new Error('No upload payload received from server');
+      }
+
       const uploadParams: UploadImageParams = {
         payload: uploadPayload,
         file,
         contentType,
         onUploadProgress: (percentage: number) => {
+          console.log(`DEBUG: Upload progress: ${percentage}%`);
           uploadProgress.value = percentage;
           options.onProgress?.(percentage);
         },
       };
+
+      console.log('DEBUG: Starting file upload...');
       await imageRepo.upload(uploadParams);
+      console.log('DEBUG: File upload completed. Refreshing list...');
+
       const paginationParams: Pagination = { ...pagination.value };
       await fetchImagesByPatient(patientId, paginationParams, { showToast: false });
+      console.log('DEBUG: List refreshed. Upload sequence finished.');
 
       toast.success(t('image.messages.upload_success'));
       return true;
     } catch (err: any) {
+      console.error('DEBUG: uploadImage error:', err);
       handleError(err, t('image.messages.upload_error'));
       return false;
     } finally {
+      console.log('DEBUG: uploadImage finally block');
       uploading.value = false;
       resetUploadProgress();
     }

@@ -41,8 +41,6 @@ export function usePatientList(workspaceId: string) {
     await store.fetchPatientsByWorkspace(workspaceId, {
       limit,
       offset: offset.value,
-      sortBy: 'created_at',
-      sortDir: 'desc',
     });
   }
 

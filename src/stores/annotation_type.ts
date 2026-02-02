@@ -50,9 +50,12 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
   const pagination = ref<Pagination>({
     limit: 100,
     offset: 0,
-    sortBy: 'created_at',
-    sortDir: 'desc',
     hasMore: false,
+  });
+
+  const sort = ref({
+    by: 'created_at',
+    dir: 'desc' as 'asc' | 'desc',
   });
 
   // ===========================
@@ -144,9 +147,15 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
       let result: PaginatedResult<AnnotationType>;
 
       if (parentId) {
-        result = await annotationTypeRepo.getByParentId(parentId, paginationParams);
+        result = await annotationTypeRepo.listByParent(parentId, {
+          pagination: paginationParams,
+          sort: [{ field: sort.value.by, direction: sort.value.dir }],
+        });
       } else {
-        result = await annotationTypeRepo.list(paginationParams);
+        result = await annotationTypeRepo.list({
+          pagination: paginationParams,
+          sort: [{ field: sort.value.by, direction: sort.value.dir }],
+        });
       }
 
       annotationTypes.value = result.data;
@@ -319,8 +328,6 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     pagination.value = {
       limit: 100,
       offset: 0,
-      sortBy: 'created_at',
-      sortDir: 'desc',
       hasMore: false,
     };
   };
