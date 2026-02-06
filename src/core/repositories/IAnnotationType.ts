@@ -30,6 +30,6 @@ export interface IAnnotationTypeRepository {
   create(data: CreateNewAnnotationTypeRequest): Promise<AnnotationType>;
   update(id: string, data: UpdateAnnotationTypeRequest): Promise<void>;
   delete(id: string): Promise<void>;
-  batchDelete(ids: string[]): Promise<void>;
+  softDeleteMany(ids: string[]): Promise<void>;
   count(): Promise<number>;
 }

@@ -22,15 +22,17 @@ export interface CreateNewPatientRequest {
 export interface IPatientRepository {
   getById(id: string): Promise<Patient | null>;
   list(options?: QueryOptions): Promise<PaginatedResult<Patient>>;
+  list(options?: QueryOptions): Promise<PaginatedResult<Patient>>;
   listByWorkspace(workspaceId: string, options?: QueryOptions): Promise<PaginatedResult<Patient>>;
+  listByParent(parentId: string, options?: QueryOptions): Promise<PaginatedResult<Patient>>;
   create(data: CreateNewPatientRequest): Promise<Patient>;
   update(id: string, data: Partial<CreateNewPatientRequest>): Promise<void>;
   delete(id: string): Promise<void>;
   transfer(id: string, newWorkspaceId: string): Promise<void>;
   count(): Promise<number>;
-  batchDelete(ids: string[]): Promise<void>;
-  batchTransfer(data: BatchTransfer): Promise<void>;
-  cascadeDelete(id: string): Promise<void>;
+  count(): Promise<number>;
+  softDeleteMany(ids: string[]): Promise<void>;
+  transferMany(data: BatchTransfer): Promise<void>;
 }
 
 export type UpdatePatientRequest = Partial<CreateNewPatientRequest>;

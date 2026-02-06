@@ -69,7 +69,7 @@ export class ImageRepository implements IImageRepository {
   }
 
   async delete(imageId: string): Promise<void> {
-    await this.apiClient.delete(`/api/v1/proxy/images/${imageId}`);
+    await this.apiClient.delete(`/api/v1/proxy/images/${imageId}/soft-delete`);
   }
 
   async list(options?: QueryOptions): Promise<PaginatedResult<Image>> {
@@ -147,20 +147,104 @@ export class ImageRepository implements IImageRepository {
     };
   }
 
+  async listByParent(parentId: string, options?: QueryOptions): Promise<PaginatedResult<Image>> {
+    const params: any = {};
+    if (options?.pagination) {
+      params.limit = options.pagination.limit;
+      params.offset = options.pagination.offset;
+    }
+    if (options?.sort && options.sort.length > 0) {
+      const sortOpt = options.sort[0];
+      if (sortOpt) {
+        params.sort_by = sortOpt.field;
+        params.sort_dir = sortOpt.direction;
+      }
+    }
+
+    const response = await this.apiClient.get<any>(
+      `/api/v1/proxy/images/parent/${parentId}`,
+      params
+    );
+
+    let items = [];
+    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+    const respAny = response as any;
+
+    if (respAny.data && !Array.isArray(respAny.data) && Array.isArray(respAny.data.data)) {
+      items = respAny.data.data;
+      if (respAny.data.pagination) pagination = respAny.data.pagination;
+    } else if (Array.isArray(respAny.data)) {
+      items = respAny.data;
+      if (respAny.pagination) pagination = respAny.pagination;
+    }
+
+    return {
+      data: items.map(Image.create),
+      pagination: pagination as any,
+    };
+  }
+
+  async listByWorkspace(
+    workspaceId: string,
+    options?: QueryOptions
+  ): Promise<PaginatedResult<Image>> {
+    const params: any = {};
+    if (options?.pagination) {
+      params.limit = options.pagination.limit;
+      params.offset = options.pagination.offset;
+    }
+    if (options?.sort && options.sort.length > 0) {
+      const sortOpt = options.sort[0];
+      if (sortOpt) {
+        params.sort_by = sortOpt.field;
+        params.sort_dir = sortOpt.direction;
+      }
+    }
+
+    const response = await this.apiClient.get<any>(
+      `/api/v1/proxy/images/workspace/${workspaceId}`,
+      params
+    );
+
+    let items = [];
+    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+    const respAny = response as any;
+
+    if (respAny.data && !Array.isArray(respAny.data) && Array.isArray(respAny.data.data)) {
+      items = respAny.data.data;
+      if (respAny.data.pagination) pagination = respAny.data.pagination;
+    } else if (Array.isArray(respAny.data)) {
+      items = respAny.data;
+      if (respAny.pagination) pagination = respAny.pagination;
+    }
+
+    return {
+      data: items.map(Image.create),
+      pagination: pagination as any,
+    };
+  }
+
   async transfer(imageId: string, newPatientId: string): Promise<void> {
     await this.apiClient.put(`/api/v1/proxy/images/${imageId}/transfer/${newPatientId}`, {});
   }
 
-  async batchTransfer(data: BatchTransfer): Promise<void> {
-    await this.apiClient.put(`/api/v1/proxy/images/batch-transfer`, data);
+  async transferMany(data: BatchTransfer): Promise<void> {
+    const params = new URLSearchParams();
+    data.ids.forEach((id) => params.append('ids', id));
+    await this.apiClient.put(
+      `/api/v1/proxy/images/transfer-many/${data.target}?${params.toString()}`,
+      {}
+    );
   }
 
   async count(): Promise<number> {
-    const response = await this.apiClient.get<{ count: number }>(`/api/v1/proxy/images/count-v1`);
+    const response = await this.apiClient.get<{ count: number }>(`/api/v1/proxy/images/count`);
     return response.count;
   }
 
-  async batchDelete(ids: string[]): Promise<void> {
-    await this.apiClient.post(`/api/v1/proxy/images/batch-delete`, { ids });
+  async softDeleteMany(ids: string[]): Promise<void> {
+    const params = new URLSearchParams();
+    ids.forEach((id) => params.append('ids', id));
+    await this.apiClient.delete(`/api/v1/proxy/images/soft-delete-many?${params.toString()}`);
   }
 }

@@ -96,15 +96,19 @@ export class AnnotationTypeRepository implements IAnnotationTypeRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.apiClient.delete(`/api/v1/proxy/annotation-types/${id}`);
+    await this.apiClient.delete(`/api/v1/proxy/annotation-types/${id}/soft-delete`);
   }
-  async batchDelete(ids: string[]): Promise<void> {
-    await this.apiClient.post(`/api/v1/proxy/annotation-types/batch-delete`, { ids });
+  async softDeleteMany(ids: string[]): Promise<void> {
+    const params = new URLSearchParams();
+    ids.forEach((id) => params.append('ids', id));
+    await this.apiClient.delete(
+      `/api/v1/proxy/annotation-types/soft-delete-many?${params.toString()}`
+    );
   }
 
   async count(): Promise<number> {
     const response = await this.apiClient.get<{ count: number }>(
-      `/api/v1/proxy/annotation-types/count-v1`
+      `/api/v1/proxy/annotation-types/count`
     );
     return response.count;
   }

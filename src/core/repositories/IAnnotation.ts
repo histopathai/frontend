@@ -19,10 +19,15 @@ export interface CreateNewAnnotationRequest {
 
 export interface IAnnotationRepository {
   listByImage(imageId: string, options?: QueryOptions): Promise<PaginatedResult<Annotation>>;
+  listByParent(parentId: string, options?: QueryOptions): Promise<PaginatedResult<Annotation>>;
+  listByWorkspace(
+    workspaceId: string,
+    options?: QueryOptions
+  ): Promise<PaginatedResult<Annotation>>;
   create(data: CreateNewAnnotationRequest): Promise<Annotation>;
   getById(id: string): Promise<Annotation>;
   update(id: string, data: Partial<CreateNewAnnotationRequest>): Promise<void>;
   delete(id: string): Promise<void>;
   count(): Promise<number>;
-  batchDelete(ids: string[]): Promise<void>;
+  softDeleteMany(ids: string[]): Promise<void>;
 }

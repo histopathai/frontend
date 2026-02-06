@@ -3,6 +3,7 @@ import type {
   CreateNewWorkspaceRequest,
   UpdateWorkspaceRequest,
 } from '@/core/repositories/IWorkspaceRepository';
+import type { BatchTransfer } from '@/core/repositories/common';
 import type { PaginatedResult, QueryOptions } from '@/core/types/common';
 
 import { Workspace } from '@/core/entities/Workspace';
@@ -64,7 +65,7 @@ export class WorkspaceRepository implements IWorkspaceRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.apiClient.delete(`/api/v1/proxy/workspaces/${id}`);
+    await this.apiClient.delete(`/api/v1/proxy/workspaces/${id}/soft-delete`);
   }
 
   async count(): Promise<number> {
@@ -72,11 +73,13 @@ export class WorkspaceRepository implements IWorkspaceRepository {
     return response.count;
   }
 
-  async batchDelete(ids: string[]): Promise<void> {
-    await this.apiClient.post('/api/v1/proxy/workspaces/batch-delete', { ids });
+  async softDeleteMany(ids: string[]): Promise<void> {
+    const params = new URLSearchParams();
+    ids.forEach((id) => params.append('ids', id));
+    await this.apiClient.delete(`/api/v1/proxy/workspaces/soft-delete-many?${params.toString()}`);
   }
 
-  async cascadeDelete(id: string): Promise<void> {
-    await this.apiClient.delete(`/api/v1/proxy/workspaces/${id}/cascade-delete`);
+  async transferMany(data: BatchTransfer): Promise<void> {
+    throw new Error('Transfer many not implemented for workspaces');
   }
 }

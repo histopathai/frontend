@@ -45,8 +45,11 @@ export interface IImageRepository {
   delete(imageId: string): Promise<void>;
   list(options?: QueryOptions): Promise<PaginatedResult<Image>>;
   listByPatient(patientId: string, options?: QueryOptions): Promise<PaginatedResult<Image>>;
+  listByParent(parentId: string, options?: QueryOptions): Promise<PaginatedResult<Image>>;
+  listByWorkspace(workspaceId: string, options?: QueryOptions): Promise<PaginatedResult<Image>>;
   transfer(imageId: string, newPatientId: string): Promise<void>;
-  batchTransfer(data: BatchTransfer): Promise<void>;
+  transfer(imageId: string, newPatientId: string): Promise<void>;
+  transferMany(data: BatchTransfer): Promise<void>;
   count(): Promise<number>;
-  batchDelete(ids: string[]): Promise<void>;
+  softDeleteMany(ids: string[]): Promise<void>;
 }
