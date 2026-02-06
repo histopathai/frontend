@@ -104,6 +104,10 @@ export class PatientRepository implements IPatientRepository {
     };
   }
 
+  async listByParent(parentId: string, options?: QueryOptions): Promise<PaginatedResult<Patient>> {
+    return this.listByWorkspace(parentId, options);
+  }
+
   async create(data: CreateNewPatientRequest): Promise<Patient> {
     const response = await this.apiClient.post<any>('/api/v1/proxy/patients', data);
     const patientData = response.data || response;
@@ -115,7 +119,7 @@ export class PatientRepository implements IPatientRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.apiClient.delete(`/api/v1/proxy/patients/${id}`);
+    await this.apiClient.delete(`/api/v1/proxy/patients/${id}/soft-delete`);
   }
 
   async transfer(id: string, newWorkspaceId: string): Promise<void> {
@@ -123,19 +127,22 @@ export class PatientRepository implements IPatientRepository {
   }
 
   async count(): Promise<number> {
-    const response = await this.apiClient.get<{ count: number }>(`/api/v1/proxy/patients/count-v1`);
+    const response = await this.apiClient.get<{ count: number }>(`/api/v1/proxy/patients/count`);
     return response.count;
   }
 
-  async batchDelete(ids: string[]): Promise<void> {
-    await this.apiClient.post(`/api/v1/proxy/patients/batch-delete`, { ids });
+  async softDeleteMany(ids: string[]): Promise<void> {
+    const params = new URLSearchParams();
+    ids.forEach((id) => params.append('ids', id));
+    await this.apiClient.delete(`/api/v1/proxy/patients/soft-delete-many?${params.toString()}`);
   }
 
-  async batchTransfer(data: BatchTransfer): Promise<void> {
-    await this.apiClient.put(`/api/v1/proxy/patients/batch-transfer`, data);
-  }
-
-  async cascadeDelete(id: string): Promise<void> {
-    await this.apiClient.delete(`/api/v1/proxy/patients/${id}/cascade-delete`);
+  async transferMany(data: BatchTransfer): Promise<void> {
+    const params = new URLSearchParams();
+    data.ids.forEach((id) => params.append('patient_ids', id));
+    await this.apiClient.put(
+      `/api/v1/proxy/patients/transfer-many/${data.target}?${params.toString()}`,
+      {}
+    );
   }
 }
