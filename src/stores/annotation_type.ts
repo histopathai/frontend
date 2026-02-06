@@ -289,12 +289,12 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     }
   };
 
-  const batchDeleteAnnotationTypes = async (annotationTypeIds: string[]): Promise<boolean> => {
+  const softDeleteManyAnnotationTypes = async (annotationTypeIds: string[]): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
 
     try {
-      await annotationTypeRepo.batchDelete(annotationTypeIds);
+      await annotationTypeRepo.softDeleteMany(annotationTypeIds);
       annotationTypes.value = annotationTypes.value.filter(
         (at) => !annotationTypeIds.includes(at.id)
       );
@@ -381,7 +381,7 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
 
     // Actions - Delete
     deleteAnnotationType,
-    batchDeleteAnnotationTypes,
+    softDeleteManyAnnotationTypes,
 
     // Actions - Utility
     setCurrentAnnotationType,

@@ -394,7 +394,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
     }
   };
 
-  const batchDeleteAnnotations = async (
+  const softDeleteManyAnnotations = async (
     annotationIds: string[],
     imageId: string
   ): Promise<boolean> => {
@@ -402,7 +402,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
     resetError();
 
     try {
-      await annotationRepo.batchDelete(annotationIds);
+      await annotationRepo.softDeleteMany(annotationIds);
       annotationIds.forEach((id) => removeAnnotationFromState(id, imageId));
       toast.success(t('annotation.messages.batch_delete_success'));
       return true;
@@ -449,7 +449,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
     if (selectedAnnotations.value.size === 0) return false;
 
     const ids = Array.from(selectedAnnotations.value);
-    const success = await batchDeleteAnnotations(ids, imageId);
+    const success = await softDeleteManyAnnotations(ids, imageId);
 
     if (success) {
       clearSelection();
@@ -531,7 +531,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
     // Actions - Delete
     deleteAnnotation,
-    batchDeleteAnnotations,
+    softDeleteManyAnnotations,
 
     // Actions - Selection
     selectAnnotation,

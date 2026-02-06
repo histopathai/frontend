@@ -258,31 +258,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   };
 
-  const cascadeDeleteWorkspace = async (workspaceId: string): Promise<boolean> => {
+  const softDeleteManyWorkspaces = async (workspaceIds: string[]): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
 
     try {
-      await workspaceRepo.cascadeDelete(workspaceId);
-
-      removeWorkspaceFromState(workspaceId);
-
-      toast.success(t('workspace.messages.delete_success'));
-      return true;
-    } catch (err: any) {
-      handleError(err, t('workspace.messages.delete_error'));
-      return false;
-    } finally {
-      actionLoading.value = false;
-    }
-  };
-
-  const batchDeleteWorkspaces = async (workspaceIds: string[]): Promise<boolean> => {
-    actionLoading.value = true;
-    resetError();
-
-    try {
-      await workspaceRepo.batchDelete(workspaceIds);
+      await workspaceRepo.softDeleteMany(workspaceIds);
 
       // Remove all deleted workspaces from state
       workspaces.value = workspaces.value.filter((w) => !workspaceIds.includes(w.id));
@@ -364,8 +345,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
     // Actions - Delete
     deleteWorkspace,
-    cascadeDeleteWorkspace,
-    batchDeleteWorkspaces,
+    softDeleteManyWorkspaces,
 
     // Actions - Utility
     setCurrentWorkspace,

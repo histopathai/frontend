@@ -337,11 +337,11 @@ export const useImageStore = defineStore('image', () => {
     }
   };
 
-  const batchDeleteImages = async (imageIds: string[], patientId: string): Promise<boolean> => {
+  const softDeleteManyImages = async (imageIds: string[], patientId: string): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
     try {
-      await imageRepo.batchDelete(imageIds);
+      await imageRepo.softDeleteMany(imageIds);
       imageIds.forEach((id) => removeImageFromState(id, patientId));
       toast.success(t('image.messages.batch_delete_success'));
       return true;
@@ -375,11 +375,11 @@ export const useImageStore = defineStore('image', () => {
     }
   };
 
-  const batchTransferImages = async (data: BatchTransfer): Promise<boolean> => {
+  const transferManyImages = async (data: BatchTransfer): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
     try {
-      await imageRepo.batchTransfer(data);
+      await imageRepo.transferMany(data);
       toast.success(t('image.messages.batch_transfer_success'));
       return true;
     } catch (err: any) {
@@ -451,9 +451,9 @@ export const useImageStore = defineStore('image', () => {
     loadMoreImages,
     uploadImage,
     deleteImage,
-    batchDeleteImages,
+    softDeleteManyImages,
     transferImage,
-    batchTransferImages,
+    transferManyImages,
     setCurrentImage,
     clearCurrentImage,
     clearImages,

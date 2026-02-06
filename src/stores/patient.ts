@@ -260,30 +260,14 @@ export const usePatientStore = defineStore('patient', () => {
     }
   };
 
-  const cascadeDeletePatient = async (patientId: string, workspaceId: string): Promise<boolean> => {
-    actionLoading.value = true;
-    resetError();
-    try {
-      await patientRepo.cascadeDelete(patientId);
-      removePatientFromState(patientId, workspaceId);
-      toast.success(t('patient.messages.delete_success'));
-      return true;
-    } catch (err: any) {
-      handleError(err, t('patient.messages.delete_error'));
-      return false;
-    } finally {
-      actionLoading.value = false;
-    }
-  };
-
-  const batchDeletePatients = async (
+  const softDeleteManyPatients = async (
     patientIds: string[],
     workspaceId: string
   ): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
     try {
-      await patientRepo.batchDelete(patientIds);
+      await patientRepo.softDeleteMany(patientIds);
       patientIds.forEach((id) => removePatientFromState(id, workspaceId));
       toast.success(t('patient.messages.batch_delete_success'));
       return true;
@@ -315,11 +299,11 @@ export const usePatientStore = defineStore('patient', () => {
     }
   };
 
-  const batchTransferPatients = async (data: BatchTransfer): Promise<boolean> => {
+  const transferManyPatients = async (data: BatchTransfer): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
     try {
-      await patientRepo.batchTransfer(data);
+      await patientRepo.transferMany(data);
       toast.success(t('patient.messages.batch_transfer_success'));
       return true;
     } catch (err: any) {
@@ -384,10 +368,9 @@ export const usePatientStore = defineStore('patient', () => {
     createPatient,
     updatePatient,
     deletePatient,
-    cascadeDeletePatient,
-    batchDeletePatients,
+    softDeleteManyPatients,
     transferPatient,
-    batchTransferPatients,
+    transferManyPatients,
     setCurrentPatient,
     clearCurrentPatient,
     clearPatients,
