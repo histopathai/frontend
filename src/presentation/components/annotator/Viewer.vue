@@ -40,9 +40,17 @@ const currentDrawingData = ref<any>(null);
 const selectedAnnotationData = ref<Annotation | null>(null);
 const editInitialValues = ref<Record<string, any>>({});
 
-const activeAnnotationTypes = computed(() =>
-  annotationTypeStore.annotationTypes.filter((t) => !t.global)
-);
+import { useWorkspaceStore } from '@/stores/workspace';
+
+const activeAnnotationTypes = computed(() => {
+  const workspaceStore = useWorkspaceStore();
+  const currentWs = workspaceStore.currentWorkspace;
+  if (!currentWs || !currentWs.annotationTypeIds) return [];
+
+  return annotationTypeStore.annotationTypes.filter(
+    (t) => !t.global && currentWs.annotationTypeIds.includes(t.id)
+  );
+});
 
 defineExpose({ startDrawing, stopDrawing });
 

@@ -427,7 +427,8 @@ const unsavedCount = computed(() => {
 });
 
 const activeAnnotationTypes = computed(() => {
-  const ids = workspaceStore.currentWorkspace?.annotationTypeIds || [];
+  if (!workspaceStore.currentWorkspace) return [];
+  const ids = workspaceStore.currentWorkspace.annotationTypeIds || [];
   return ids
     .map((id) => annotationTypeStore.getAnnotationTypeById(id))
     .filter((t): t is any => !!t);
@@ -445,6 +446,21 @@ const dynamicFields = computed(() =>
     }))
 );
 
+watch(
+  () => props.image,
+  async (newImage) => {
+    if (newImage && newImage.parent && newImage.parent.id) {
+      if (
+        !workspaceStore.currentWorkspace ||
+        workspaceStore.currentWorkspace.id !== newImage.parent.id
+      ) {
+        await workspaceStore.fetchWorkspaceById(newImage.parent.id, { showToast: false });
+      }
+    }
+  },
+  { immediate: true }
+);
+
 const hasFilledMetadata = computed(() => dynamicFields.value.some((f) => localMetadata[f.name]));
 
 function togglePopover(name: string) {
@@ -457,12 +473,14 @@ async function handleSaveAll() {
   try {
     if (hasDemographicsChanges.value) {
       try {
-        await patientStore.updatePatient(props.patient.id, {
-          age: age.value,
-          gender: gender.value,
-          race: race.value,
-          history: history.value,
-        });
+        const payload: any = {
+          creator_id: props.patient.creatorId,
+          age: typeof age.value === 'number' ? age.value : undefined,
+          gender: gender.value || undefined,
+          race: race.value || undefined,
+          history: history.value || undefined,
+        };
+        await patientStore.updatePatient(props.patient.id, payload);
       } catch (e) {
         errorOccurred = true;
       }

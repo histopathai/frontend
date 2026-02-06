@@ -450,7 +450,10 @@ const getSaveButtonText = computed(() => {
   return 'Oluştur & Kaydet';
 });
 
-const workspaceTypes = computed(() => store.annotationTypes);
+const workspaceTypes = computed(() => {
+  const workspaceTypeIds = workspaceStore.currentWorkspace?.annotationTypeIds || [];
+  return store.annotationTypes.filter((type) => workspaceTypeIds.includes(type.id));
+});
 
 const filteredList = computed(() => {
   const source = activeTab.value === 'workspace' ? workspaceTypes.value : libraryTypes.value;
@@ -474,10 +477,17 @@ watch(activeTab, async (newTab) => {
 async function fetchWorkspaceTypes() {
   loadingTypes.value = true;
   try {
-    await store.fetchAnnotationTypes(
-      { limit: 100 },
-      { refresh: true, parentId: props.workspaceId }
-    );
+    // Ensure workspace is loaded to get annotationTypeIds
+    if (
+      !workspaceStore.currentWorkspace ||
+      workspaceStore.currentWorkspace.id !== props.workspaceId
+    ) {
+      await workspaceStore.fetchWorkspaceById(props.workspaceId);
+    }
+
+    // Fetch all annotation types (no parent_id filter)
+    // The workspaceTypes computed property will filter them by workspace's annotationTypeIds
+    await store.fetchAnnotationTypes({ limit: 100 }, { refresh: true });
   } catch (error) {
     console.error(error);
   } finally {
@@ -602,25 +612,39 @@ async function handleSave() {
 
   loading.value = true;
   try {
-    const payload = {
-      name: form.name,
-      // parent_id removed as it is not in the interface
-      color: form.color,
-      tag_type: form.type,
-      options: [TagType.Select, TagType.MultiSelect].includes(form.type) ? form.options : undefined,
-      is_global: form.global,
-      is_required: form.required,
-      min: form.type === TagType.Number ? form.min : undefined,
-      max: form.type === TagType.Number ? form.max : undefined,
-    };
-
     let createdOrUpdatedType: AnnotationType | null = null;
 
     if (isEditingMode.value && currentTypeId.value) {
-      await store.updateAnnotationType(currentTypeId.value, payload);
+      // Update payload - exclude immutable fields (is_global, tag_type)
+      const updatePayload = {
+        name: form.name,
+        color: form.color,
+        options: [TagType.Select, TagType.MultiSelect].includes(form.type)
+          ? form.options
+          : undefined,
+        is_required: form.required,
+        min: form.type === TagType.Number ? form.min : undefined,
+        max: form.type === TagType.Number ? form.max : undefined,
+      };
+
+      await store.updateAnnotationType(currentTypeId.value, updatePayload);
       toast.success('Güncellendi.');
     } else {
-      createdOrUpdatedType = await store.createAnnotationType(payload);
+      // Create payload - include all fields
+      const createPayload = {
+        name: form.name,
+        color: form.color,
+        tag_type: form.type,
+        options: [TagType.Select, TagType.MultiSelect].includes(form.type)
+          ? form.options
+          : undefined,
+        is_global: form.global,
+        is_required: form.required,
+        min: form.type === TagType.Number ? form.min : undefined,
+        max: form.type === TagType.Number ? form.max : undefined,
+      };
+
+      createdOrUpdatedType = await store.createAnnotationType(createPayload);
 
       if (createdOrUpdatedType && createdOrUpdatedType.id) {
         await addTypeToWorkspace(createdOrUpdatedType.id);

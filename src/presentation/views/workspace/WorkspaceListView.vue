@@ -173,9 +173,9 @@ async function handleDeleteConfirm() {
   let success = false;
 
   if (isSingleDelete.value && workspaceToDelete.value) {
-    success = await store.cascadeDeleteWorkspace(workspaceToDelete.value.id);
+    success = await store.deleteWorkspace(workspaceToDelete.value.id);
   } else if (!isSingleDelete.value && idsToDelete.value.length > 0) {
-    success = await store.batchDeleteWorkspaces(idsToDelete.value);
+    success = await store.softDeleteManyWorkspaces(idsToDelete.value);
   }
 
   if (success) {

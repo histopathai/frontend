@@ -328,7 +328,7 @@ async function confirmDelete() {
 
   try {
     if (isBatchDelete.value) {
-      success = await imageStore.batchDeleteImages(selectedIds.value, props.patientId);
+      success = await imageStore.softDeleteManyImages(selectedIds.value, props.patientId);
       if (success) {
         selectedIds.value = [];
         await loadImages(true);

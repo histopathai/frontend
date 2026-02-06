@@ -92,7 +92,7 @@ async function handleTransfer() {
   let success = false;
 
   if (isBatch.value) {
-    success = await imageStore.batchTransferImages({
+    success = await imageStore.transferManyImages({
       ids: props.imageIds,
       target: targetPatientId.value,
     });
