@@ -86,7 +86,7 @@ export function useImageList(patientId: string, emit: any) {
       return;
 
     const countToDelete = selectedIds.value.length;
-    const success = await imageStore.batchDeleteImages(selectedIds.value, patientId);
+    const success = await imageStore.softDeleteManyImages(selectedIds.value, patientId);
 
     if (success) {
       selectedIds.value = [];

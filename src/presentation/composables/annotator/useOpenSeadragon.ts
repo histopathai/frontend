@@ -1,6 +1,7 @@
 import { ref, onMounted, onUnmounted, shallowRef, watch } from 'vue';
 import { useAnnotationStore } from '@/stores/annotation';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
+import { useWorkspaceStore } from '@/stores/workspace';
 import type { Image } from '@/core/entities/Image';
 import OpenSeadragon from 'openseadragon';
 import Annotorious from '@recogito/annotorious-openseadragon';
@@ -19,6 +20,29 @@ export function useOpenSeadragon(viewerId: string) {
   const loading = ref(false);
 
   function startDrawing() {
+    // Check if there are local annotation types
+    const workspace = useWorkspaceStore().currentWorkspace;
+    const allTypes = useAnnotationTypeStore().annotationTypes;
+
+    if (!workspace || !workspace.annotationTypeIds) {
+      console.warn('Workspace not loaded or no types defined');
+      return;
+    }
+
+    const localTypes = workspace.annotationTypeIds
+      .map((id) => allTypes.find((t) => t.id === id))
+      .filter((t) => t && !t.global);
+
+    if (localTypes.length === 0) {
+      // Dispatch a custom event or toast to notify user
+      window.dispatchEvent(
+        new CustomEvent('toast-error', {
+          detail: 'Bu çalışma alanı için çizim etiketi (lokal) tanımlanmamış.',
+        })
+      );
+      return;
+    }
+
     if (anno.value) {
       anno.value.setDrawingTool('polygon');
       anno.value.setDrawingEnabled(true);
@@ -28,7 +52,6 @@ export function useOpenSeadragon(viewerId: string) {
   function stopDrawing() {
     if (anno.value) {
       anno.value.setDrawingEnabled(false);
-      anno.value.setDrawingTool(null);
     }
   }
 
