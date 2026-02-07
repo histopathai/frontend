@@ -42,7 +42,16 @@ export class AnnotationRepository implements IAnnotationRepository {
     }
 
     return {
-      data: items.map((item: any) => Annotation.create(item)),
+      data: items
+        .map((item: any) => {
+          try {
+            return Annotation.create(item);
+          } catch (e) {
+            console.warn('Skipping invalid annotation:', item, e);
+            return null;
+          }
+        })
+        .filter((item): item is Annotation => item !== null),
       pagination: pagination as any,
     };
   }
@@ -89,7 +98,16 @@ export class AnnotationRepository implements IAnnotationRepository {
     }
 
     return {
-      data: items.map((item: any) => Annotation.create(item)),
+      data: items
+        .map((item: any) => {
+          try {
+            return Annotation.create(item);
+          } catch (e) {
+            console.warn('Skipping invalid annotation:', item, e);
+            return null;
+          }
+        })
+        .filter((item): item is Annotation => item !== null),
       pagination: pagination as any,
     };
   }
