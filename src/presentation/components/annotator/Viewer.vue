@@ -288,10 +288,22 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
 
     const typeId = res.type.id || '';
 
+    // Safe workspace ID resolution
+    const safeWsId =
+      (props.selectedImage as any).wsId ||
+      (props.selectedImage!.parent?.type === 'workspace'
+        ? props.selectedImage!.parent.id
+        : undefined);
+
+    if (!safeWsId) {
+      console.error('Cannot create pending annotation: Missing Workspace ID');
+      return;
+    }
+
     annotationStore.addPendingAnnotation({
       tempId,
       imageId: props.selectedImage!.id,
-      ws_id: props.selectedImage!.parent.id,
+      ws_id: safeWsId,
       name: res.type.name,
       tag_type: res.type.type,
       value: res.value,

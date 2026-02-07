@@ -196,8 +196,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
             },
           };
 
-          const responseData = await annotationRepo.create(createRequest);
-          const newAnnotation = Annotation.create(responseData);
+          const newAnnotation = await annotationRepo.create(createRequest);
 
           annotations.value = [newAnnotation, ...annotations.value];
           const imageAnnotations = annotationsByImage.value.get(pending.imageId) || [];
