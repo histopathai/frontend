@@ -41,7 +41,6 @@ const currentDrawingData = ref<any>(null);
 const selectedAnnotationData = ref<Annotation | null>(null);
 const editInitialValues = ref<Record<string, any>>({});
 
-
 const activeAnnotationTypes = computed(() => {
   const workspaceStore = useWorkspaceStore();
   const currentWs = workspaceStore.currentWorkspace;
@@ -70,13 +69,22 @@ watch(
       return;
     }
     await loadImage(newImg);
-    if (newImg.parent && newImg.parent.id) {
-      const workspaceStore = useWorkspaceStore();
-      
-      if (workspaceStore.currentWorkspace?.id !== newImg.parent.id) {
-         await workspaceStore.fetchWorkspaceById(newImg.parent.id);
+    if (newImg) {
+      let targetWorkspaceId = (newImg as any).wsId;
+      if (!targetWorkspaceId && newImg.parent && newImg.parent.type === 'workspace') {
+        targetWorkspaceId = newImg.parent.id;
       }
-    
+
+      if (targetWorkspaceId) {
+        const workspaceStore = useWorkspaceStore();
+        if (workspaceStore.currentWorkspace?.id !== targetWorkspaceId) {
+          try {
+            await workspaceStore.fetchWorkspaceById(targetWorkspaceId);
+          } catch (e) {
+            console.error('Failed to fetch workspace in Viewer:', targetWorkspaceId, e);
+          }
+        }
+      }
     }
   },
   { immediate: true } // Sayfa ilk açıldığında da çalışması için
@@ -139,8 +147,7 @@ onMounted(() => {
             if ((foundData as any).annotationTypeId === type.id) {
               initialValues[type.id] = (foundData as any).value;
               console.log(`✅ [${type.name}] -> Matched by ID: ${(foundData as any).value}`);
-            }
-            else if (
+            } else if (
               (foundData as any).name === type.name ||
               (foundData as any).tag_type === type.type
             ) {
@@ -197,10 +204,8 @@ function handleDoubleClick() {
       if (type) {
         editInitialValues.value = { [type.id]: (annData as Annotation).value };
       }
-    }
-    else if ((annData as any).tag_type) {
-    }
-    else if ((annData as any).tag) {
+    } else if ((annData as any).tag_type) {
+    } else if ((annData as any).tag) {
       const currentTag = (annData as any).tag;
       const type = activeAnnotationTypes.value.find((t) => {
         const match = t.name === currentTag.tag_name;
@@ -246,18 +251,26 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
     }
 
     if (anno.value) {
-      const w3cAnnotation = anno.value.getAnnotation(annId);
-      if (w3cAnnotation) {
-        w3cAnnotation.body = [
-          {
-            type: 'TextualBody',
-            value: `${res.type.name}: ${res.value}`,
-            purpose: 'tagging',
-          },
-        ];
-        anno.value.updateAnnotation(w3cAnnotation);
+      // Check if getAnnotation exists (Annotorious API variance check)
+      if (typeof anno.value.getAnnotation === 'function') {
+        const w3cAnnotation = anno.value.getAnnotation(annId);
+        if (w3cAnnotation) {
+          w3cAnnotation.body = [
+            {
+              type: 'TextualBody',
+              value: `${res.type.name}: ${res.value}`,
+              purpose: 'tagging',
+            },
+          ];
+          if (typeof anno.value.updateAnnotation === 'function') {
+            anno.value.updateAnnotation(w3cAnnotation);
+          }
+        }
       }
-      anno.value.cancelSelected();
+
+      if (typeof anno.value.cancelSelected === 'function') {
+        anno.value.cancelSelected();
+      }
     }
 
     isModalOpen.value = false;
@@ -278,14 +291,14 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
     annotationStore.addPendingAnnotation({
       tempId,
       imageId: props.selectedImage!.id,
-      ws_id: props.selectedImage!.parent.id, 
+      ws_id: props.selectedImage!.parent.id,
       name: res.type.name,
       tag_type: res.type.type,
       value: res.value,
       color: res.type.color || '#ec4899',
       is_global: false,
       polygon: points.map((p: { x: number; y: number }) => ({ x: p.x, y: p.y })),
-    } as any); 
+    } as any);
 
     if (anno.value) {
       anno.value.addAnnotation({

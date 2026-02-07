@@ -284,7 +284,10 @@
                   class="form-input-modern"
                   placeholder="Sayısal değer..."
                 />
-                <p v-if="field.min !== undefined || field.max !== undefined" class="text-[9px] text-gray-400 mt-0.5">
+                <p
+                  v-if="field.min !== undefined || field.max !== undefined"
+                  class="text-[9px] text-gray-400 mt-0.5"
+                >
                   Aralık: {{ field.min ?? '-∞' }} - {{ field.max ?? '+∞' }}
                 </p>
               </div>
@@ -299,7 +302,10 @@
                   <option :value="undefined" disabled>Seçiniz</option>
                   <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
                 </select>
-                <p v-if="checkType(field.type, ['multi_select', 'multiselect'])" class="text-[9px] text-gray-400 mt-1 italic">
+                <p
+                  v-if="checkType(field.type, ['multi_select', 'multiselect'])"
+                  class="text-[9px] text-gray-400 mt-1 italic"
+                >
                   Çoklu seçim için CTRL tuşunu basılı tutun.
                 </p>
               </div>
@@ -427,11 +433,16 @@ function formatIndex(idx: number) {
 function checkType(actualType: string, targetType: string | string[]): boolean {
   if (!actualType) return false;
   const normalizedActual = actualType.toString().toLowerCase();
-  
+
   if (Array.isArray(targetType)) {
-    return targetType.some(t => normalizedActual === t.toLowerCase() || normalizedActual.includes(t.toLowerCase()));
+    return targetType.some(
+      (t) => normalizedActual === t.toLowerCase() || normalizedActual.includes(t.toLowerCase())
+    );
   }
-  return normalizedActual === targetType.toLowerCase() || normalizedActual.includes(targetType.toLowerCase());
+  return (
+    normalizedActual === targetType.toLowerCase() ||
+    normalizedActual.includes(targetType.toLowerCase())
+  );
 }
 
 watch(
@@ -505,7 +516,7 @@ const dynamicFields = computed(() =>
       required: t.required || false,
       global: true,
       min: t.min, // Min/Max eklendi
-      max: t.max
+      max: t.max,
     }))
 );
 
@@ -513,21 +524,36 @@ watch(
   () => props.image,
   async (newImage) => {
     if (newImage && newImage.parent && newImage.parent.id) {
-      if (
-        !workspaceStore.currentWorkspace ||
-        workspaceStore.currentWorkspace.id !== newImage.parent.id
-      ) {
-        await workspaceStore.fetchWorkspaceById(newImage.parent.id, { showToast: false });
+      let targetWorkspaceId = (newImage as any).wsId;
+
+      // Fallback only if parent type is explicitly workspace
+      if (!targetWorkspaceId && newImage.parent.type === 'workspace') {
+        targetWorkspaceId = newImage.parent.id;
+      }
+
+      if (targetWorkspaceId) {
+        if (
+          !workspaceStore.currentWorkspace ||
+          workspaceStore.currentWorkspace.id !== targetWorkspaceId
+        ) {
+          try {
+            await workspaceStore.fetchWorkspaceById(targetWorkspaceId, { showToast: false });
+          } catch (e) {
+            console.error('Workspace fetch failed:', e);
+          }
+        }
       }
     }
   },
   { immediate: true }
 );
 
-const hasFilledMetadata = computed(() => dynamicFields.value.some((f) => {
-  const val = localMetadata[f.name];
-  return val !== null && val !== undefined && val !== '';
-}));
+const hasFilledMetadata = computed(() =>
+  dynamicFields.value.some((f) => {
+    const val = localMetadata[f.name];
+    return val !== null && val !== undefined && val !== '';
+  })
+);
 
 function togglePopover(name: string) {
   activePopover.value = activePopover.value === name ? null : name;
@@ -566,7 +592,7 @@ async function handleSaveAll() {
       if (!typeDef) return true;
 
       const existingAnn = imageAnnotations.value.find((a) => a.annotationTypeId === typeDef.id);
-      
+
       const tagData = {
         tag_type: typeDef.type,
         name: tagName,
@@ -578,7 +604,7 @@ async function handleSaveAll() {
         imageId: props.image.id,
         geometry: [], // Global olduğu için boş geometry
         tags: [],
-        text: `${tagName}: ${value}` 
+        text: `${tagName}: ${value}`,
       };
 
       if (existingAnn) {
@@ -586,17 +612,27 @@ async function handleSaveAll() {
         return await annotationStore.updateAnnotation(existingAnn.id, {
           ...tagData,
           // update request body yapısına göre düzenlenmeli
-          value: value 
+          value: value,
         } as any);
       } else {
         // Create
         try {
+          // Use wsId or fallback to parent ID if workspace type
+          const safeWsId =
+            (props.image as any).wsId ||
+            (props.image.parent?.type === 'workspace' ? props.image.parent.id : undefined);
+          if (!safeWsId) {
+            console.error('Cannot create global annotation: Missing Workspace ID');
+            return false;
+          }
+
           await annotationStore.createAnnotation(props.image.id, {
-             ...tagData,
-             ws_id: props.image.parent.id,
+            ...tagData,
+            ws_id: safeWsId,
           } as any);
           return true;
         } catch (e) {
+          console.error('Global annotation creation failed', e);
           return false;
         }
       }

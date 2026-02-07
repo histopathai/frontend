@@ -78,9 +78,8 @@
             </div>
 
             <div class="pl-5">
-              
               <input
-                v-if="checkType(type.type, 'text')"
+                v-if="type.type === TagType.Text"
                 v-model="formValues[type.id]"
                 type="text"
                 class="w-full form-input-custom"
@@ -88,21 +87,26 @@
               />
 
               <div v-else-if="checkType(type.type, ['select', 'multi_select', 'multiselect'])">
-                <div v-if="!type.options || type.options.length === 0" class="text-xs text-red-400 mb-1">
+                <div
+                  v-if="!type.options || type.options.length === 0"
+                  class="text-xs text-red-400 mb-1"
+                >
                   Seçenek listesi boş.
                 </div>
-                
+
                 <select
                   v-model="formValues[type.id]"
                   class="w-full form-select-custom"
                   :multiple="checkType(type.type, 'multi_select')"
                 >
                   <option :value="undefined" disabled>Seçiniz...</option>
-                  <option v-for="(opt, idx) in (type.options || [])" :key="idx" :value="opt">
+                  <option v-for="(opt, idx) in type.options || []" :key="idx" :value="opt">
                     {{ opt }}
                   </option>
                 </select>
-                <p v-if="checkType(type.type, 'multi_select')" class="text-xs text-gray-400 mt-1">CTRL tuşuna basılı tutarak birden fazla seçebilirsiniz.</p>
+                <p v-if="checkType(type.type, 'multi_select')" class="text-xs text-gray-400 mt-1">
+                  CTRL tuşuna basılı tutarak birden fazla seçebilirsiniz.
+                </p>
               </div>
 
               <input
@@ -115,7 +119,7 @@
                 placeholder="Sayısal değer..."
               />
 
-              <div v-else-if="checkType(type.type, 'boolean')" class="flex gap-2">
+              <div v-else-if="type.type === TagType.Boolean" class="flex gap-2">
                 <button
                   @click="formValues[type.id] = true"
                   class="px-4 py-2 rounded-lg text-xs font-semibold border transition-all"
@@ -139,16 +143,17 @@
                   HAYIR (Negatif)
                 </button>
               </div>
-              
+
               <div v-else class="text-xs text-gray-400">
                 Bu veri tipi desteklenmiyor: {{ type.type }}
               </div>
-
             </div>
           </div>
         </div>
 
-        <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-between gap-3 shrink-0">
+        <div
+          class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-between gap-3 shrink-0"
+        >
           <div>
             <button
               v-if="isEditing"
@@ -182,6 +187,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import { TagType } from '@/core/value-objects';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -230,11 +236,16 @@ watch(
 function checkType(actualType: string, targetType: string | string[]): boolean {
   if (!actualType) return false;
   const normalizedActual = actualType.toString().toLowerCase();
-  
+
   if (Array.isArray(targetType)) {
-    return targetType.some(t => normalizedActual === t.toLowerCase() || normalizedActual.includes(t.toLowerCase()));
+    return targetType.some(
+      (t) => normalizedActual === t.toLowerCase() || normalizedActual.includes(t.toLowerCase())
+    );
   }
-  return normalizedActual === targetType.toLowerCase() || normalizedActual.includes(targetType.toLowerCase());
+  return (
+    normalizedActual === targetType.toLowerCase() ||
+    normalizedActual.includes(targetType.toLowerCase())
+  );
 }
 
 function handleSave() {
@@ -285,7 +296,13 @@ function handleDelete() {
   animation: fadeIn 0.2s ease-out;
 }
 @keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 </style>
