@@ -237,7 +237,7 @@
 
         <div
           v-if="activePopover === 'global_tags'"
-          class="absolute top-12 right-0 mt-1 w-72 bg-white rounded-xl shadow-xl border border-gray-100 p-4 z-50 animate-fade-in origin-top-right custom-scrollbar max-h-[400px] overflow-y-auto"
+          class="absolute top-12 right-0 mt-1 w-80 bg-white rounded-xl shadow-xl border border-gray-100 p-4 z-50 animate-fade-in origin-top-right custom-scrollbar max-h-[500px] overflow-y-auto"
         >
           <div class="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
             <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">
@@ -250,29 +250,93 @@
           >
             Tanımlı etiket yok.
           </div>
-          <div v-else class="space-y-3">
-            <div v-for="field in dynamicFields" :key="field.name" class="flex flex-col gap-1">
-              <label class="text-[10px] font-bold text-gray-600">{{ field.name }}</label>
+          <div v-else class="space-y-4">
+            <div
+              v-for="field in dynamicFields"
+              :key="field.id"
+              class="flex flex-col gap-1 p-3 rounded-lg border border-gray-50 bg-gray-50/50 hover:bg-white hover:border-gray-200 transition-colors"
+            >
+              <div class="flex items-center justify-between">
+                <label class="text-[10px] font-bold text-gray-700 uppercase">{{
+                  field.name
+                }}</label>
+                <span
+                  v-if="field.required"
+                  class="text-[9px] text-red-500 font-medium bg-red-50 px-1 rounded"
+                  >ZORUNLU</span
+                >
+              </div>
+
               <input
-                v-if="field.type === 'TEXT'"
+                v-if="checkType(field.type, 'text')"
                 type="text"
                 v-model="localMetadata[field.name]"
                 class="form-input-modern"
+                placeholder="Metin giriniz..."
               />
+
+              <div v-else-if="checkType(field.type, 'number')">
+                <input
+                  type="number"
+                  v-model.number="localMetadata[field.name]"
+                  :min="field.min"
+                  :max="field.max"
+                  class="form-input-modern"
+                  placeholder="Sayısal değer..."
+                />
+                <p v-if="field.min !== undefined || field.max !== undefined" class="text-[9px] text-gray-400 mt-0.5">
+                  Aralık: {{ field.min ?? '-∞' }} - {{ field.max ?? '+∞' }}
+                </p>
+              </div>
+
+              <div v-else-if="checkType(field.type, ['select', 'multi_select', 'multiselect'])">
+                <select
+                  v-model="localMetadata[field.name]"
+                  class="form-select-modern"
+                  :multiple="checkType(field.type, ['multi_select', 'multiselect'])"
+                  :size="checkType(field.type, ['multi_select', 'multiselect']) ? 4 : 1"
+                >
+                  <option :value="undefined" disabled>Seçiniz</option>
+                  <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
+                </select>
+                <p v-if="checkType(field.type, ['multi_select', 'multiselect'])" class="text-[9px] text-gray-400 mt-1 italic">
+                  Çoklu seçim için CTRL tuşunu basılı tutun.
+                </p>
+              </div>
+
+              <div v-else-if="checkType(field.type, 'boolean')" class="flex gap-2 pt-1">
+                <button
+                  @click="localMetadata[field.name] = true"
+                  class="flex-1 py-1.5 rounded-md text-xs font-semibold border transition-all"
+                  :class="
+                    localMetadata[field.name] === true
+                      ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
+                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                  "
+                >
+                  EVET
+                </button>
+                <button
+                  @click="localMetadata[field.name] = false"
+                  class="flex-1 py-1.5 rounded-md text-xs font-semibold border transition-all"
+                  :class="
+                    localMetadata[field.name] === false
+                      ? 'bg-rose-500 text-white border-rose-600 shadow-sm'
+                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                  "
+                >
+                  HAYIR
+                </button>
+              </div>
+
               <input
-                v-else-if="field.type === 'NUMBER'"
-                type="number"
-                v-model.number="localMetadata[field.name]"
-                class="form-input-modern"
-              />
-              <select
-                v-else-if="['SELECT', 'MULTI_SELECT'].includes(field.type)"
+                v-else
+                type="text"
                 v-model="localMetadata[field.name]"
-                class="form-select-modern"
-              >
-                <option :value="undefined">Seçiniz</option>
-                <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
-              </select>
+                class="form-input-modern"
+                disabled
+                :placeholder="'Desteklenmeyen tip: ' + field.type"
+              />
             </div>
           </div>
           <div class="mt-4 flex justify-end">
@@ -322,13 +386,13 @@ import { useWorkspaceStore } from '@/stores/workspace';
 import { usePatientStore } from '@/stores/patient';
 import { usePatientEditor } from '@/presentation/composables/annotator/usePatientEditor';
 import { useToast } from 'vue-toastification';
+import { TagType } from '@/core/value-objects/TagType'; // TagType Importu
 
 const props = defineProps({
   patient: { type: Object as PropType<any>, default: null },
   image: { type: Object as PropType<any>, default: null },
   isDrawingMode: { type: Boolean, default: false },
-  // Sayaç Props
-  currentIndex: { type: Number, default: 0 }, // 0 tabanlı index gelir
+  currentIndex: { type: Number, default: 0 },
   totalCount: { type: Number, default: 0 },
 });
 
@@ -354,10 +418,20 @@ const {
 
 const isLoading = computed(() => patientLoading.value || annotationStore.actionLoading);
 
-// Format Index: -1 ise 0 göster, yoksa index+1
 function formatIndex(idx: number) {
   if (idx < 0) return 0;
   return idx + 1;
+}
+
+// Tip Kontrol Helper'ı (LocalAnnotationModal ile aynı mantık)
+function checkType(actualType: string, targetType: string | string[]): boolean {
+  if (!actualType) return false;
+  const normalizedActual = actualType.toString().toLowerCase();
+  
+  if (Array.isArray(targetType)) {
+    return targetType.some(t => normalizedActual === t.toLowerCase() || normalizedActual.includes(t.toLowerCase()));
+  }
+  return normalizedActual === targetType.toLowerCase() || normalizedActual.includes(targetType.toLowerCase());
 }
 
 watch(
@@ -380,21 +454,6 @@ const imageAnnotations = computed(() =>
 watch(
   imageAnnotations,
   (annotations) => {
-    // Filter global annotations based on annotation type (assuming logic exists to determine global)
-    // Here we might need access to types store or assume naming convention/property
-    // Actually we should rely on annotationTypeId to check against global types
-
-    // Since we don't have types here easily available (activeAnnotationTypes is defined later),
-    // let's iterate and populate.
-
-    // Wait, activeAnnotationTypes IS defined below. but we can use store directly?
-    // Let's use what we have in annotation properties if possible.
-    // Annotation entity has 'value', 'name'.
-    // We need to match with type to know if it's GLOBAL.
-    // Or assume all annotations loaded here are relevant?
-
-    // We can rely on activeAnnotationTypes if we move it up or use store.
-
     annotations.forEach((ann) => {
       const type = annotationTypeStore.getAnnotationTypeById(ann.annotationTypeId);
       if (type && type.global) {
@@ -419,6 +478,7 @@ const hasDemographicsChanges = computed(() => {
 const unsavedCount = computed(() => {
   const changedGlobals = Object.entries(localMetadata).filter(([key, val]) => {
     const initial = initialMetadata.value[key];
+    // Basit eşitlik kontrolü yerine deep check gerekebilir ama şimdilik primitive değerler için yeterli
     return val !== initial && val !== '' && val !== undefined && val !== null;
   }).length;
   const pendingLocals = annotationStore.pendingCount;
@@ -438,11 +498,14 @@ const dynamicFields = computed(() =>
   activeAnnotationTypes.value
     .filter((t) => t.global)
     .map((t) => ({
+      id: t.id, // ID eklendi
       name: t.name,
       type: t.type,
       options: t.options || [],
       required: t.required || false,
       global: true,
+      min: t.min, // Min/Max eklendi
+      max: t.max
     }))
 );
 
@@ -461,7 +524,10 @@ watch(
   { immediate: true }
 );
 
-const hasFilledMetadata = computed(() => dynamicFields.value.some((f) => localMetadata[f.name]));
+const hasFilledMetadata = computed(() => dynamicFields.value.some((f) => {
+  const val = localMetadata[f.name];
+  return val !== null && val !== undefined && val !== '';
+}));
 
 function togglePopover(name: string) {
   activePopover.value = activePopover.value === name ? null : name;
@@ -470,7 +536,9 @@ function togglePopover(name: string) {
 async function handleSaveAll() {
   if (!props.patient || isLoading.value || unsavedCount.value === 0) return;
   let errorOccurred = false;
+
   try {
+    // 1. Demografi Güncelleme
     if (hasDemographicsChanges.value) {
       try {
         const payload: any = {
@@ -485,30 +553,47 @@ async function handleSaveAll() {
         errorOccurred = true;
       }
     }
+
+    // 2. Global Etiketler Güncelleme
     const changedGlobalEntries = Object.entries(localMetadata).filter(([key, val]) => {
       const initial = initialMetadata.value[key];
       return val !== initial && val !== '' && val !== undefined && val !== null;
     });
+
     const globalPromises = changedGlobalEntries.map(async ([tagName, value]) => {
       if (!props.image?.id) return true;
       const typeDef = activeAnnotationTypes.value.find((t) => t.name === tagName && t.global);
       if (!typeDef) return true;
+
       const existingAnn = imageAnnotations.value.find((a) => a.annotationTypeId === typeDef.id);
+      
       const tagData = {
         tag_type: typeDef.type,
         name: tagName,
         value: value,
         color: typeDef.color || '#4f46e5',
         is_global: true,
+        // Backend için create request'e uygun ek alanlar
+        annotationTypeId: typeDef.id,
+        imageId: props.image.id,
+        geometry: [], // Global olduğu için boş geometry
+        tags: [],
+        text: `${tagName}: ${value}` 
       };
-      if (existingAnn)
-        return await annotationStore.updateAnnotation(existingAnn.id, tagData as any);
-      else {
+
+      if (existingAnn) {
+        // Update
+        return await annotationStore.updateAnnotation(existingAnn.id, {
+          ...tagData,
+          // update request body yapısına göre düzenlenmeli
+          value: value 
+        } as any);
+      } else {
+        // Create
         try {
           await annotationStore.createAnnotation(props.image.id, {
-            ...tagData,
-            polygon: undefined,
-            ws_id: props.image.parent.id, // Image entity has parent ref.
+             ...tagData,
+             ws_id: props.image.parent.id,
           } as any);
           return true;
         } catch (e) {
@@ -516,30 +601,48 @@ async function handleSaveAll() {
         }
       }
     });
+
     const globalResults = await Promise.all(globalPromises);
     if (globalResults.some((res) => res === false)) errorOccurred = true;
-    if (!errorOccurred) Object.assign(initialMetadata.value, localMetadata);
+
+    // 3. Local (Pending) Annotations Save
     if (annotationStore.pendingCount > 0) {
       const success = await annotationStore.saveAllPendingAnnotations();
       if (!success) errorOccurred = true;
     }
-    if (errorOccurred) toast.error('Hata oluştu.');
-    else {
-      toast.success('Kaydedildi');
+
+    if (errorOccurred) {
+      toast.error('Bazı veriler kaydedilemedi.');
+    } else {
+      toast.success('Tüm değişiklikler kaydedildi');
+      // Başarılı kayıttan sonra referans değerleri güncelle
+      Object.assign(initialMetadata.value, JSON.parse(JSON.stringify(localMetadata)));
       activePopover.value = null;
     }
   } catch (e) {
-    toast.error('Hata oluştu');
+    toast.error('Beklenmeyen bir hata oluştu');
+    console.error(e);
   }
 }
 </script>
 
 <style scoped>
 .form-input-modern {
-  @apply w-full border border-gray-200 bg-gray-50 rounded-lg px-2.5 py-2 text-xs outline-none focus:ring-2 focus:ring-indigo-100 focus:bg-white focus:border-indigo-300 transition-all font-medium text-gray-700;
+  @apply w-full border border-gray-200 bg-white rounded-lg px-2.5 py-2 text-xs outline-none focus:ring-2 focus:ring-indigo-100 focus:bg-white focus:border-indigo-300 transition-all font-medium text-gray-700 shadow-sm;
 }
 .form-select-modern {
-  @apply w-full border border-gray-200 bg-gray-50 rounded-lg px-2.5 py-2 text-xs outline-none focus:ring-2 focus:ring-indigo-100 focus:bg-white focus:border-indigo-300 transition-all font-medium text-gray-700;
+  @apply w-full border border-gray-200 bg-white rounded-lg px-2.5 py-2 text-xs outline-none focus:ring-2 focus:ring-indigo-100 focus:bg-white focus:border-indigo-300 transition-all font-medium text-gray-700 shadow-sm cursor-pointer;
+}
+/* Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #e5e7eb;
+  border-radius: 10px;
 }
 @keyframes fadeIn {
   from {

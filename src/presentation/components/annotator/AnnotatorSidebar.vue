@@ -431,13 +431,9 @@ function updateGlobalFormValues(annotations: any[]) {
       .trim()
       .toLowerCase();
   annotations.forEach((ann) => {
-    // Check if annotation has type and value
     const matchingType = props.annotationTypes.find(
       (t) => normalize(t.name) === normalize(ann.name) || t.id === ann.annotationTypeId
     );
-    // Assuming annotation maps to a global type
-    // If we have annotationTypeId, we can check matchingType.global
-    // If not (pending), we rely on matching logic
     if (matchingType && matchingType.global /* || ann.is_global if available? */) {
       currentGlobals[matchingType.id] = ann.value;
     }

@@ -23,6 +23,7 @@ import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { useAnnotationStore } from '@/stores/annotation';
 import LocalAnnotationModal from './LocalAnnotationModal.vue';
 import { useToast } from 'vue-toastification';
+import { useWorkspaceStore } from '@/stores/workspace';
 
 const toast = useToast();
 
@@ -40,16 +41,24 @@ const currentDrawingData = ref<any>(null);
 const selectedAnnotationData = ref<Annotation | null>(null);
 const editInitialValues = ref<Record<string, any>>({});
 
-import { useWorkspaceStore } from '@/stores/workspace';
 
 const activeAnnotationTypes = computed(() => {
   const workspaceStore = useWorkspaceStore();
   const currentWs = workspaceStore.currentWorkspace;
-  if (!currentWs || !currentWs.annotationTypeIds) return [];
+  const allTypes = annotationTypeStore.annotationTypes;
 
-  return annotationTypeStore.annotationTypes.filter(
-    (t) => !t.global && currentWs.annotationTypeIds.includes(t.id)
-  );
+  if (!currentWs || !currentWs.annotationTypeIds) {
+    return [];
+  }
+
+  return allTypes.filter((t) => {
+    const isGlobal = t.global ?? (t as any).is_global ?? false;
+
+    if (isGlobal) return false;
+    const belongsToWorkspace = currentWs.annotationTypeIds.includes(t.id);
+
+    return belongsToWorkspace;
+  });
 });
 
 defineExpose({ startDrawing, stopDrawing });
@@ -58,13 +67,19 @@ watch(
   () => props.selectedImage,
   async (newImg, oldImg) => {
     if (!newImg || (oldImg && newImg.id === oldImg.id)) {
-      console.log('⚠️ [Viewer] Aynı resim veya geçersiz veri, atlanıyor.');
       return;
     }
-
-    console.log('✅ [Viewer] Yeni resim yükleniyor:', newImg.id);
     await loadImage(newImg);
-  }
+    if (newImg.parent && newImg.parent.id) {
+      const workspaceStore = useWorkspaceStore();
+      
+      if (workspaceStore.currentWorkspace?.id !== newImg.parent.id) {
+         await workspaceStore.fetchWorkspaceById(newImg.parent.id);
+      }
+    
+    }
+  },
+  { immediate: true } // Sayfa ilk açıldığında da çalışması için
 );
 
 onMounted(() => {
@@ -121,13 +136,10 @@ onMounted(() => {
 
           activeAnnotationTypes.value.forEach((type) => {
             const targetName = normalize(type.name);
-
-            // Match by ID first (most reliable)
             if ((foundData as any).annotationTypeId === type.id) {
               initialValues[type.id] = (foundData as any).value;
               console.log(`✅ [${type.name}] -> Matched by ID: ${(foundData as any).value}`);
             }
-            // Fallback for pending annotations (match by name/type)
             else if (
               (foundData as any).name === type.name ||
               (foundData as any).tag_type === type.type
@@ -178,7 +190,6 @@ function handleDoubleClick() {
   if (selected && selectedAnnotationData.value) {
     const annData = selectedAnnotationData.value;
 
-    // Check if it's a real annotation (has annotationTypeId)
     if ((annData as Annotation).annotationTypeId) {
       const typeId = (annData as Annotation).annotationTypeId;
       const type = activeAnnotationTypes.value.find((t) => t.id === typeId);
@@ -187,14 +198,8 @@ function handleDoubleClick() {
         editInitialValues.value = { [type.id]: (annData as Annotation).value };
       }
     }
-    // Check if it's pending (might use different structure or tempId)
     else if ((annData as any).tag_type) {
-      // Pending annotation using flat structure
-      // We need to look up type by name if we don't have ID, or maybe we have typeId?
-      // Pending annotation creation logic in handleModalSave doesn't seem to store typeId?
-      // Let's re-examine addPendingAnnotation in handleModalSave
     }
-    // Fallback for legacy 'tag' object if still present in pending
     else if ((annData as any).tag) {
       const currentTag = (annData as any).tag;
       const type = activeAnnotationTypes.value.find((t) => {
@@ -268,25 +273,19 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
   results.forEach((res) => {
     const tempId = `temp-${Date.now()}-${Math.random()}`;
 
-    // Need to find annotation type ID?
-    // res.type is likely the AnnotationType object from LocalAnnotationModal
     const typeId = res.type.id || '';
 
     annotationStore.addPendingAnnotation({
       tempId,
       imageId: props.selectedImage!.id,
-      // Flattened structure
-      ws_id: props.selectedImage!.parent.id, // Assuming parent is workspace? Or get from store?
-      // Wait, CreateNewAnnotationRequest needs ws_id.
-      // If props.selectedImage.parent is 'patient', we need to find workspace.
-      // But addPendingAnnotation might only store partial data?
+      ws_id: props.selectedImage!.parent.id, 
       name: res.type.name,
       tag_type: res.type.type,
       value: res.value,
       color: res.type.color || '#ec4899',
       is_global: false,
       polygon: points.map((p: { x: number; y: number }) => ({ x: p.x, y: p.y })),
-    } as any); // Type assertion because pending annotations might be looser or strict match
+    } as any); 
 
     if (anno.value) {
       anno.value.addAnnotation({

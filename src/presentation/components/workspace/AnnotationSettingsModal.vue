@@ -477,7 +477,6 @@ watch(activeTab, async (newTab) => {
 async function fetchWorkspaceTypes() {
   loadingTypes.value = true;
   try {
-    // Ensure workspace is loaded to get annotationTypeIds
     if (
       !workspaceStore.currentWorkspace ||
       workspaceStore.currentWorkspace.id !== props.workspaceId
@@ -485,8 +484,6 @@ async function fetchWorkspaceTypes() {
       await workspaceStore.fetchWorkspaceById(props.workspaceId);
     }
 
-    // Fetch all annotation types (no parent_id filter)
-    // The workspaceTypes computed property will filter them by workspace's annotationTypeIds
     await store.fetchAnnotationTypes({ limit: 100 }, { refresh: true });
   } catch (error) {
     console.error(error);
@@ -528,11 +525,15 @@ function handleItemClick(type: AnnotationType) {
 
   currentTypeId.value = type.id;
   form.name = type.name;
-  form.type = type.type;
+  form.type = type.type as TagType;
   form.color = type.color || '#4F46E5';
-  form.global = type.global;
-  form.required = type.required;
-  form.options = type.options ? [...type.options] : [];
+  form.global = type.global ?? false;
+  form.required = type.required ?? false;
+  if (type.options && Array.isArray(type.options)) {
+    form.options = [...type.options];
+  } else {
+    form.options = [];
+  }
   form.min = type.min;
   form.max = type.max;
 }
