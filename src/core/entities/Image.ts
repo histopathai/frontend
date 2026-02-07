@@ -63,6 +63,10 @@ export class Image {
     return this.props.id;
   }
 
+  get wsId(): string {
+    return this.props.wsId;
+  }
+
   get parent(): ParentRef {
     return this.props.parent;
   }
