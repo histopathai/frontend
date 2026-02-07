@@ -268,7 +268,7 @@
               </div>
 
               <input
-                v-if="checkType(field.type, 'text')"
+                v-if="field.type === TagType.Text"
                 type="text"
                 v-model="localMetadata[field.name]"
                 class="form-input-modern"
@@ -336,8 +336,13 @@
               </div>
 
               <input
-                v-else
-                type="text"
+                v-else-if="field.type === TagType.Number"
+                type="number"
+                v-model.number="localMetadata[field.name]"
+                class="form-input-modern"
+              />
+              <select
+                v-else-if="[TagType.Select, TagType.MultiSelect].includes(field.type)"
                 v-model="localMetadata[field.name]"
                 class="form-input-modern"
                 disabled
@@ -386,13 +391,13 @@
 
 <script setup lang="ts">
 import { ref, type PropType, toRef, computed, reactive, watch } from 'vue';
+import { TagType } from '@/core/value-objects/TagType';
 import { useAnnotationStore } from '@/stores/annotation';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { usePatientStore } from '@/stores/patient';
 import { usePatientEditor } from '@/presentation/composables/annotator/usePatientEditor';
 import { useToast } from 'vue-toastification';
-import { TagType } from '@/core/value-objects/TagType'; // TagType Importu
 
 const props = defineProps({
   patient: { type: Object as PropType<any>, default: null },
@@ -462,6 +467,29 @@ const imageAnnotations = computed(() =>
   props.image?.id ? annotationStore.getAnnotationsByImageId(props.image.id) : []
 );
 
+const activeAnnotationTypes = computed(() => {
+  if (!workspaceStore.currentWorkspace) return [];
+  const ids = workspaceStore.currentWorkspace.annotationTypeIds || [];
+  return ids
+    .map((id) => annotationTypeStore.getAnnotationTypeById(id))
+    .filter((t): t is any => !!t);
+});
+
+const dynamicFields = computed(() =>
+  activeAnnotationTypes.value
+    .filter((t) => t.global)
+    .map((t) => ({
+      id: t.id,
+      name: t.name,
+      type: t.type,
+      options: t.options || [],
+      required: t.required || false,
+      global: true,
+      min: t.min,
+      max: t.max,
+    }))
+);
+
 watch(
   imageAnnotations,
   (annotations) => {
@@ -472,6 +500,15 @@ watch(
         initialMetadata.value[type.name] = ann.value;
       }
     });
+
+    // Ensure all dynamic fields have entries in localMetadata for reactivity
+    if (activeAnnotationTypes.value) {
+      activeAnnotationTypes.value.forEach((t) => {
+        if (t.global && !(t.name in localMetadata)) {
+          localMetadata[t.name] = undefined;
+        }
+      });
+    }
   },
   { immediate: true, deep: true }
 );
@@ -497,37 +534,13 @@ const unsavedCount = computed(() => {
   return changedGlobals + pendingLocals + demographicChange;
 });
 
-const activeAnnotationTypes = computed(() => {
-  if (!workspaceStore.currentWorkspace) return [];
-  const ids = workspaceStore.currentWorkspace.annotationTypeIds || [];
-  return ids
-    .map((id) => annotationTypeStore.getAnnotationTypeById(id))
-    .filter((t): t is any => !!t);
-});
-
-const dynamicFields = computed(() =>
-  activeAnnotationTypes.value
-    .filter((t) => t.global)
-    .map((t) => ({
-      id: t.id, // ID eklendi
-      name: t.name,
-      type: t.type,
-      options: t.options || [],
-      required: t.required || false,
-      global: true,
-      min: t.min, // Min/Max eklendi
-      max: t.max,
-    }))
-);
-
 watch(
   () => props.image,
   async (newImage) => {
-    if (newImage && newImage.parent && newImage.parent.id) {
+    if (newImage) {
+      // Correct logic to determine Workspace ID
       let targetWorkspaceId = (newImage as any).wsId;
-
-      // Fallback only if parent type is explicitly workspace
-      if (!targetWorkspaceId && newImage.parent.type === 'workspace') {
+      if (!targetWorkspaceId && newImage.parent?.type === 'workspace') {
         targetWorkspaceId = newImage.parent.id;
       }
 
@@ -627,6 +640,7 @@ async function handleSaveAll() {
           }
 
           await annotationStore.createAnnotation(props.image.id, {
+            ...tagData,
             ...tagData,
             ws_id: safeWsId,
           } as any);
