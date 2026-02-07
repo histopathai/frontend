@@ -26,31 +26,49 @@ export class Annotation {
     if (!ParentRefUtils.isValid(data.parent)) {
       throw new Error('Invalid parent reference');
     }
-    if (!data.workspace_id) {
+
+    // Backend sends ws_id, frontend expects workspace_id. Support both.
+    const workspaceId = data.workspace_id || data.ws_id;
+    if (!workspaceId) {
       throw new Error('Workspace ID is required');
     }
-    if (!data.annotation_type_id) {
+
+    const annotationTypeId = data.annotation_type_id || data.annotationTypeId;
+    if (!annotationTypeId) {
       throw new Error('Annotation type ID is required');
     }
+
     // Check TagType
-    if (!TagTypeUtils.isValid(data.type)) {
-      throw new Error('Invalid tag type');
+    // Backend sends tag_type, frontend expects type. Support both.
+    const tagType = data.type || data.tag_type;
+    // If tagType is string, try to convert or validate it
+    if (!tagType || !TagTypeUtils.isValid(tagType as TagType)) {
+      // Also check if tag_type is valid string from backend
+      if (!Object.values(TagType).includes(tagType as TagType)) {
+        throw new Error('Invalid tag type');
+      }
     }
 
     const props: AnnotationProps = {
       id: data.id,
       name: data.name,
-      creatorId: data.creator_id,
+      creatorId: data.creator_id || data.creatorId,
       parent: data.parent,
-      annotationTypeId: data.annotation_type_id,
-      workspaceId: data.workspace_id,
+      annotationTypeId: annotationTypeId,
+      workspaceId: workspaceId,
       value: data.value,
-      type: data.type,
+      type: tagType as TagType,
       polygon: data.polygon,
-      isGlobal: data.is_global,
+      isGlobal: data.is_global || data.isGlobal,
       color: data.color,
-      createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,
-      updatedAt: typeof data.updated_at === 'string' ? new Date(data.updated_at) : data.updated_at,
+      createdAt:
+        typeof data.created_at === 'string'
+          ? new Date(data.created_at)
+          : data.createdAt || data.created_at,
+      updatedAt:
+        typeof data.updated_at === 'string'
+          ? new Date(data.updated_at)
+          : data.updatedAt || data.updated_at,
     };
     return new Annotation(props);
   }
