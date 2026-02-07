@@ -31,6 +31,12 @@ export class AnnotationType {
       };
     }
 
+    // Extract options from various possible field names
+    const options = data.options || data.option_values || data.values || [];
+
+    // Extract type from various possible field names
+    let tagType = data.type || data.tag_type || data.annotation_type || '';
+
     const props: AnnotationTypeProps = {
       id: String(data.id),
       creatorId: data.creator_id,
@@ -38,10 +44,10 @@ export class AnnotationType {
       name: data.name,
       description: data.description ?? null,
 
-      type: data.type,
-      options: data.options || [],
-      global: data.global || false,
-      required: data.required || false,
+      type: tagType,
+      options: Array.isArray(options) ? options : [],
+      global: data.global || data.is_global || false,
+      required: data.required || data.is_required || false,
       min: data.min,
       max: data.max,
 
