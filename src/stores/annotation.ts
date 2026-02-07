@@ -279,7 +279,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
       const rawData = result?.data || [];
 
       const entityAnnotations = rawData.map((item: any) => {
-        const ann = Annotation.create(item);
+        const ann = item; // Already an instance
         if (!(ann as any).annotationTypeId) {
           console.warn(`⚠️ Annotation ${ann.id} has NO AnnotationType ID!`, item);
         }
@@ -336,7 +336,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
       };
 
       const responseData = await annotationRepo.create(createRequest);
-      const newAnnotation = Annotation.create(responseData);
+      // responseData is already an Annotation instance from the repository
+      const newAnnotation = responseData;
 
       annotations.value = [newAnnotation, ...annotations.value];
       const imageAnnotations = annotationsByImage.value.get(imageId) || [];
@@ -360,11 +361,25 @@ export const useAnnotationStore = defineStore('annotation', () => {
     resetError();
 
     try {
-      await annotationRepo.update(annotationId, data);
-      const updatedAnnotation = await annotationRepo.getById(annotationId);
+      // Backend requires full object or specific fields like creator_id for validation
+      const existingAnnotation = annotations.value.find((a) => a.id === annotationId);
+      if (!existingAnnotation) {
+        throw new Error('Annotation not found');
+      }
 
-      if (updatedAnnotation) {
-        updateAnnotationInState(updatedAnnotation);
+      const updatePayload: any = {
+        ...data,
+        id: annotationId,
+        creator_id: existingAnnotation.creatorId,
+        workspace_id: existingAnnotation.workspaceId,
+        annotation_type_id: existingAnnotation.annotationTypeId,
+      };
+
+      await annotationRepo.update(annotationId, updatePayload);
+      const updatedAnnotationResult = await annotationRepo.getById(annotationId);
+
+      if (updatedAnnotationResult) {
+        updateAnnotationInState(updatedAnnotationResult);
       }
 
       toast.success(t('annotation.messages.update_success'));
