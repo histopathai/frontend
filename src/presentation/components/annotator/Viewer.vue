@@ -90,6 +90,23 @@ watch(
   { immediate: true } // Sayfa ilk açıldığında da çalışması için
 );
 
+// Watch for pending annotations being cleared (after save)
+// When pending count goes to 0, it means annotations were just saved
+// We need to refresh the viewer to show the real annotation IDs
+let previousPendingCount = annotationStore.pendingCount;
+watch(
+  () => annotationStore.pendingCount,
+  async (newCount, oldCount) => {
+    // If pending count went from >0 to 0, annotations were just saved
+    if (oldCount > 0 && newCount === 0 && props.selectedImage) {
+      console.log('🔄 Pending annotations cleared, refreshing viewer...');
+      // Small delay to ensure backend has processed everything
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await loadAnnotations(props.selectedImage.id);
+    }
+  }
+);
+
 onMounted(() => {
   const viewerEl = document.getElementById(viewerId);
   if (viewerEl) {
@@ -134,27 +151,55 @@ onMounted(() => {
         if (foundData) {
           selectedAnnotationData.value = foundData;
 
-          console.group('🔍 Veri Eşleştirme (Fix)');
+          console.group("🔍 Aynı Polygon'daki Tüm Annotation'ları Bulma");
           const initialValues: Record<string, any> = {};
 
-          const normalize = (str: any) =>
-            String(str || '')
-              .trim()
-              .toLowerCase();
+          // Helper: Compare polygon coordinates (with tolerance for floating point)
+          const isSamePolygon = (poly1: any[], poly2: any[]) => {
+            if (!poly1 || !poly2 || poly1.length !== poly2.length) return false;
+            const tolerance = 0.01;
+            return poly1.every((p1, i) => {
+              const p2 = poly2[i];
+              return p2 && Math.abs(p1.x - p2.x) < tolerance && Math.abs(p1.y - p2.y) < tolerance;
+            });
+          };
 
-          activeAnnotationTypes.value.forEach((type) => {
-            const targetName = normalize(type.name);
-            if ((foundData as any).annotationTypeId === type.id) {
-              initialValues[type.id] = (foundData as any).value;
-              console.log(`✅ [${type.name}] -> Matched by ID: ${(foundData as any).value}`);
-            } else if (
-              (foundData as any).name === type.name ||
-              (foundData as any).tag_type === type.type
-            ) {
-              initialValues[type.id] = (foundData as any).value;
-              console.log(`✅ [${type.name}] -> Matched by Name/Type: ${(foundData as any).value}`);
-            }
-          });
+          // Find all annotations with the same polygon coordinates
+          const selectedPolygon = (foundData as any).polygon;
+          if (selectedPolygon && props.selectedImage) {
+            const annotationsOnSamePolygon = annotationStore.annotations.filter((ann) =>
+              isSamePolygon(ann.polygon, selectedPolygon)
+            );
+
+            console.log(
+              `📍 Aynı polygon üzerinde ${annotationsOnSamePolygon.length} annotation bulundu`
+            );
+
+            // Populate initialValues with ALL annotations on this polygon
+            annotationsOnSamePolygon.forEach((ann) => {
+              const typeId = ann.annotationTypeId;
+              const type = activeAnnotationTypes.value.find((t) => t.id === typeId);
+              if (type) {
+                initialValues[type.id] = ann.value;
+                console.log(`✅ [${type.name}] -> ${ann.value}`);
+              }
+            });
+
+            // Also check pending annotations on the same polygon
+            const pendingOnSamePolygon = annotationStore.pendingAnnotations.filter(
+              (p) =>
+                p.imageId === props.selectedImage!.id &&
+                isSamePolygon(p.polygon || [], selectedPolygon)
+            );
+
+            pendingOnSamePolygon.forEach((pending) => {
+              const type = activeAnnotationTypes.value.find((t) => t.name === pending.name);
+              if (type && !initialValues[type.id]) {
+                initialValues[type.id] = pending.value;
+                console.log(`✅ [${type.name}] -> ${pending.value} (pending)`);
+              }
+            });
+          }
 
           console.log('🚀 Modal Değerleri:', initialValues);
           console.groupEnd();
@@ -230,54 +275,152 @@ function handleDoubleClick() {
 async function handleModalSave(results: Array<{ type: any; value: any }>) {
   if (results.length === 0) return;
 
+  // Case 1: Editing existing polygon (not drawing new)
   if (selectedAnnotationData.value && !currentDrawingData.value) {
-    const res = results[0];
-    if (!res) return;
-    const annId = String(selectedAnnotationData.value.id);
+    // Get the selected polygon coordinates
+    const selectedPolygon = (selectedAnnotationData.value as any).polygon;
 
-    const newData = {
-      tag_type: res.type.type,
-      name: res.type.name,
-      value: res.value,
-      color: res.type.color || '#ec4899',
-      is_global: false,
-    };
-
-    if (annId.startsWith('temp-')) {
-      annotationStore.updatePendingAnnotation(annId, newData);
-      toast.success('Geçici etiket güncellendi.');
-    } else {
-      await annotationStore.updateAnnotation(annId, newData);
+    if (!selectedPolygon || !props.selectedImage) {
+      console.error('Cannot process: missing polygon data');
+      return;
     }
 
-    if (anno.value) {
-      // Check if getAnnotation exists (Annotorious API variance check)
-      if (typeof anno.value.getAnnotation === 'function') {
-        const w3cAnnotation = anno.value.getAnnotation(annId);
-        if (w3cAnnotation) {
-          w3cAnnotation.body = [
-            {
-              type: 'TextualBody',
-              value: `${res.type.name}: ${res.value}`,
-              purpose: 'tagging',
-            },
-          ];
-          if (typeof anno.value.updateAnnotation === 'function') {
-            anno.value.updateAnnotation(w3cAnnotation);
+    // Helper to compare polygons
+    const isSamePolygon = (poly1: any[], poly2: any[]) => {
+      if (!poly1 || !poly2 || poly1.length !== poly2.length) return false;
+      const tolerance = 0.01;
+      return poly1.every((p1, i) => {
+        const p2 = poly2[i];
+        return p2 && Math.abs(p1.x - p2.x) < tolerance && Math.abs(p1.y - p2.y) < tolerance;
+      });
+    };
+
+    // Get all annotations on this polygon
+    const annotationsOnSamePolygon = annotationStore.annotations.filter((ann) =>
+      isSamePolygon(ann.polygon, selectedPolygon)
+    );
+
+    console.group('💾 Saving/Updating Annotations on Polygon');
+    let updateCount = 0;
+    let createCount = 0;
+
+    // Process each annotation type in results
+    for (const res of results) {
+      const typeId = res.type.id;
+
+      // Check if annotation already exists for this type on this polygon
+      const existingAnn = annotationsOnSamePolygon.find((ann) => ann.annotationTypeId === typeId);
+
+      if (existingAnn) {
+        // UPDATE existing annotation
+        console.log(`🔄 Updating existing: ${res.type.name} = ${res.value}`);
+
+        const updateData = {
+          tag_type: res.type.type,
+          name: res.type.name,
+          value: res.value,
+          color: res.type.color || '#ec4899',
+          is_global: false,
+        };
+
+        await annotationStore.updateAnnotation(existingAnn.id, updateData);
+        updateCount++;
+
+        // Update the visual annotation in OpenSeadragon
+        if (anno.value && typeof anno.value.getAnnotation === 'function') {
+          const w3cAnnotation = anno.value.getAnnotation(existingAnn.id);
+          if (w3cAnnotation) {
+            w3cAnnotation.body = [
+              {
+                type: 'TextualBody',
+                value: `${res.type.name}: ${res.value}`,
+                purpose: 'tagging',
+              },
+            ];
+            if (typeof anno.value.updateAnnotation === 'function') {
+              anno.value.updateAnnotation(w3cAnnotation);
+            }
           }
         }
-      }
+      } else {
+        // CREATE new annotation on same polygon
+        console.log(`➕ Creating new: ${res.type.name} = ${res.value}`);
 
-      if (typeof anno.value.cancelSelected === 'function') {
-        anno.value.cancelSelected();
+        const safeWsId =
+          (props.selectedImage as any).wsId ||
+          (props.selectedImage!.parent?.type === 'workspace'
+            ? props.selectedImage!.parent.id
+            : undefined);
+
+        if (!safeWsId) {
+          console.error('Cannot create annotation: Missing Workspace ID');
+          continue;
+        }
+
+        const tempId = `temp-${Date.now()}-${Math.random()}`;
+
+        annotationStore.addPendingAnnotation({
+          tempId,
+          imageId: props.selectedImage!.id,
+          ws_id: safeWsId,
+          name: res.type.name,
+          tag_type: res.type.type,
+          value: res.value,
+          color: res.type.color || '#ec4899',
+          is_global: false,
+          polygon: selectedPolygon.map((p: { x: number; y: number }) => ({ x: p.x, y: p.y })),
+        } as any);
+
+        createCount++;
+
+        // Add visual annotation to OpenSeadragon
+        if (anno.value) {
+          const polygonStr = selectedPolygon
+            .map((p: { x: number; y: number }) => `${p.x},${p.y}`)
+            .join(' ');
+          anno.value.addAnnotation({
+            id: tempId,
+            type: 'Annotation',
+            body: [
+              {
+                type: 'TextualBody',
+                value: `${res.type.name}: ${res.value}`,
+                purpose: 'tagging',
+              },
+            ],
+            target: {
+              selector: {
+                type: 'SvgSelector',
+                value: `<svg><polygon points="${polygonStr}"></polygon></svg>`,
+              },
+            },
+          });
+        }
       }
+    }
+
+    console.log(`✅ ${updateCount} updated, ${createCount} created`);
+    console.groupEnd();
+
+    if (anno.value && typeof anno.value.cancelSelected === 'function') {
+      anno.value.cancelSelected();
     }
 
     isModalOpen.value = false;
     editInitialValues.value = {};
+
+    if (updateCount > 0 && createCount > 0) {
+      toast.success(`${updateCount} güncellendi, ${createCount} eklendi`);
+    } else if (updateCount > 0) {
+      toast.success(`${updateCount} etiket güncellendi`);
+    } else if (createCount > 0) {
+      toast.info(`${createCount} etiket eklendi`);
+    }
+
     return;
   }
 
+  // Case 2: Drawing new polygon
   if (!currentDrawingData.value || !props.selectedImage) return;
 
   const rawPoints = convertAnnotoriousToPoints(currentDrawingData.value);
