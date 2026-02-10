@@ -2,7 +2,7 @@ import { fileURLToPath, URL } from 'node:url';
 import fs from 'fs';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
-import vueDevTools from 'vite-plugin-vue-devtools';
+
 import dotenv from 'dotenv';
 
 // .env dosyasını yükle
@@ -27,7 +27,7 @@ export default defineConfig(({ command, mode }) => {
   }
 
   return {
-    plugins: [vue(), vueDevTools()],
+    plugins: [vue()],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
