@@ -2,7 +2,7 @@ import type {
   CreateNewPatientRequest,
   IPatientRepository,
 } from '@/core/repositories/IPatientRepository';
-import type { PaginatedResult, Pagination } from '@/core/types/common';
+import type { PaginatedResult, QueryOptions } from '@/core/types/common';
 
 import { Patient } from '@/core/entities/Patient';
 import { ApiClient } from '../api/ApiClient';
@@ -22,29 +22,90 @@ export class PatientRepository implements IPatientRepository {
     return null;
   }
 
-  async getByWorkspaceId(
+  async list(options?: QueryOptions): Promise<PaginatedResult<Patient>> {
+    const params: any = {};
+    if (options?.pagination) {
+      params.limit = options.pagination.limit;
+      params.offset = options.pagination.offset;
+    }
+    if (options?.sort && options.sort.length > 0) {
+      const sortOpt = options.sort[0];
+      if (sortOpt) {
+        params.sort_by = sortOpt.field;
+        params.sort_dir = sortOpt.direction;
+      }
+    }
+
+    // Add search/filter params as needed
+    if (options?.search) {
+      params.name = options.search;
+    }
+
+    const response = await this.apiClient.get<any>('/api/v1/proxy/patients', params);
+
+    let items = [];
+    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+
+    if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
+      items = response.data.data;
+      if (response.data.pagination) pagination = response.data.pagination;
+    } else if (Array.isArray(response.data)) {
+      items = response.data;
+      if (response.pagination) pagination = response.pagination;
+    }
+
+    return {
+      data: items.map((item: any) => Patient.create(item)),
+      pagination: pagination as any,
+    };
+  }
+
+  async listByWorkspace(
     workspaceId: string,
-    pagination: Pagination
+    options?: QueryOptions
   ): Promise<PaginatedResult<Patient>> {
-    const { limit, offset, sortBy, sortDir, hasMore, ...extraParams } = pagination;
+    const params: any = {};
+    if (options?.pagination) {
+      params.limit = options.pagination.limit;
+      params.offset = options.pagination.offset;
+    }
+    if (options?.sort && options.sort.length > 0) {
+      const sortOpt = options.sort[0];
+      if (sortOpt) {
+        params.sort_by = sortOpt.field;
+        params.sort_dir = sortOpt.direction;
+      }
+    }
+    if (options?.search) {
+      params.name = options.search;
+    }
 
     const response = await this.apiClient.get<any>(
       `/api/v1/proxy/workspaces/${workspaceId}/patients`,
-      {
-        limit: limit,
-        offset: offset,
-        sort_by: sortBy,
-        sort_dir: sortDir,
-        ...extraParams,
-      }
+      params
     );
 
+    let items = [];
+    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+
+    if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
+      items = response.data.data;
+      if (response.data.pagination) pagination = response.data.pagination;
+    } else if (Array.isArray(response.data)) {
+      items = response.data;
+      if (response.pagination) pagination = response.pagination;
+    }
+
     return {
-      data: response.data.map((item: any) =>
+      data: items.map((item: any) =>
         Patient.create({ ...item, workspace_id: item.workspace_id || workspaceId })
       ),
-      pagination: response.pagination,
+      pagination: pagination as any,
     };
+  }
+
+  async listByParent(parentId: string, options?: QueryOptions): Promise<PaginatedResult<Patient>> {
+    return this.listByWorkspace(parentId, options);
   }
 
   async create(data: CreateNewPatientRequest): Promise<Patient> {
@@ -58,7 +119,7 @@ export class PatientRepository implements IPatientRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.apiClient.delete(`/api/v1/proxy/patients/${id}`);
+    await this.apiClient.delete(`/api/v1/proxy/patients/${id}/soft-delete`);
   }
 
   async transfer(id: string, newWorkspaceId: string): Promise<void> {
@@ -66,19 +127,22 @@ export class PatientRepository implements IPatientRepository {
   }
 
   async count(): Promise<number> {
-    const response = await this.apiClient.get<{ count: number }>(`/api/v1/proxy/patients/count-v1`);
+    const response = await this.apiClient.get<{ count: number }>(`/api/v1/proxy/patients/count`);
     return response.count;
   }
 
-  async batchDelete(ids: string[]): Promise<void> {
-    await this.apiClient.post(`/api/v1/proxy/patients/batch-delete`, { ids });
+  async softDeleteMany(ids: string[]): Promise<void> {
+    const params = new URLSearchParams();
+    ids.forEach((id) => params.append('ids', id));
+    await this.apiClient.delete(`/api/v1/proxy/patients/soft-delete-many?${params.toString()}`);
   }
 
-  async batchTransfer(data: BatchTransfer): Promise<void> {
-    await this.apiClient.put(`/api/v1/proxy/patients/batch-transfer`, data);
-  }
-
-  async cascadeDelete(id: string): Promise<void> {
-    await this.apiClient.delete(`/api/v1/proxy/patients/${id}/cascade-delete`);
+  async transferMany(data: BatchTransfer): Promise<void> {
+    const params = new URLSearchParams();
+    data.ids.forEach((id) => params.append('patient_ids', id));
+    await this.apiClient.put(
+      `/api/v1/proxy/patients/transfer-many/${data.target}?${params.toString()}`,
+      {}
+    );
   }
 }

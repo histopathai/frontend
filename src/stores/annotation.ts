@@ -10,13 +10,12 @@ import type { Pagination, PaginatedResult } from '@/core/types/common';
 interface PendingAnnotation {
   tempId: string;
   imageId: string;
-  tag: {
-    tag_type: string;
-    tag_name: string;
-    value: string;
-    color: string;
-    global: boolean;
-  };
+  ws_id: string;
+  name: string;
+  tag_type: string;
+  value: any;
+  color: string;
+  is_global: boolean;
   data?: Array<{ tagName: string; value: string }>;
   polygon?: Array<{ x: number; y: number }>;
 }
@@ -51,9 +50,12 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const pagination = ref<Pagination>({
     limit: 10,
     offset: 0,
-    sortBy: 'created_at',
-    sortDir: 'desc',
     hasMore: false,
+  });
+
+  const sort = ref({
+    by: 'created_at',
+    dir: 'desc' as 'asc' | 'desc',
   });
 
   const pendingAnnotations = ref<PendingAnnotation[]>([]);
@@ -181,7 +183,12 @@ export const useAnnotationStore = defineStore('annotation', () => {
       for (const pending of pendingAnnotations.value) {
         try {
           const createRequest: CreateNewAnnotationRequest = {
-            tag: pending.tag,
+            ws_id: pending.ws_id,
+            name: pending.name,
+            tag_type: pending.tag_type,
+            value: pending.value,
+            color: pending.color,
+            is_global: pending.is_global,
             polygon: pending.polygon as any,
             parent: {
               id: pending.imageId,
@@ -189,8 +196,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
             },
           };
 
-          const responseData = await annotationRepo.create(createRequest);
-          const newAnnotation = Annotation.create(responseData);
+          const newAnnotation = await annotationRepo.create(createRequest);
 
           annotations.value = [newAnnotation, ...annotations.value];
           const imageAnnotations = annotationsByImage.value.get(pending.imageId) || [];
@@ -200,7 +206,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
         } catch (err: any) {
           errorCount++;
           console.error('❌ Annotation kaydetme hatası:', err);
-          handleError(err, `${pending.tag.tag_name} kaydedilemedi`, false);
+          handleError(err, `${pending.name} kaydedilemedi`, false);
         }
       }
       if (successCount > 0) {
@@ -262,18 +268,19 @@ export const useAnnotationStore = defineStore('annotation', () => {
       const paginationParams: Pagination = {
         limit: 10,
         offset: 0,
-        sortBy: 'created_at',
-        sortDir: 'desc',
         ...paginationOptions,
       };
 
-      const result = await annotationRepo.getByImageId(imageId, paginationParams);
+      const result = await annotationRepo.listByImage(imageId, {
+        pagination: paginationParams,
+        sort: [{ field: sort.value.by, direction: sort.value.dir }],
+      });
       const rawData = result?.data || [];
 
       const entityAnnotations = rawData.map((item: any) => {
-        const ann = Annotation.create(item);
-        if (!ann.tag) {
-          console.warn(`⚠️ Annotation ${ann.id} has NO TAG data!`, item);
+        const ann = item; // Already an instance
+        if (!(ann as any).annotationTypeId) {
+          console.warn(`⚠️ Annotation ${ann.id} has NO AnnotationType ID!`, item);
         }
         return ann;
       });
@@ -328,7 +335,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
       };
 
       const responseData = await annotationRepo.create(createRequest);
-      const newAnnotation = Annotation.create(responseData);
+      // responseData is already an Annotation instance from the repository
+      const newAnnotation = responseData;
 
       annotations.value = [newAnnotation, ...annotations.value];
       const imageAnnotations = annotationsByImage.value.get(imageId) || [];
@@ -352,11 +360,25 @@ export const useAnnotationStore = defineStore('annotation', () => {
     resetError();
 
     try {
-      await annotationRepo.update(annotationId, data);
-      const updatedAnnotation = await annotationRepo.getById(annotationId);
+      // Backend requires full object or specific fields like creator_id for validation
+      const existingAnnotation = annotations.value.find((a) => a.id === annotationId);
+      if (!existingAnnotation) {
+        throw new Error('Annotation not found');
+      }
 
-      if (updatedAnnotation) {
-        updateAnnotationInState(updatedAnnotation);
+      const updatePayload: any = {
+        ...data,
+        id: annotationId,
+        creator_id: existingAnnotation.creatorId,
+        workspace_id: existingAnnotation.workspaceId,
+        annotation_type_id: existingAnnotation.annotationTypeId,
+      };
+
+      await annotationRepo.update(annotationId, updatePayload);
+      const updatedAnnotationResult = await annotationRepo.getById(annotationId);
+
+      if (updatedAnnotationResult) {
+        updateAnnotationInState(updatedAnnotationResult);
       }
 
       toast.success(t('annotation.messages.update_success'));
@@ -386,7 +408,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
     }
   };
 
-  const batchDeleteAnnotations = async (
+  const softDeleteManyAnnotations = async (
     annotationIds: string[],
     imageId: string
   ): Promise<boolean> => {
@@ -394,7 +416,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
     resetError();
 
     try {
-      await annotationRepo.batchDelete(annotationIds);
+      await annotationRepo.softDeleteMany(annotationIds);
       annotationIds.forEach((id) => removeAnnotationFromState(id, imageId));
       toast.success(t('annotation.messages.batch_delete_success'));
       return true;
@@ -441,7 +463,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
     if (selectedAnnotations.value.size === 0) return false;
 
     const ids = Array.from(selectedAnnotations.value);
-    const success = await batchDeleteAnnotations(ids, imageId);
+    const success = await softDeleteManyAnnotations(ids, imageId);
 
     if (success) {
       clearSelection();
@@ -523,7 +545,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
     // Actions - Delete
     deleteAnnotation,
-    batchDeleteAnnotations,
+    softDeleteManyAnnotations,
 
     // Actions - Selection
     selectAnnotation,

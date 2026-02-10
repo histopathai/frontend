@@ -48,9 +48,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const pagination = ref<Pagination>({
     limit: 10,
     offset: 0,
-    sortBy: 'created_at',
-    sortDir: 'desc',
     hasMore: false,
+  });
+
+  const sort = ref({
+    by: 'created_at',
+    dir: 'desc' as 'asc' | 'desc',
   });
 
   // ===========================
@@ -129,7 +132,10 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         ...paginationOptions,
       };
 
-      const result: PaginatedResult<Workspace> = await workspaceRepo.list(paginationParams);
+      const result: PaginatedResult<Workspace> = await workspaceRepo.list({
+        pagination: paginationParams,
+        sort: [{ field: sort.value.by, direction: sort.value.dir }],
+      });
       workspaces.value = result.data;
       pagination.value = {
         ...paginationParams,
@@ -252,31 +258,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   };
 
-  const cascadeDeleteWorkspace = async (workspaceId: string): Promise<boolean> => {
+  const softDeleteManyWorkspaces = async (workspaceIds: string[]): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
 
     try {
-      await workspaceRepo.cascadeDelete(workspaceId);
-
-      removeWorkspaceFromState(workspaceId);
-
-      toast.success(t('workspace.messages.delete_success'));
-      return true;
-    } catch (err: any) {
-      handleError(err, t('workspace.messages.delete_error'));
-      return false;
-    } finally {
-      actionLoading.value = false;
-    }
-  };
-
-  const batchDeleteWorkspaces = async (workspaceIds: string[]): Promise<boolean> => {
-    actionLoading.value = true;
-    resetError();
-
-    try {
-      await workspaceRepo.batchDelete(workspaceIds);
+      await workspaceRepo.softDeleteMany(workspaceIds);
 
       // Remove all deleted workspaces from state
       workspaces.value = workspaces.value.filter((w) => !workspaceIds.includes(w.id));
@@ -310,8 +297,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     pagination.value = {
       limit: 10,
       offset: 0,
-      sortBy: 'created_at',
-      sortDir: 'desc',
       hasMore: false,
     };
   };
@@ -360,8 +345,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
     // Actions - Delete
     deleteWorkspace,
-    cascadeDeleteWorkspace,
-    batchDeleteWorkspaces,
+    softDeleteManyWorkspaces,
 
     // Actions - Utility
     setCurrentWorkspace,

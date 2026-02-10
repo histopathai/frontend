@@ -41,8 +41,6 @@ export function usePatientList(workspaceId: string) {
     await store.fetchPatientsByWorkspace(workspaceId, {
       limit,
       offset: offset.value,
-      sortBy: 'created_at',
-      sortDir: 'desc',
     });
   }
 
@@ -105,9 +103,9 @@ export function usePatientList(workspaceId: string) {
   async function handleDeleteConfirm() {
     let success = false;
     if (isSingleDelete.value && selectedPatient.value) {
-      success = await store.cascadeDeletePatient(selectedPatient.value.id, workspaceId);
+      success = await store.deletePatient(selectedPatient.value.id, workspaceId);
     } else if (!isSingleDelete.value && idsToDelete.value.length > 0) {
-      success = await store.batchDeletePatients(idsToDelete.value, workspaceId);
+      success = await store.softDeleteManyPatients(idsToDelete.value, workspaceId);
     }
 
     if (success) {

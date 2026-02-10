@@ -85,7 +85,7 @@ async function handleTransfer() {
   let success = false;
 
   if (isBatch.value) {
-    success = await patientStore.batchTransferPatients({
+    success = await patientStore.transferManyPatients({
       ids: props.patientIds,
       target: selectedWorkspaceId.value,
     });

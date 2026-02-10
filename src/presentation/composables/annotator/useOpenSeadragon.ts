@@ -1,5 +1,7 @@
 import { ref, onMounted, onUnmounted, shallowRef, watch } from 'vue';
 import { useAnnotationStore } from '@/stores/annotation';
+import { useAnnotationTypeStore } from '@/stores/annotation_type';
+import { useWorkspaceStore } from '@/stores/workspace';
 import type { Image } from '@/core/entities/Image';
 import OpenSeadragon from 'openseadragon';
 import Annotorious from '@recogito/annotorious-openseadragon';
@@ -10,6 +12,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export function useOpenSeadragon(viewerId: string) {
   const annotationStore = useAnnotationStore();
+  const annotationTypeStore = useAnnotationTypeStore();
 
   const viewer = shallowRef<OpenSeadragon.Viewer | null>(null);
   const anno = shallowRef<any>(null);
@@ -17,6 +20,29 @@ export function useOpenSeadragon(viewerId: string) {
   const loading = ref(false);
 
   function startDrawing() {
+    // Check if there are local annotation types
+    const workspace = useWorkspaceStore().currentWorkspace;
+    const allTypes = useAnnotationTypeStore().annotationTypes;
+
+    if (!workspace || !workspace.annotationTypeIds) {
+      console.warn('Workspace not loaded or no types defined');
+      return;
+    }
+
+    const localTypes = workspace.annotationTypeIds
+      .map((id) => allTypes.find((t) => t.id === id))
+      .filter((t) => t && !t.global);
+
+    if (localTypes.length === 0) {
+      // Dispatch a custom event or toast to notify user
+      window.dispatchEvent(
+        new CustomEvent('toast-error', {
+          detail: 'Bu çalışma alanı için çizim etiketi (lokal) tanımlanmamış.',
+        })
+      );
+      return;
+    }
+
     if (anno.value) {
       anno.value.setDrawingTool('polygon');
       anno.value.setDrawingEnabled(true);
@@ -26,7 +52,6 @@ export function useOpenSeadragon(viewerId: string) {
   function stopDrawing() {
     if (anno.value) {
       anno.value.setDrawingEnabled(false);
-      anno.value.setDrawingTool(null);
     }
   }
 
@@ -137,7 +162,18 @@ export function useOpenSeadragon(viewerId: string) {
             body: [
               {
                 type: 'TextualBody',
-                value: ann.tag ? `${ann.tag.tag_name}: ${ann.tag.value}` : 'Etiket Verisi Yok',
+                value: (function () {
+                  const type = annotationTypeStore.annotationTypes.find(
+                    (t) => t.id === ann.annotationTypeId
+                  );
+                  // Need to handle missing type or pending annotations
+                  const tagName = type ? type.name : 'Unknown';
+                  // Check if ann has tag object (legacy/pending) or use new structure
+                  if ((ann as any).tag) {
+                    return `${(ann as any).tag.tag_name}: ${(ann as any).tag.value}`;
+                  }
+                  return `${tagName}: ${ann.value}`;
+                })(),
                 purpose: 'tagging',
               },
             ],
@@ -184,7 +220,7 @@ export function useOpenSeadragon(viewerId: string) {
         body: [
           {
             type: 'TextualBody',
-            value: `${pending.tag.tag_name}: ${pending.tag.value}`,
+            value: `${pending.name}: ${pending.value}`,
             purpose: 'tagging',
           },
         ],
@@ -199,7 +235,7 @@ export function useOpenSeadragon(viewerId: string) {
   }
 
   async function loadImage(image: Image) {
-    if (!viewer.value || !image.processedpath) return;
+    if (!viewer.value || !image.status.isProcessed()) return;
 
     loading.value = true;
     currentImageId.value = image.id;
@@ -218,7 +254,7 @@ export function useOpenSeadragon(viewerId: string) {
     });
 
     try {
-      const tileSourceUrl = `${API_BASE_URL}/api/v1/proxy/${image.processedpath}/image.dzi`;
+      const tileSourceUrl = `${API_BASE_URL}/api/v1/proxy/${image.id}/image.dzi`;
       viewer.value.open(tileSourceUrl);
     } catch (err) {
       console.error('OSD açma hatası:', err);
@@ -247,5 +283,6 @@ export function useOpenSeadragon(viewerId: string) {
     startDrawing,
     stopDrawing,
     anno,
+    viewer
   };
 }

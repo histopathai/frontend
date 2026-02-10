@@ -1,27 +1,17 @@
-import { Point } from '../value-objects/Point';
-import type { TagValue } from '@/core/types/tags';
-
-export interface ParentRef {
-  id: string;
-  type: 'workspace' | 'patient' | 'image' | 'annotation_type' | string;
-}
-
-export interface AnnotationTag {
-  tag_type: string;
-  tag_name: string;
-  value: any;
-  color?: string;
-  global: boolean;
-}
+import { ParentRefUtils, Point, TagType, TagTypeUtils, type ParentRef } from '../value-objects';
 
 export interface AnnotationProps {
   id: string;
-  parent: ParentRef | null;
-  annotatorId: string;
-  polygon: Point[];
-  data: TagValue[];
-  tag: AnnotationTag | null;
-  description: string | null;
+  name: string;
+  creatorId: string;
+  parent: ParentRef;
+  annotationTypeId: string;
+  workspaceId: string;
+  value: any;
+  type: TagType;
+  polygon: Point[] | null;
+  isGlobal: boolean;
+  color: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,117 +20,118 @@ export class Annotation {
   private constructor(private props: AnnotationProps) {}
 
   static create(data: any): Annotation {
-    let tagObj: AnnotationTag | null = null;
-    if (data.tag && typeof data.tag === 'object') {
-      const rawName =
-        data.tag.tag_name || data.tag.tagName || data.tag.name || data.tag.label || data.tag.value; // Hiçbiri yoksa value'yu isim yap
-
-      tagObj = {
-        tag_type: data.tag.tag_type || data.tag.tagType || data.tag.type || 'TEXT',
-        tag_name: rawName || 'İsimsiz Etiket',
-        value: data.tag.value ?? data.tag.tag_value ?? null,
-        color: data.tag.color || '#4F46E5',
-        global: data.tag.global ?? false,
-      };
-    } else if (
-      data.tag_name ||
-      data.tagName ||
-      data.name ||
-      data.tag_type ||
-      data.tagType ||
-      data.type ||
-      data.tag_value
-    ) {
-      tagObj = {
-        tag_type: data.tag_type || data.tagType || data.type || 'TEXT',
-        tag_name: data.tag_name || data.tagName || data.name || 'İsimsiz Etiket',
-        value: data.value ?? data.tag_value ?? null,
-        color: data.color || '#4F46E5',
-        global: data.global ?? false,
-      };
+    if (!data.parent) {
+      throw new Error('Parent reference is required');
+    }
+    if (!ParentRefUtils.isValid(data.parent)) {
+      throw new Error('Invalid parent reference');
     }
 
-    // console.groupEnd();
-
-    let parentRef: ParentRef | null = null;
-    if (data.parent) {
-      parentRef = { id: data.parent.id, type: data.parent.type };
-    } else if (data.image_id) {
-      parentRef = { id: data.image_id, type: 'image' };
+    // Backend sends ws_id, frontend expects workspace_id. Support both.
+    const workspaceId = data.workspace_id || data.ws_id;
+    if (!workspaceId) {
+      throw new Error('Workspace ID is required');
     }
 
-    const normalizedData = (data.data || []).map((item: any) => ({
-      tagName: item.tagName || item.tag_name || item.name || item.label || 'Bilinmeyen',
-      value: item.value || item.tag_value,
-    }));
+    const annotationTypeId = data.annotation_type_id || data.annotationTypeId;
+    if (!annotationTypeId) {
+      throw new Error('Annotation type ID is required');
+    }
 
-    return new Annotation({
-      id: String(data.id),
-      parent: parentRef,
-      annotatorId: data.annotator_id || data.creator_id || '',
-      polygon: (data.polygon || []).map((p: any) => Point.from(p)),
-      data: normalizedData,
-      tag: tagObj,
-      description: data.description ?? null,
-      createdAt: data.created_at ? new Date(data.created_at) : new Date(),
-      updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(),
-    });
+    // Check TagType
+    // Backend sends tag_type, frontend expects type. Support both.
+    const tagType = data.type || data.tag_type;
+    // If tagType is string, try to convert or validate it
+    if (!tagType || !TagTypeUtils.isValid(tagType as TagType)) {
+      // Also check if tag_type is valid string from backend
+      if (!Object.values(TagType).includes(tagType as TagType)) {
+        throw new Error('Invalid tag type');
+      }
+    }
+
+    const props: AnnotationProps = {
+      id: data.id,
+      name: data.name,
+      creatorId: data.creator_id || data.creatorId,
+      parent: data.parent,
+      annotationTypeId: annotationTypeId,
+      workspaceId: workspaceId,
+      value: data.value,
+      type: tagType as TagType,
+      polygon: data.polygon,
+      isGlobal: data.is_global || data.isGlobal,
+      color: data.color,
+      createdAt:
+        typeof data.created_at === 'string'
+          ? new Date(data.created_at)
+          : data.createdAt || data.created_at,
+      updatedAt:
+        typeof data.updated_at === 'string'
+          ? new Date(data.updated_at)
+          : data.updatedAt || data.updated_at,
+    };
+    return new Annotation(props);
   }
 
   // --- Getters ---
   get id(): string {
     return this.props.id;
   }
-  get tag(): AnnotationTag | null {
-    return this.props.tag;
+  get name(): string {
+    return this.props.name;
   }
-  get parent(): ParentRef | null {
+  get creatorId(): string {
+    return this.props.creatorId;
+  }
+  get annotationTypeId(): string {
+    return this.props.annotationTypeId;
+  }
+  get workspaceId(): string {
+    return this.props.workspaceId;
+  }
+  get value(): any {
+    return this.props.value;
+  }
+  get type(): TagType {
+    return this.props.type;
+  }
+  get isGlobal(): boolean {
+    return this.props.isGlobal;
+  }
+  get color(): string | null {
+    return this.props.color;
+  }
+  get createdAt(): Date {
+    return this.props.createdAt;
+  }
+  get updatedAt(): Date {
+    return this.props.updatedAt;
+  }
+
+  get imageId(): string {
+    return this.props.parent?.id || '';
+  }
+
+  get parent(): ParentRef {
     return this.props.parent;
   }
-  get imageId(): string {
-    if (this.props.parent && this.props.parent.type === 'image') {
-      return this.props.parent.id;
-    }
-    return '';
+
+  get parentId(): string {
+    return this.props.parent?.id || '';
   }
+
   get polygon(): Point[] {
-    return [...this.props.polygon];
-  }
-  get description(): string | null {
-    return this.props.description;
-  }
-  get data(): TagValue[] {
-    return this.props.data;
-  }
-  get annotatorId(): string {
-    return this.props.annotatorId;
-  }
-
-  getValue(tagName: string): any {
-    if (this.props.tag && this.props.tag.tag_name === tagName) {
-      return this.props.tag.value;
-    }
-    const tag = this.props.data.find((d) => d.tagName === tagName);
-    return tag ? tag.value : null;
-  }
-
-  hasScore(): boolean {
-    return this.props.tag?.tag_type === 'NUMBER';
-  }
-
-  hasClassification(): boolean {
-    return ['SELECT', 'MULTI_SELECT'].includes(this.props.tag?.tag_type || '');
+    return [...(this.props.polygon || [])];
   }
 
   getPolygonForSerialization(): { x: number; y: number }[] {
-    return this.polygon.map((p) => p.toJSON());
+    return this.polygon.map((p) => (typeof p.toJSON === 'function' ? p.toJSON() : p));
   }
 
   toJSON() {
     return {
       ...this.props,
       polygon: this.getPolygonForSerialization(),
-      tag: this.props.tag,
     };
   }
 }

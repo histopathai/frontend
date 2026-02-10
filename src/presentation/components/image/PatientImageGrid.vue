@@ -152,23 +152,16 @@
             class="absolute bottom-1 right-1 z-10 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium opacity-90 shadow-sm"
             :class="{
               'bg-yellow-100 text-yellow-800':
-                !img.processedpath && img.status.toString() === 'PROCESSING',
-              'bg-green-100 text-green-800':
-                img.processedpath || img.status.toString() === 'PROCESSED',
-              'bg-red-100 text-red-800': !img.processedpath && img.status.toString() === 'FAILED',
+                img.status.toString() === 'processing' || img.status.toString() === 'pending',
+              'bg-green-100 text-green-800': img.status.isProcessed(),
+              'bg-red-100 text-red-800': img.status.isFailed(),
             }"
           >
-            {{
-              img.processedpath || img.status.isProcessed()
-                ? 'Hazır'
-                : img.status.isFailed()
-                  ? 'Hata'
-                  : 'İşleniyor'
-            }}
+            {{ img.status.isProcessed() ? 'Hazır' : img.status.isFailed() ? 'Hata' : 'İşleniyor' }}
           </span>
 
           <img
-            v-if="img.processedpath"
+            v-if="img.status.isProcessed()"
             :src="getThumbnailUrl(img)"
             class="w-full h-full object-cover"
             alt="Thumbnail"
@@ -264,8 +257,9 @@ let pollInterval: ReturnType<typeof setInterval> | null = null;
 const hasProcessingImages = computed(() => {
   return images.value.some(
     (img) =>
-      img.status.toString() === 'PROCESSING' ||
-      (!img.processedpath && !img.status.toString().includes('FAILED'))
+      img.status.toString() === 'processing' ||
+      img.status.toString() === 'pending' ||
+      (!img.status.isProcessed() && !img.status.isFailed())
   );
 });
 
@@ -334,7 +328,7 @@ async function confirmDelete() {
 
   try {
     if (isBatchDelete.value) {
-      success = await imageStore.batchDeleteImages(selectedIds.value, props.patientId);
+      success = await imageStore.softDeleteManyImages(selectedIds.value, props.patientId);
       if (success) {
         selectedIds.value = [];
         await loadImages(true);

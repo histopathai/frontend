@@ -58,11 +58,6 @@
               <th
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                {{ t('patient.form.disease') }}
-              </th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
                 Kayıt Tarihi
               </th>
               <th class="relative px-6 py-3"><span class="sr-only">İşlemler</span></th>
@@ -112,14 +107,6 @@
                 {{ patient.age || '-' }}
                 <span v-if="patient.age" class="text-gray-400 mx-1">/</span>
                 {{ patient.gender || '-' }}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ patient.disease || '-' }}
-                <span
-                  v-if="patient.subtype"
-                  class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 ml-2"
-                  >{{ patient.subtype }}</span
-                >
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {{ new Date(patient.createdAt).toLocaleDateString('tr-TR') }}

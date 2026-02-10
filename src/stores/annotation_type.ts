@@ -50,9 +50,12 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
   const pagination = ref<Pagination>({
     limit: 100,
     offset: 0,
-    sortBy: 'created_at',
-    sortDir: 'desc',
     hasMore: false,
+  });
+
+  const sort = ref({
+    by: 'created_at',
+    dir: 'desc' as 'asc' | 'desc',
   });
 
   // ===========================
@@ -144,9 +147,15 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
       let result: PaginatedResult<AnnotationType>;
 
       if (parentId) {
-        result = await annotationTypeRepo.getByParentId(parentId, paginationParams);
+        result = await annotationTypeRepo.listByParent(parentId, {
+          pagination: paginationParams,
+          sort: [{ field: sort.value.by, direction: sort.value.dir }],
+        });
       } else {
-        result = await annotationTypeRepo.list(paginationParams);
+        result = await annotationTypeRepo.list({
+          pagination: paginationParams,
+          sort: [{ field: sort.value.by, direction: sort.value.dir }],
+        });
       }
 
       annotationTypes.value = result.data;
@@ -280,12 +289,12 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     }
   };
 
-  const batchDeleteAnnotationTypes = async (annotationTypeIds: string[]): Promise<boolean> => {
+  const softDeleteManyAnnotationTypes = async (annotationTypeIds: string[]): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
 
     try {
-      await annotationTypeRepo.batchDelete(annotationTypeIds);
+      await annotationTypeRepo.softDeleteMany(annotationTypeIds);
       annotationTypes.value = annotationTypes.value.filter(
         (at) => !annotationTypeIds.includes(at.id)
       );
@@ -319,8 +328,6 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     pagination.value = {
       limit: 100,
       offset: 0,
-      sortBy: 'created_at',
-      sortDir: 'desc',
       hasMore: false,
     };
   };
@@ -374,7 +381,7 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
 
     // Actions - Delete
     deleteAnnotationType,
-    batchDeleteAnnotationTypes,
+    softDeleteManyAnnotationTypes,
 
     // Actions - Utility
     setCurrentAnnotationType,

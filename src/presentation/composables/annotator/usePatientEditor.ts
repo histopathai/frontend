@@ -12,7 +12,7 @@ export function usePatientEditor(patient: Ref<Patient | null>) {
   const race = ref<string | undefined>();
   const disease = ref<string | undefined>();
   const subtype = ref<string | undefined>();
-  const grade = ref<number | undefined>();
+  const grade = ref<string | undefined>();
   const history = ref<string | undefined>();
 
   watch(

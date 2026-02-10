@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div
       v-if="isOpen"
-      class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      class="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4 transition-opacity"
     >
       <div
         class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in flex flex-col max-h-[90vh]"
@@ -14,7 +14,7 @@
             <h3 class="font-bold text-gray-900 text-lg">Bölgesel İşaretleme</h3>
             <p class="text-xs text-gray-500">
               {{
-                isEditing ? 'Etiketi Düzenle veya Sil' : 'Lütfen bu alan için etiketleri doldurun'
+                isEditing ? 'Etiketi Düzenle veya Çizimi Sil' : 'Lütfen bu alan için etiketleri doldurun'
               }}
             </p>
           </div>
@@ -39,7 +39,7 @@
           </button>
         </div>
 
-        <div class="p-6 overflow-y-auto custom-scrollbar space-y-6">
+        <div class="p-6 overflow-y-auto custom-scrollbar space-y-6 flex-1">
           <div v-if="localTypes.length === 0" class="flex flex-col items-center py-8 text-center">
             <div class="bg-amber-50 p-3 rounded-full mb-3">
               <svg
@@ -70,7 +70,7 @@
           >
             <div class="flex items-center gap-2">
               <span
-                class="w-3 h-3 rounded-full"
+                class="w-3 h-3 rounded-full shrink-0"
                 :style="{ backgroundColor: type.color || '#ccc' }"
               ></span>
               <label class="text-sm font-bold text-gray-800">{{ type.name }}</label>
@@ -78,60 +78,106 @@
             </div>
 
             <div class="pl-5">
+              
               <input
-                v-if="type.type === 'TEXT'"
+                v-if="checkType(type.type, 'text')"
                 v-model="formValues[type.id]"
                 type="text"
                 class="w-full form-input-custom"
                 placeholder="Metin giriniz..."
               />
 
-              <select
-                v-else-if="['SELECT', 'MULTI_SELECT'].includes(type.type)"
-                v-model="formValues[type.id]"
-                class="w-full form-select-custom"
-              >
-                <option :value="undefined">Seçilmedi</option>
-                <option v-for="opt in type.options" :key="opt" :value="opt">{{ opt }}</option>
-              </select>
+              <div v-else-if="checkType(type.type, ['select', 'multi_select', 'multiselect'])">
+                <div
+                  v-if="!type.options || type.options.length === 0"
+                  class="text-xs text-red-400 mb-1"
+                >
+                  Seçenek listesi boş.
+                </div>
 
-              <input
-                v-else-if="type.type === 'NUMBER'"
-                v-model.number="formValues[type.id]"
-                type="number"
-                class="w-full form-input-custom"
-                placeholder="Sayısal değer..."
-              />
+                <select
+                  v-model="formValues[type.id]"
+                  class="w-full form-select-custom"
+                  :multiple="checkType(type.type, 'multi_select')"
+                >
+                  <option :value="undefined" disabled>Seçiniz...</option>
+                  <option v-for="(opt, idx) in type.options || []" :key="idx" :value="opt">
+                    {{ opt }}
+                  </option>
+                </select>
+                <p v-if="checkType(type.type, 'multi_select')" class="text-xs text-gray-400 mt-1">
+                  CTRL tuşuna basılı tutarak birden fazla seçebilirsiniz.
+                </p>
+              </div>
 
-              <div v-else-if="type.type === 'BOOLEAN'" class="flex gap-2">
+              <div v-else-if="checkType(type.type, 'number')">
+                <input
+                  v-model.number="formValues[type.id]"
+                  type="number"
+                  :min="type.min"
+                  :max="type.max"
+                  class="w-full form-input-custom"
+                  :class="{ 
+                    'border-red-500 focus:border-red-500 focus:ring-red-200 bg-red-50': isNumberInvalid(type, formValues[type.id]) 
+                  }"
+                  placeholder="Sayısal değer..."
+                />
+                
+                <p v-if="isNumberInvalid(type, formValues[type.id])" class="text-xs text-red-500 mt-1 font-medium animate-pulse">
+                  {{ getRangeErrorMessage(type) }}
+                </p>
+                
+                <p v-else-if="type.min !== undefined || type.max !== undefined" class="text-[10px] text-gray-400 mt-1">
+                  Aralık: {{ type.min ?? '-∞' }} ile {{ type.max ?? '+∞' }}
+                </p>
+              </div>
+
+              <div v-else-if="checkType(type.type, 'boolean')" class="flex gap-2">
                 <button
-                  v-for="val in [true, false]"
-                  :key="String(val)"
-                  @click="formValues[type.id] = val"
+                  @click="formValues[type.id] = true"
                   class="px-4 py-2 rounded-lg text-xs font-semibold border transition-all"
                   :class="
-                    formValues[type.id] === val
-                      ? val
-                        ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
-                        : 'bg-rose-500 text-white border-rose-600 shadow-sm'
+                    formValues[type.id] === true
+                      ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
                       : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
                   "
                 >
-                  {{ val ? 'EVET (Pozitif)' : 'HAYIR (Negatif)' }}
+                  EVET (Pozitif)
                 </button>
+                <button
+                  @click="formValues[type.id] = false"
+                  class="px-4 py-2 rounded-lg text-xs font-semibold border transition-all"
+                  :class="
+                    formValues[type.id] === false
+                      ? 'bg-rose-500 text-white border-rose-600 shadow-sm'
+                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                  "
+                >
+                  HAYIR (Negatif)
+                </button>
+              </div>
+
+              <div v-else class="text-xs text-gray-400">
+                Bu veri tipi desteklenmiyor: {{ type.type }}
               </div>
             </div>
           </div>
         </div>
 
-        <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-between gap-3">
+        <div
+          class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-between gap-3 shrink-0"
+        >
           <div>
             <button
               v-if="isEditing"
-              @click="handleDelete"
-              class="px-5 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border border-transparent hover:border-rose-100"
+              type="button"
+              @click.stop="handleDelete"
+              class="px-5 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border border-transparent hover:border-rose-100 flex items-center gap-2"
             >
-              Sil
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+              </svg>
+              Çizimi Sil
             </button>
           </div>
 
@@ -168,35 +214,103 @@ const props = defineProps<{
 const emit = defineEmits(['save', 'cancel', 'delete']);
 
 const formValues = ref<Record<string, any>>({});
-const localTypes = computed(() => props.annotationTypes.filter((t) => !t.global));
 
-// Düzenleme modunda mıyız?
+const localTypes = computed(() => {
+  if (!props.annotationTypes) return [];
+  return props.annotationTypes.filter((t) => {
+    const isGlobal = t.global ?? t.is_global ?? t.isGlobal ?? false;
+    return !isGlobal;
+  });
+});
+
 const isEditing = computed(
   () => props.initialValues && Object.keys(props.initialValues).length > 0
 );
 
+// Form Geçerlilik Kontrolü
 const isValid = computed(() => {
-  return Object.values(formValues.value).some((v) => v !== null && v !== undefined && v !== '');
+  // 1. En az bir değer dolu olmalı
+  const hasValue = Object.values(formValues.value).some((v) => v !== null && v !== undefined && v !== '');
+  if (!hasValue) return false;
+
+  // 2. Dolu olan Sayısal değerler aralık (min/max) içinde olmalı
+  const allNumbersValid = localTypes.value.every(type => {
+    const val = formValues.value[type.id];
+    // Eğer değer sayısal tipteyse ve doluysa kontrol et
+    if (checkType(type.type, 'number') && val !== null && val !== undefined && val !== '') {
+      if (isNumberInvalid(type, val)) return false;
+    }
+    return true;
+  });
+
+  return allNumbersValid;
 });
 
 watch(
   () => props.isOpen,
   (val) => {
     if (val) {
-      // Başlangıç değerlerini yükle veya formu temizle
-      formValues.value = props.initialValues ? { ...props.initialValues } : {};
+      if (props.initialValues) {
+        formValues.value = JSON.parse(JSON.stringify(props.initialValues));
+      } else {
+        formValues.value = {};
+      }
     }
   }
 );
 
+function checkType(actualType: string, targetType: string | string[]): boolean {
+  if (!actualType) return false;
+  const normalizedActual = actualType.toString().toLowerCase();
+
+  if (Array.isArray(targetType)) {
+    return targetType.some(
+      (t) => normalizedActual === t.toLowerCase() || normalizedActual.includes(t.toLowerCase())
+    );
+  }
+  return (
+    normalizedActual === targetType.toLowerCase() ||
+    normalizedActual.includes(targetType.toLowerCase())
+  );
+}
+
+// --- Yeni Validasyon Metodları ---
+
+// Sayının aralık dışı olup olmadığını kontrol eder
+function isNumberInvalid(type: any, value: any): boolean {
+  if (value === null || value === undefined || value === '') return false;
+  const numVal = Number(value);
+  
+  if (type.min !== undefined && type.min !== null && numVal < type.min) return true;
+  if (type.max !== undefined && type.max !== null && numVal > type.max) return true;
+  
+  return false;
+}
+
+// Hata mesajı oluşturur
+function getRangeErrorMessage(type: any): string {
+  if (type.min !== undefined && type.max !== undefined) {
+    return `Değer ${type.min} ile ${type.max} arasında olmalıdır.`;
+  } else if (type.min !== undefined) {
+    return `Değer en az ${type.min} olmalıdır.`;
+  } else if (type.max !== undefined) {
+    return `Değer en fazla ${type.max} olmalıdır.`;
+  }
+  return 'Geçersiz değer';
+}
+
 function handleSave() {
-  const results = Object.entries(formValues.value)
-    .filter(([_, value]) => value !== null && value !== undefined && value !== '')
-    .map(([id, value]) => {
-      const typeInfo = localTypes.value.find((t) => t.id === id);
-      return { type: typeInfo, value };
-    })
-    .filter((item) => item.type !== undefined);
+  const results: any[] = [];
+
+  Object.entries(formValues.value).forEach(([id, value]) => {
+    // Boş değerleri filtrele
+    if (value === null || value === undefined || value === '') return;
+
+    const typeInfo = localTypes.value.find((t) => t.id === id);
+    if (typeInfo) {
+      results.push({ type: typeInfo, value });
+    }
+  });
 
   emit('save', results);
 }
@@ -206,7 +320,9 @@ function handleCancel() {
 }
 
 function handleDelete() {
-  emit('delete');
+  if (confirm('Bu çizimi ve üzerindeki tüm etiketleri kalıcı olarak silmek istediğinize emin misiniz?')) {
+    emit('delete');
+  }
 }
 </script>
 
@@ -215,7 +331,12 @@ function handleDelete() {
   @apply w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all;
 }
 .form-select-custom {
-  @apply w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all cursor-pointer;
+  @apply w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all cursor-pointer appearance-none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
 }
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;
@@ -223,5 +344,18 @@ function handleDelete() {
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #e5e7eb;
   border-radius: 10px;
+}
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 </style>

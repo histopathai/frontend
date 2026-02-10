@@ -3,7 +3,8 @@ import type {
   CreateNewWorkspaceRequest,
   UpdateWorkspaceRequest,
 } from '@/core/repositories/IWorkspaceRepository';
-import type { PaginatedResult, Pagination } from '@/core/types/common';
+import type { BatchTransfer } from '@/core/repositories/common';
+import type { PaginatedResult, QueryOptions } from '@/core/types/common';
 
 import { Workspace } from '@/core/entities/Workspace';
 import { ApiClient } from '../api/ApiClient';
@@ -11,16 +12,41 @@ import { ApiClient } from '../api/ApiClient';
 export class WorkspaceRepository implements IWorkspaceRepository {
   constructor(private apiClient: ApiClient) {}
 
-  async list(pagination: Pagination): Promise<PaginatedResult<Workspace>> {
-    const response = await this.apiClient.get<any>('/api/v1/proxy/workspaces', {
-      limit: pagination.limit,
-      offset: pagination.offset,
-      sort_by: pagination.sortBy,
-      sort_dir: pagination.sortDir,
-    });
+  async list(options?: QueryOptions): Promise<PaginatedResult<Workspace>> {
+    const params: any = {};
+    if (options?.pagination) {
+      params.limit = options.pagination.limit;
+      params.offset = options.pagination.offset;
+    }
+    if (options?.sort && options.sort.length > 0) {
+      const sortOpt = options.sort[0];
+      if (sortOpt) {
+        params.sort_by = sortOpt.field;
+        params.sort_dir = sortOpt.direction;
+      }
+    }
+
+    const response = await this.apiClient.get<any>('/api/v1/proxy/workspaces', params);
+
+    let items = [];
+    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+
+    // Handle nested structure from backend { data: { data: [], pagination: {} } }
+    if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
+      items = response.data.data;
+      if (response.data.pagination) pagination = response.data.pagination;
+    } else if (Array.isArray(response.data)) {
+      items = response.data;
+      if (response.pagination) pagination = response.pagination;
+    } else if (response.data && Array.isArray(response.data.items)) {
+      // Fallback for other potential structures
+      items = response.data.items;
+      if (response.data.pagination) pagination = response.data.pagination;
+    }
+
     return {
-      data: response.data.map((item: any) => Workspace.create(item)),
-      pagination: response.pagination,
+      data: items.map((item: any) => Workspace.create(item)),
+      pagination: pagination as any,
     };
   }
 
@@ -39,7 +65,7 @@ export class WorkspaceRepository implements IWorkspaceRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.apiClient.delete(`/api/v1/proxy/workspaces/${id}`);
+    await this.apiClient.delete(`/api/v1/proxy/workspaces/${id}/soft-delete`);
   }
 
   async count(): Promise<number> {
@@ -47,11 +73,13 @@ export class WorkspaceRepository implements IWorkspaceRepository {
     return response.count;
   }
 
-  async batchDelete(ids: string[]): Promise<void> {
-    await this.apiClient.post('/api/v1/proxy/workspaces/batch-delete', { ids });
+  async softDeleteMany(ids: string[]): Promise<void> {
+    const params = new URLSearchParams();
+    ids.forEach((id) => params.append('ids', id));
+    await this.apiClient.delete(`/api/v1/proxy/workspaces/soft-delete-many?${params.toString()}`);
   }
 
-  async cascadeDelete(id: string): Promise<void> {
-    await this.apiClient.delete(`/api/v1/proxy/workspaces/${id}/cascade-delete`);
+  async transferMany(data: BatchTransfer): Promise<void> {
+    throw new Error('Transfer many not implemented for workspaces');
   }
 }

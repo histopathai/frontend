@@ -169,6 +169,17 @@
             </button>
 
             <button
+              v-if="isEditingMode"
+              type="button"
+              @click="handleRemoveFromWorkspace"
+              :disabled="loading"
+              class="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded-lg transition-colors shadow-sm flex items-center gap-2"
+            >
+              <span v-if="loading" class="animate-spin h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full"></span>
+              Veri Setinden Çıkar
+            </button>
+
+            <button
               v-if="isImportMode"
               type="button"
               @click="handleLinkExisting"
@@ -247,11 +258,11 @@
                   v-model="form.type"
                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3 border bg-white"
                 >
-                  <option value="TEXT">📝 Metin (Text)</option>
-                  <option value="NUMBER">🔢 Sayı (Number)</option>
-                  <option value="BOOLEAN">✅ Mantıksal (Evet/Hayır)</option>
-                  <option value="SELECT">🔘 Tekli Seçim (Select)</option>
-                  <option value="MULTI_SELECT">🏷️ Çoklu Seçim (Multi Select)</option>
+                  <option :value="TagType.Text">📝 Metin (Text)</option>
+                  <option :value="TagType.Number">🔢 Sayı (Number)</option>
+                  <option :value="TagType.Boolean">✅ Mantıksal (Evet/Hayır)</option>
+                  <option :value="TagType.Select">🔘 Tekli Seçim (Select)</option>
+                  <option :value="TagType.MultiSelect">🏷️ Çoklu Seçim (Multi Select)</option>
                 </select>
               </div>
 
@@ -303,7 +314,7 @@
             <hr class="border-gray-100" />
 
             <div
-              v-if="['SELECT', 'MULTI_SELECT'].includes(form.type)"
+              v-if="[TagType.Select, TagType.MultiSelect].includes(form.type)"
               class="space-y-4 animate-slide-in"
             >
               <div class="flex justify-between items-center">
@@ -352,7 +363,7 @@
               </div>
             </div>
 
-            <div v-if="form.type === 'NUMBER'" class="space-y-4 animate-slide-in">
+            <div v-if="form.type === TagType.Number" class="space-y-4 animate-slide-in">
               <label class="block text-sm font-medium text-gray-700">Değer Aralığı</label>
               <div class="grid grid-cols-2 gap-4 bg-gray-50 p-5 rounded-xl border border-gray-200">
                 <div>
@@ -386,7 +397,7 @@ import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useToast } from 'vue-toastification';
 import type { AnnotationType } from '@/core/entities/AnnotationType';
-import type { TagType } from '@/core/types/tags';
+import { TagType } from '@/core/value-objects';
 
 const props = defineProps({
   workspaceId: { type: String, required: true },
@@ -422,7 +433,7 @@ interface FormState {
 
 const form = reactive<FormState>({
   name: '',
-  type: 'TEXT',
+  type: TagType.Text,
   color: '#4F46E5',
   global: false,
   required: false,
@@ -450,7 +461,10 @@ const getSaveButtonText = computed(() => {
   return 'Oluştur & Kaydet';
 });
 
-const workspaceTypes = computed(() => store.annotationTypes);
+const workspaceTypes = computed(() => {
+  const workspaceTypeIds = workspaceStore.currentWorkspace?.annotationTypeIds || [];
+  return store.annotationTypes.filter((type) => workspaceTypeIds.includes(type.id));
+});
 
 const filteredList = computed(() => {
   const source = activeTab.value === 'workspace' ? workspaceTypes.value : libraryTypes.value;
@@ -474,10 +488,14 @@ watch(activeTab, async (newTab) => {
 async function fetchWorkspaceTypes() {
   loadingTypes.value = true;
   try {
-    await store.fetchAnnotationTypes(
-      { limit: 100 },
-      { refresh: true, parentId: props.workspaceId }
-    );
+    if (
+      !workspaceStore.currentWorkspace ||
+      workspaceStore.currentWorkspace.id !== props.workspaceId
+    ) {
+      await workspaceStore.fetchWorkspaceById(props.workspaceId);
+    }
+
+    await store.fetchAnnotationTypes({ limit: 100 }, { refresh: true });
   } catch (error) {
     console.error(error);
   } finally {
@@ -502,7 +520,7 @@ async function loadLibrary() {
 function startNewType() {
   currentTypeId.value = null;
   form.name = '';
-  form.type = 'TEXT';
+  form.type = TagType.Text;
   form.color = '#4F46E5';
   form.global = false;
   form.required = false;
@@ -518,11 +536,15 @@ function handleItemClick(type: AnnotationType) {
 
   currentTypeId.value = type.id;
   form.name = type.name;
-  form.type = type.type;
+  form.type = type.type as TagType;
   form.color = type.color || '#4F46E5';
-  form.global = type.global;
-  form.required = type.required;
-  form.options = type.options ? [...type.options] : [];
+  form.global = type.global ?? false;
+  form.required = type.required ?? false;
+  if (type.options && Array.isArray(type.options)) {
+    form.options = [...type.options];
+  } else {
+    form.options = [];
+  }
   form.min = type.min;
   form.max = type.max;
 }
@@ -542,11 +564,11 @@ function removeOption(idx: number) {
 
 function getShortType(type: string) {
   const map: Record<string, string> = {
-    TEXT: 'TXT',
-    NUMBER: 'NUM',
-    BOOLEAN: 'BOOL',
-    SELECT: 'SEL',
-    MULTI_SELECT: 'TAGS',
+    [TagType.Text]: 'TXT',
+    [TagType.Number]: 'NUM',
+    [TagType.Boolean]: 'BOOL',
+    [TagType.Select]: 'SEL',
+    [TagType.MultiSelect]: 'TAGS',
   };
   return map[type] || type;
 }
@@ -572,12 +594,19 @@ async function handleLinkExisting() {
     await addTypeToWorkspace(currentTypeId.value);
     toast.success('Tip başarıyla veri setine eklendi.');
 
-    if (activeTab.value === 'library') {
-      activeTab.value = 'workspace';
-    }
+    // Kütüphaneden ekleme yaparken sekmeyi değiştirmeye gerek yok,
+    // kullanıcı art arda ekleme yapmak isteyebilir.
+    // if (activeTab.value === 'library') {
+    //   activeTab.value = 'workspace';
+    // }
+    
     await fetchWorkspaceTypes();
+    
+    // Seçimi temizle ki yeni bir tane seçebilsin
     startNewType();
-    emit('saved');
+    
+    // Modalın kapanmaması için emit('saved') kaldırıldı.
+    // emit('saved'); 
   } catch (error) {
     console.error(error);
     toast.error('Bağlama sırasında hata oluştu.');
@@ -592,7 +621,7 @@ async function handleSave() {
     return;
   }
 
-  if (['SELECT', 'MULTI_SELECT'].includes(form.type)) {
+  if ([TagType.Select, TagType.MultiSelect].includes(form.type)) {
     form.options = form.options.filter((o) => o.trim() !== '');
     if (form.options.length === 0) {
       toast.warning('En az bir seçenek eklemelisiniz.');
@@ -602,25 +631,39 @@ async function handleSave() {
 
   loading.value = true;
   try {
-    const payload = {
-      name: form.name,
-      parent_id: props.workspaceId,
-      color: form.color,
-      type: form.type,
-      options: ['SELECT', 'MULTI_SELECT'].includes(form.type) ? form.options : undefined,
-      global: form.global,
-      required: form.required,
-      min: form.type === 'NUMBER' ? form.min : undefined,
-      max: form.type === 'NUMBER' ? form.max : undefined,
-    };
-
     let createdOrUpdatedType: AnnotationType | null = null;
 
     if (isEditingMode.value && currentTypeId.value) {
-      await store.updateAnnotationType(currentTypeId.value, payload);
+      // Update payload - exclude immutable fields (is_global, tag_type)
+      const updatePayload = {
+        name: form.name,
+        color: form.color,
+        options: [TagType.Select, TagType.MultiSelect].includes(form.type)
+          ? form.options
+          : undefined,
+        is_required: form.required,
+        min: form.type === TagType.Number ? form.min : undefined,
+        max: form.type === TagType.Number ? form.max : undefined,
+      };
+
+      await store.updateAnnotationType(currentTypeId.value, updatePayload);
       toast.success('Güncellendi.');
     } else {
-      createdOrUpdatedType = await store.createAnnotationType(payload);
+      // Create payload - include all fields
+      const createPayload = {
+        name: form.name,
+        color: form.color,
+        tag_type: form.type,
+        options: [TagType.Select, TagType.MultiSelect].includes(form.type)
+          ? form.options
+          : undefined,
+        is_global: form.global,
+        is_required: form.required,
+        min: form.type === TagType.Number ? form.min : undefined,
+        max: form.type === TagType.Number ? form.max : undefined,
+      };
+
+      createdOrUpdatedType = await store.createAnnotationType(createPayload);
 
       if (createdOrUpdatedType && createdOrUpdatedType.id) {
         await addTypeToWorkspace(createdOrUpdatedType.id);
@@ -639,6 +682,43 @@ async function handleSave() {
   } catch (error) {
     console.error(error);
     if (!store.error) toast.error('Hata oluştu.');
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function handleRemoveFromWorkspace() {
+  if (!currentTypeId.value) return;
+  if (!workspaceStore.currentWorkspace || workspaceStore.currentWorkspace.id !== props.workspaceId) {
+     await workspaceStore.fetchWorkspaceById(props.workspaceId);
+  }
+
+  const workspace = workspaceStore.currentWorkspace;
+  if (!workspace) return; 
+  if (!confirm('Bu etiketi bu veri setinden çıkarmak istediğinize emin misiniz?')) {
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const currentIds = workspace.annotationTypeIds || [];
+    const updatedIds = currentIds.filter(id => id !== currentTypeId.value);
+
+    console.log('Çıkarılıyor:', currentTypeId.value);
+    console.log('Yeni Liste (Backend\'e giden):', updatedIds);
+
+    await workspaceStore.updateWorkspace(props.workspaceId, {
+      annotation_types: updatedIds,
+    });
+    
+    toast.success('Etiket veri setinden çıkarıldı.');
+    
+    await fetchWorkspaceTypes();
+    
+    startNewType();
+  } catch (error) {
+    console.error('Silme işlemi başarısız:', error);
+    toast.error('Çıkarma işlemi sırasında bir hata oluştu.');
   } finally {
     loading.value = false;
   }

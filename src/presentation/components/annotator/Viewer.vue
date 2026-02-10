@@ -23,6 +23,7 @@ import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { useAnnotationStore } from '@/stores/annotation';
 import LocalAnnotationModal from './LocalAnnotationModal.vue';
 import { useToast } from 'vue-toastification';
+import { useWorkspaceStore } from '@/stores/workspace';
 
 const toast = useToast();
 
@@ -36,28 +37,74 @@ const viewerId = 'osd-viewer-main';
 const { loadAnnotations, loadImage, startDrawing, stopDrawing, anno } = useOpenSeadragon(viewerId);
 
 const isModalOpen = ref(false);
-const currentDrawingData = ref<any>(null);
-const selectedAnnotationData = ref<Annotation | null>(null);
+const currentDrawingData = ref<any>(null); // Yeni çizilen (henüz kaydedilmemiş) veri
+const selectedAnnotationData = ref<Annotation | null>(null); // Düzenlenen kayıtlı veri
 const editInitialValues = ref<Record<string, any>>({});
 
-const activeAnnotationTypes = computed(() =>
-  annotationTypeStore.annotationTypes.filter((t) => !t.global)
-);
+const activeAnnotationTypes = computed(() => {
+  const workspaceStore = useWorkspaceStore();
+  const currentWs = workspaceStore.currentWorkspace;
+  const allTypes = annotationTypeStore.annotationTypes;
+
+  if (!currentWs || !currentWs.annotationTypeIds) {
+    return [];
+  }
+
+  return allTypes.filter((t) => {
+    const isGlobal = t.global ?? (t as any).is_global ?? false;
+    if (isGlobal) return false;
+    const belongsToWorkspace = currentWs.annotationTypeIds.includes(t.id);
+    return belongsToWorkspace;
+  });
+});
 
 defineExpose({ startDrawing, stopDrawing });
+
+// --- Watchers ---
 
 watch(
   () => props.selectedImage,
   async (newImg, oldImg) => {
     if (!newImg || (oldImg && newImg.id === oldImg.id)) {
-      console.log('⚠️ [Viewer] Aynı resim veya geçersiz veri, atlanıyor.');
       return;
     }
-
-    console.log('✅ [Viewer] Yeni resim yükleniyor:', newImg.id);
     await loadImage(newImg);
+    
+    // Workspace senkronizasyonu
+    if (newImg) {
+      let targetWorkspaceId = (newImg as any).wsId;
+      if (!targetWorkspaceId && newImg.parent && newImg.parent.type === 'workspace') {
+        targetWorkspaceId = newImg.parent.id;
+      }
+
+      if (targetWorkspaceId) {
+        const workspaceStore = useWorkspaceStore();
+        if (workspaceStore.currentWorkspace?.id !== targetWorkspaceId) {
+          try {
+            await workspaceStore.fetchWorkspaceById(targetWorkspaceId);
+          } catch (e) {
+            console.error('Failed to fetch workspace in Viewer:', targetWorkspaceId, e);
+          }
+        }
+      }
+    }
+  },
+  { immediate: true }
+);
+
+// Pending annotations temizlendiğinde (kayıt sonrası) viewer'ı yenile
+watch(
+  () => annotationStore.pendingCount,
+  async (newCount, oldCount) => {
+    if (oldCount > 0 && newCount === 0 && props.selectedImage) {
+      console.log('🔄 Pending annotations cleared, refreshing viewer...');
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await loadAnnotations(props.selectedImage.id);
+    }
   }
 );
+
+// --- Lifecycle ---
 
 onMounted(() => {
   const viewerEl = document.getElementById(viewerId);
@@ -70,12 +117,15 @@ onMounted(() => {
     (newAnno) => {
       if (!newAnno) return;
 
+      // 1. Yeni Çizim Olayı
       newAnno.on('createSelection', (selection: any) => {
         currentDrawingData.value = selection;
+        selectedAnnotationData.value = null; // Yeni çizim, kayıtlı veri yok
         editInitialValues.value = {};
         isModalOpen.value = true;
       });
 
+      // 2. Mevcut Anotasyon Seçimi
       newAnno.on('selectAnnotation', (annotation: any) => {
         const rawId = String(annotation.id);
         const targetId = rawId.startsWith('#') ? rawId.slice(1) : rawId;
@@ -84,6 +134,8 @@ onMounted(() => {
 
         const realAnnotation = annotationStore.annotations.find((a) => String(a.id) === targetId);
         let foundData = realAnnotation;
+        
+        // Store'da yoksa Pending listesine bak
         if (!foundData) {
           const pending = annotationStore.pendingAnnotations.find(
             (p) => String(p.tempId) === targetId
@@ -92,7 +144,9 @@ onMounted(() => {
             console.log('⏳ Pending (Geçici) veri bulundu.');
             foundData = {
               id: pending.tempId,
-              tag: pending.tag,
+              name: pending.name,
+              tag_type: pending.tag_type,
+              value: pending.value,
               polygon: pending.polygon || [],
             } as any;
           }
@@ -100,51 +154,39 @@ onMounted(() => {
 
         if (foundData) {
           selectedAnnotationData.value = foundData;
+          currentDrawingData.value = null; // Kayıtlı veri düzenleniyor
 
-          console.group('🔍 Veri Eşleştirme (Fix)');
+          // Aynı poligon üzerindeki diğer etiketleri bul
           const initialValues: Record<string, any> = {};
+          const isSamePolygon = (poly1: any[], poly2: any[]) => {
+            if (!poly1 || !poly2 || poly1.length !== poly2.length) return false;
+            const tolerance = 0.01;
+            return poly1.every((p1, i) => {
+              const p2 = poly2[i];
+              return p2 && Math.abs(p1.x - p2.x) < tolerance && Math.abs(p1.y - p2.y) < tolerance;
+            });
+          };
 
-          const normalize = (str: any) =>
-            String(str || '')
-              .trim()
-              .toLowerCase();
+          const selectedPolygon = (foundData as any).polygon;
+          if (selectedPolygon && props.selectedImage) {
+            // Kayıtlılar
+            annotationStore.annotations
+              .filter((ann) => isSamePolygon(ann.polygon, selectedPolygon))
+              .forEach((ann) => {
+                const type = activeAnnotationTypes.value.find((t) => t.id === ann.annotationTypeId);
+                if (type) initialValues[type.id] = ann.value;
+              });
 
-          activeAnnotationTypes.value.forEach((type) => {
-            const targetName = normalize(type.name);
-            let foundValue = null;
-
-            if (foundData!.tag) {
-              const tName = normalize(foundData!.tag.tag_name);
-              if (tName === targetName) {
-                foundValue = foundData!.tag.value;
-                console.log(`✅ [${type.name}] -> Tag Objesinde Bulundu: ${foundValue}`);
-              }
-            }
-
-            if (foundValue === null && foundData!.data && Array.isArray(foundData!.data)) {
-              const foundItem = foundData!.data.find(
-                (d: any) => normalize(d.tagName || d.tag_name || d.name || d.label) === targetName
-              );
-
-              if (foundItem) {
-                foundValue = foundItem.value;
-                console.log(`✅ [${type.name}] -> Data Listesinde Bulundu: ${foundValue}`);
-              }
-            }
-
-            if (foundValue !== null && foundValue !== undefined) {
-              initialValues[type.id] = foundValue;
-            } else {
-              console.log(`❌ [${type.name}] -> Hiçbir yerde bulunamadı.`);
-            }
-          });
-
-          console.log('🚀 Modal Değerleri:', initialValues);
-          console.groupEnd();
+            // Pending olanlar
+            annotationStore.pendingAnnotations
+              .filter((p) => p.imageId === props.selectedImage!.id && isSamePolygon(p.polygon || [], selectedPolygon))
+              .forEach((pending) => {
+                const type = activeAnnotationTypes.value.find((t) => t.name === pending.name);
+                if (type && !initialValues[type.id]) initialValues[type.id] = pending.value;
+              });
+          }
 
           editInitialValues.value = initialValues;
-
-          currentDrawingData.value = null;
           isModalOpen.value = true;
         } else {
           console.warn('❌ Store içinde bu ID ile eşleşen veri bulunamadı:', targetId);
@@ -168,118 +210,141 @@ onUnmounted(() => {
   }
 });
 
-function handleDoubleClick() {
-  console.group('🖱️ Double Click Event');
-  if (!anno.value) {
-    console.groupEnd();
-    return;
-  }
+// --- Methods ---
 
+function handleDoubleClick() {
+  if (!anno.value) return;
   const selected = anno.value.getSelected();
 
   if (selected && selectedAnnotationData.value) {
-    const currentTag = selectedAnnotationData.value.tag;
-
-    if (currentTag) {
-      const type = activeAnnotationTypes.value.find((t) => {
-        const match = t.name === currentTag.tag_name;
-        if (match) return match;
-      });
-
-      if (type) {
-        editInitialValues.value = { [type.id]: currentTag.value };
-      } else {
-      }
-    } else {
-      editInitialValues.value = {};
+    // Seçili veriyi editInitialValues'a doldur (Yedek mekanizma)
+    const annData = selectedAnnotationData.value;
+    if ((annData as Annotation).annotationTypeId) {
+      const type = activeAnnotationTypes.value.find((t) => t.id === (annData as Annotation).annotationTypeId);
+      if (type) editInitialValues.value = { [type.id]: (annData as Annotation).value };
     }
-
     currentDrawingData.value = null;
     isModalOpen.value = true;
-  } else {
   }
-  console.groupEnd();
 }
 
 async function handleModalSave(results: Array<{ type: any; value: any }>) {
   if (results.length === 0) return;
 
+  // 1. Durum: Mevcut bir poligonu düzenleme/ekleme
   if (selectedAnnotationData.value && !currentDrawingData.value) {
-    const res = results[0];
-    if (!res) return;
-    const annId = String(selectedAnnotationData.value.id);
+    const selectedPolygon = (selectedAnnotationData.value as any).polygon;
+    if (!selectedPolygon || !props.selectedImage) return;
 
-    const newTagData = {
-      tag_type: res.type.type,
-      tag_name: res.type.name,
-      value: res.value,
-      color: res.type.color || '#ec4899',
-      global: false,
+    // Poligon eşleştirme mantığı
+    const isSamePolygon = (poly1: any[], poly2: any[]) => {
+      if (!poly1 || !poly2 || poly1.length !== poly2.length) return false;
+      const tolerance = 0.01;
+      return poly1.every((p1, i) => {
+        const p2 = poly2[i];
+        return p2 && Math.abs(p1.x - p2.x) < tolerance && Math.abs(p1.y - p2.y) < tolerance;
+      });
     };
 
-    if (annId.startsWith('temp-')) {
-      annotationStore.updatePendingAnnotation(annId, { tag: newTagData });
-      toast.success('Geçici etiket güncellendi.');
-    } else {
-      await annotationStore.updateAnnotation(annId, { tag: newTagData });
-    }
+    const annotationsOnSamePolygon = annotationStore.annotations.filter((ann) =>
+      isSamePolygon(ann.polygon, selectedPolygon)
+    );
 
-    if (anno.value) {
-      const w3cAnnotation = anno.value.getAnnotation(annId);
-      if (w3cAnnotation) {
-        w3cAnnotation.body = [
-          {
-            type: 'TextualBody',
-            value: `${res.type.name}: ${res.value}`,
-            purpose: 'tagging',
-          },
-        ];
-        anno.value.updateAnnotation(w3cAnnotation);
+    let updateCount = 0;
+    let createCount = 0;
+
+    for (const res of results) {
+      const typeId = res.type.id;
+      const existingAnn = annotationsOnSamePolygon.find((ann) => ann.annotationTypeId === typeId);
+
+      if (existingAnn) {
+        // Güncelle
+        await annotationStore.updateAnnotation(existingAnn.id, {
+          tag_type: res.type.type,
+          name: res.type.name,
+          value: res.value,
+          color: res.type.color || '#ec4899',
+          is_global: false,
+        });
+        updateCount++;
+        
+        // Görseli güncelle (Text)
+        if (anno.value) {
+          const w3cAnnotation = anno.value.getAnnotation(existingAnn.id);
+          if (w3cAnnotation) {
+            w3cAnnotation.body = [{ type: 'TextualBody', value: `${res.type.name}: ${res.value}`, purpose: 'tagging' }];
+            anno.value.updateAnnotation(w3cAnnotation);
+          }
+        }
+      } else {
+        // Aynı poligona yeni etiket ekle
+        const safeWsId = (props.selectedImage as any).wsId || props.selectedImage!.parent?.id;
+        const tempId = `temp-${Date.now()}-${Math.random()}`;
+
+        annotationStore.addPendingAnnotation({
+          tempId,
+          imageId: props.selectedImage!.id,
+          ws_id: safeWsId,
+          name: res.type.name,
+          tag_type: res.type.type,
+          value: res.value,
+          color: res.type.color || '#ec4899',
+          is_global: false,
+          polygon: selectedPolygon.map((p: any) => ({ x: p.x, y: p.y })),
+        } as any);
+        createCount++;
+        
+        // Görsel ekle
+        if (anno.value) {
+           const polygonStr = selectedPolygon.map((p: any) => `${p.x},${p.y}`).join(' ');
+           anno.value.addAnnotation({
+            id: tempId,
+            type: 'Annotation',
+            body: [{ type: 'TextualBody', value: `${res.type.name}: ${res.value}`, purpose: 'tagging' }],
+            target: { selector: { type: 'SvgSelector', value: `<svg><polygon points="${polygonStr}"></polygon></svg>` } },
+          });
+        }
       }
-      anno.value.cancelSelected();
     }
-
+    
+    if (anno.value) anno.value.cancelSelected();
     isModalOpen.value = false;
     editInitialValues.value = {};
+    if (updateCount > 0 || createCount > 0) toast.success('Kaydedildi.');
     return;
   }
 
+  // 2. Durum: Yeni çizim yapma
   if (!currentDrawingData.value || !props.selectedImage) return;
 
   const rawPoints = convertAnnotoriousToPoints(currentDrawingData.value);
-  const points = rawPoints.map((p: { x: number; y: number }) => Point.from(p));
+  const points = rawPoints.map((p) => Point.from(p));
 
   results.forEach((res) => {
     const tempId = `temp-${Date.now()}-${Math.random()}`;
+    const safeWsId = (props.selectedImage as any).wsId || props.selectedImage!.parent?.id;
 
     annotationStore.addPendingAnnotation({
       tempId,
       imageId: props.selectedImage!.id,
-      tag: {
-        tag_type: res.type.type,
-        tag_name: res.type.name,
-        value: res.value,
-        color: res.type.color || '#ec4899',
-        global: false,
-      },
-      polygon: points.map((p: { x: number; y: number }) => ({ x: p.x, y: p.y })),
-    });
+      ws_id: safeWsId,
+      name: res.type.name,
+      tag_type: res.type.type,
+      value: res.value,
+      color: res.type.color || '#ec4899',
+      is_global: false,
+      polygon: points.map((p) => ({ x: p.x, y: p.y })),
+    } as any);
 
     if (anno.value) {
       anno.value.addAnnotation({
         id: tempId,
         type: 'Annotation',
-        body: [
-          {
-            type: 'TextualBody',
-            value: `${res.type.name}: ${res.value}`,
-            purpose: 'tagging',
-          },
-        ],
+        body: [{ type: 'TextualBody', value: `${res.type.name}: ${res.value}`, purpose: 'tagging' }],
         target: {
           selector: {
             type: 'SvgSelector',
-            value: `<svg><polygon points="${rawPoints.map((p: { x: number; y: number }) => `${p.x},${p.y}`).join(' ')}"></polygon></svg>`,
+            value: `<svg><polygon points="${rawPoints.map((p) => `${p.x},${p.y}`).join(' ')}"></polygon></svg>`,
           },
         },
       });
@@ -287,42 +352,113 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
   });
 
   if (anno.value) anno.value.cancelSelected();
-
   isModalOpen.value = false;
   currentDrawingData.value = null;
   editInitialValues.value = {};
-
   toast.info(`${results.length} etiket eklendi.`);
 }
 
 function handleModalCancel() {
   if (anno.value) anno.value.cancelSelected();
   isModalOpen.value = false;
+  currentDrawingData.value = null;
   editInitialValues.value = {};
 }
 
 function handleModalDelete() {
+  console.log('🗑️ Modal delete requested');
   deleteSelected();
   isModalOpen.value = false;
   editInitialValues.value = {};
 }
 
+// Viewer.vue içindeki deleteSelected fonksiyonunun YENİ hali
+
 async function deleteSelected() {
-  if (!selectedAnnotationData.value || !props.selectedImage) return;
-
-  const annotationId = selectedAnnotationData.value.id;
-  if (!annotationId) return;
-
-  if (String(annotationId).startsWith('temp-')) {
-    annotationStore.removePendingAnnotation(String(annotationId));
-    if (anno.value) anno.value.removeAnnotation(annotationId);
-    toast.info('Geçici etiket silindi');
-  } else {
-    await annotationStore.deleteAnnotation(String(annotationId), props.selectedImage.id);
-    if (anno.value) anno.value.removeAnnotation(annotationId);
+  // Durum 0: Silinecek veri yok
+  if (!selectedAnnotationData.value && !currentDrawingData.value) {
+     return;
   }
 
-  selectedAnnotationData.value = null;
+  // Durum 1: YENİ Çizimi İptal Etme (Henüz kaydedilmemiş)
+  if (currentDrawingData.value && !selectedAnnotationData.value) {
+    if (anno.value) {
+       anno.value.cancelSelected(); // Annotorious'tan sil
+       console.log('✨ Yeni çizim iptal edildi/silindi');
+    }
+    currentDrawingData.value = null;
+    return;
+  }
+
+  // Durum 2: KAYITLI Anotasyonu ve Bağlı Tüm Etiketleri Silme (Poligon Silme)
+  if (selectedAnnotationData.value && props.selectedImage) {
+    // Referans alınan anotasyonun poligon verisi
+    const targetPolygon = (selectedAnnotationData.value as any).polygon;
+    
+    if (!targetPolygon) {
+      console.warn('Silinecek poligon verisi bulunamadı.');
+      return;
+    }
+
+    // Helper: Poligon eşleştirme (Toleranslı)
+    const isSamePolygon = (poly1: any[], poly2: any[]) => {
+      if (!poly1 || !poly2 || poly1.length !== poly2.length) return false;
+      const tolerance = 0.01;
+      return poly1.every((p1, i) => {
+        const p2 = poly2[i];
+        return p2 && Math.abs(p1.x - p2.x) < tolerance && Math.abs(p1.y - p2.y) < tolerance;
+      });
+    };
+
+    // 1. Aynı poligona sahip TÜM anotasyonları bul (Store'dan)
+    const annotationsToDelete = annotationStore.annotations.filter((ann) => 
+      isSamePolygon(ann.polygon, targetPolygon)
+    );
+
+    // 2. Aynı poligona sahip PENDING (Geçici) anotasyonları bul
+    const pendingToDelete = annotationStore.pendingAnnotations.filter((p) => 
+      p.imageId === props.selectedImage!.id && isSamePolygon(p.polygon || [], targetPolygon)
+    );
+
+    if (annotationsToDelete.length === 0 && pendingToDelete.length === 0) {
+      console.warn('Silinecek ilişkili kayıt bulunamadı.');
+      return;
+    }
+
+    console.group('🗑️ Poligon ve İlişkili Etiketler Siliniyor');
+    console.log(`Bulunan Kayıtlı Etiket Sayısı: ${annotationsToDelete.length}`);
+    console.log(`Bulunan Geçici Etiket Sayısı: ${pendingToDelete.length}`);
+
+    try {
+      // A. Geçici olanları sil (Store'dan ve Viewer'dan)
+      for (const pending of pendingToDelete) {
+        annotationStore.removePendingAnnotation(pending.tempId);
+        if (anno.value) anno.value.removeAnnotation(pending.tempId);
+      }
+
+      // B. Kayıtlı olanları sil (Backend'den ve Viewer'dan)
+      // Promise.all ile hepsini paralel sil
+      const deletePromises = annotationsToDelete.map(async (ann) => {
+        // Backend isteği
+        await annotationStore.deleteAnnotation(String(ann.id), props.selectedImage!.id);
+        // Viewer görselinden kaldırma (Annotorious ID'si genellikle backend ID'si ile aynıdır)
+        if (anno.value) anno.value.removeAnnotation(ann.id);
+      });
+
+      await Promise.all(deletePromises);
+      
+      toast.success('Çizim ve tüm etiketleri başarıyla silindi.');
+
+    } catch (e) {
+      console.error('Toplu silme hatası:', e);
+      toast.error('Silme işlemi sırasında hata oluştu.');
+    } finally {
+      console.groupEnd();
+      selectedAnnotationData.value = null;
+      // Eğer hala ekranda çizim kalıntısı varsa temizle
+      if (anno.value) anno.value.cancelSelected(); 
+    }
+  }
 }
 
 function convertAnnotoriousToPoints(selection: any): Array<{ x: number; y: number }> {

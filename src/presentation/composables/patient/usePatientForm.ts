@@ -22,7 +22,7 @@ export function usePatientForm(
     race: '',
     disease: '',
     subtype: '',
-    grade: null as number | null,
+    grade: null as string | null,
     history: '',
   });
 
@@ -36,7 +36,7 @@ export function usePatientForm(
         form.race = newVal.race || '';
         form.disease = newVal.disease || '';
         form.subtype = newVal.subtype || '';
-        form.grade = newVal.grade ? Number(newVal.grade) : null;
+        form.grade = newVal.grade || null;
         form.history = newVal.history || '';
       }
     },

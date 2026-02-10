@@ -7,7 +7,7 @@
       </label>
 
       <input
-        v-if="type.type === 'TEXT'"
+        v-if="type.type === TagType.Text"
         type="text"
         :value="modelValue[type.id]"
         @input="(e) => updateValue(type.id, (e.target as HTMLInputElement).value)"
@@ -16,7 +16,7 @@
       />
 
       <input
-        v-if="type.type === 'NUMBER'"
+        v-if="type.type === TagType.Number"
         type="number"
         :min="type.min"
         :max="type.max"
@@ -25,7 +25,7 @@
         class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
       />
 
-      <div v-if="type.type === 'BOOLEAN'" class="flex items-center">
+      <div v-if="type.type === TagType.Boolean" class="flex items-center">
         <button
           type="button"
           class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -43,7 +43,7 @@
       </div>
 
       <select
-        v-if="type.type === 'SELECT'"
+        v-if="type.type === TagType.Select"
         :value="modelValue[type.id] || ''"
         @change="(e) => updateValue(type.id, (e.target as HTMLSelectElement).value)"
         class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
@@ -55,7 +55,7 @@
       </select>
 
       <div
-        v-if="type.type === 'MULTI_SELECT'"
+        v-if="type.type === TagType.MultiSelect"
         class="space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3 max-h-40 overflow-y-auto"
       >
         <div v-for="opt in type.options" :key="opt" class="flex items-center">
@@ -85,6 +85,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { AnnotationType } from '@/core/entities/AnnotationType';
+import { TagType } from '@/core/value-objects';
 
 const props = defineProps<{
   annotationTypes: AnnotationType[];

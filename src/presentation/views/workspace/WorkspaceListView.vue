@@ -108,8 +108,6 @@ async function loadData(page: number) {
   await store.fetchWorkspaces({
     limit: limit,
     offset: offset,
-    sortBy: 'created_at',
-    sortDir: 'desc',
   });
 }
 
@@ -140,9 +138,11 @@ async function openDeleteModal(workspace: Workspace) {
   deleteWarningText.value = t('workspace.messages.cascade_delete_warning');
 
   try {
-    const result = await repositories.patient.getByWorkspaceId(workspace.id, {
-      limit: 1,
-      offset: 0,
+    const result = await repositories.patient.listByWorkspace(workspace.id, {
+      pagination: {
+        limit: 1,
+        offset: 0,
+      },
     });
     if (result.data.length > 0) {
     }
@@ -173,9 +173,9 @@ async function handleDeleteConfirm() {
   let success = false;
 
   if (isSingleDelete.value && workspaceToDelete.value) {
-    success = await store.cascadeDeleteWorkspace(workspaceToDelete.value.id);
+    success = await store.deleteWorkspace(workspaceToDelete.value.id);
   } else if (!isSingleDelete.value && idsToDelete.value.length > 0) {
-    success = await store.batchDeleteWorkspaces(idsToDelete.value);
+    success = await store.softDeleteManyWorkspaces(idsToDelete.value);
   }
 
   if (success) {

@@ -51,6 +51,16 @@ export const useAuthStore = defineStore('auth', () => {
 
     loading.value = true;
     try {
+      // Check if session_id cookie exists
+      const hasSessionCookie = document.cookie.split(';').some((c) => {
+        return c.trim().startsWith('session_id=');
+      });
+
+      if (!hasSessionCookie) {
+        clearAuthData();
+        return;
+      }
+
       const currentSession = await authRepo.checkSession();
 
       if (currentSession) {
