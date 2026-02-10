@@ -14,7 +14,7 @@
             <h3 class="font-bold text-gray-900 text-lg">Bölgesel İşaretleme</h3>
             <p class="text-xs text-gray-500">
               {{
-                isEditing ? 'Etiketi Düzenle veya Sil' : 'Lütfen bu alan için etiketleri doldurun'
+                isEditing ? 'Etiketi Düzenle veya Çizimi Sil' : 'Lütfen bu alan için etiketleri doldurun'
               }}
             </p>
           </div>
@@ -78,8 +78,9 @@
             </div>
 
             <div class="pl-5">
+              
               <input
-                v-if="type.type === TagType.Text"
+                v-if="checkType(type.type, 'text')"
                 v-model="formValues[type.id]"
                 type="text"
                 class="w-full form-input-custom"
@@ -109,17 +110,29 @@
                 </p>
               </div>
 
-              <input
-                v-else-if="checkType(type.type, 'number')"
-                v-model.number="formValues[type.id]"
-                type="number"
-                :min="type.min"
-                :max="type.max"
-                class="w-full form-input-custom"
-                placeholder="Sayısal değer..."
-              />
+              <div v-else-if="checkType(type.type, 'number')">
+                <input
+                  v-model.number="formValues[type.id]"
+                  type="number"
+                  :min="type.min"
+                  :max="type.max"
+                  class="w-full form-input-custom"
+                  :class="{ 
+                    'border-red-500 focus:border-red-500 focus:ring-red-200 bg-red-50': isNumberInvalid(type, formValues[type.id]) 
+                  }"
+                  placeholder="Sayısal değer..."
+                />
+                
+                <p v-if="isNumberInvalid(type, formValues[type.id])" class="text-xs text-red-500 mt-1 font-medium animate-pulse">
+                  {{ getRangeErrorMessage(type) }}
+                </p>
+                
+                <p v-else-if="type.min !== undefined || type.max !== undefined" class="text-[10px] text-gray-400 mt-1">
+                  Aralık: {{ type.min ?? '-∞' }} ile {{ type.max ?? '+∞' }}
+                </p>
+              </div>
 
-              <div v-else-if="type.type === TagType.Boolean" class="flex gap-2">
+              <div v-else-if="checkType(type.type, 'boolean')" class="flex gap-2">
                 <button
                   @click="formValues[type.id] = true"
                   class="px-4 py-2 rounded-lg text-xs font-semibold border transition-all"
@@ -157,10 +170,14 @@
           <div>
             <button
               v-if="isEditing"
-              @click="handleDelete"
-              class="px-5 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border border-transparent hover:border-rose-100"
+              type="button"
+              @click.stop="handleDelete"
+              class="px-5 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border border-transparent hover:border-rose-100 flex items-center gap-2"
             >
-              Sil
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+              </svg>
+              Çizimi Sil
             </button>
           </div>
 
@@ -187,7 +204,6 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { TagType } from '@/core/value-objects';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -199,11 +215,9 @@ const emit = defineEmits(['save', 'cancel', 'delete']);
 
 const formValues = ref<Record<string, any>>({});
 
-// Filtreleme mantığını güvenli hale getirdik
 const localTypes = computed(() => {
   if (!props.annotationTypes) return [];
   return props.annotationTypes.filter((t) => {
-    // Backend'den 'global', 'is_global' veya 'isGlobal' gelebilir
     const isGlobal = t.global ?? t.is_global ?? t.isGlobal ?? false;
     return !isGlobal;
   });
@@ -213,18 +227,31 @@ const isEditing = computed(
   () => props.initialValues && Object.keys(props.initialValues).length > 0
 );
 
+// Form Geçerlilik Kontrolü
 const isValid = computed(() => {
-  // En az bir alan dolu olmalı
-  return Object.values(formValues.value).some((v) => v !== null && v !== undefined && v !== '');
+  // 1. En az bir değer dolu olmalı
+  const hasValue = Object.values(formValues.value).some((v) => v !== null && v !== undefined && v !== '');
+  if (!hasValue) return false;
+
+  // 2. Dolu olan Sayısal değerler aralık (min/max) içinde olmalı
+  const allNumbersValid = localTypes.value.every(type => {
+    const val = formValues.value[type.id];
+    // Eğer değer sayısal tipteyse ve doluysa kontrol et
+    if (checkType(type.type, 'number') && val !== null && val !== undefined && val !== '') {
+      if (isNumberInvalid(type, val)) return false;
+    }
+    return true;
+  });
+
+  return allNumbersValid;
 });
 
 watch(
   () => props.isOpen,
   (val) => {
     if (val) {
-      // Formu sıfırla veya initialValues ile doldur
       if (props.initialValues) {
-        formValues.value = { ...props.initialValues };
+        formValues.value = JSON.parse(JSON.stringify(props.initialValues));
       } else {
         formValues.value = {};
       }
@@ -232,7 +259,6 @@ watch(
   }
 );
 
-// Helper: Tip kontrolü (Case-insensitive ve esnek)
 function checkType(actualType: string, targetType: string | string[]): boolean {
   if (!actualType) return false;
   const normalizedActual = actualType.toString().toLowerCase();
@@ -246,6 +272,31 @@ function checkType(actualType: string, targetType: string | string[]): boolean {
     normalizedActual === targetType.toLowerCase() ||
     normalizedActual.includes(targetType.toLowerCase())
   );
+}
+
+// --- Yeni Validasyon Metodları ---
+
+// Sayının aralık dışı olup olmadığını kontrol eder
+function isNumberInvalid(type: any, value: any): boolean {
+  if (value === null || value === undefined || value === '') return false;
+  const numVal = Number(value);
+  
+  if (type.min !== undefined && type.min !== null && numVal < type.min) return true;
+  if (type.max !== undefined && type.max !== null && numVal > type.max) return true;
+  
+  return false;
+}
+
+// Hata mesajı oluşturur
+function getRangeErrorMessage(type: any): string {
+  if (type.min !== undefined && type.max !== undefined) {
+    return `Değer ${type.min} ile ${type.max} arasında olmalıdır.`;
+  } else if (type.min !== undefined) {
+    return `Değer en az ${type.min} olmalıdır.`;
+  } else if (type.max !== undefined) {
+    return `Değer en fazla ${type.max} olmalıdır.`;
+  }
+  return 'Geçersiz değer';
 }
 
 function handleSave() {
@@ -269,7 +320,9 @@ function handleCancel() {
 }
 
 function handleDelete() {
-  emit('delete');
+  if (confirm('Bu çizimi ve üzerindeki tüm etiketleri kalıcı olarak silmek istediğinize emin misiniz?')) {
+    emit('delete');
+  }
 }
 </script>
 

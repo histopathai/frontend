@@ -283,5 +283,6 @@ export function useOpenSeadragon(viewerId: string) {
     startDrawing,
     stopDrawing,
     anno,
+    viewer
   };
 }

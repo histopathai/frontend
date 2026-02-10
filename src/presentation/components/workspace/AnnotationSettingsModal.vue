@@ -169,6 +169,17 @@
             </button>
 
             <button
+              v-if="isEditingMode"
+              type="button"
+              @click="handleRemoveFromWorkspace"
+              :disabled="loading"
+              class="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded-lg transition-colors shadow-sm flex items-center gap-2"
+            >
+              <span v-if="loading" class="animate-spin h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full"></span>
+              Veri Setinden Çıkar
+            </button>
+
+            <button
               v-if="isImportMode"
               type="button"
               @click="handleLinkExisting"
@@ -583,12 +594,19 @@ async function handleLinkExisting() {
     await addTypeToWorkspace(currentTypeId.value);
     toast.success('Tip başarıyla veri setine eklendi.');
 
-    if (activeTab.value === 'library') {
-      activeTab.value = 'workspace';
-    }
+    // Kütüphaneden ekleme yaparken sekmeyi değiştirmeye gerek yok,
+    // kullanıcı art arda ekleme yapmak isteyebilir.
+    // if (activeTab.value === 'library') {
+    //   activeTab.value = 'workspace';
+    // }
+    
     await fetchWorkspaceTypes();
+    
+    // Seçimi temizle ki yeni bir tane seçebilsin
     startNewType();
-    emit('saved');
+    
+    // Modalın kapanmaması için emit('saved') kaldırıldı.
+    // emit('saved'); 
   } catch (error) {
     console.error(error);
     toast.error('Bağlama sırasında hata oluştu.');
@@ -664,6 +682,43 @@ async function handleSave() {
   } catch (error) {
     console.error(error);
     if (!store.error) toast.error('Hata oluştu.');
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function handleRemoveFromWorkspace() {
+  if (!currentTypeId.value) return;
+  if (!workspaceStore.currentWorkspace || workspaceStore.currentWorkspace.id !== props.workspaceId) {
+     await workspaceStore.fetchWorkspaceById(props.workspaceId);
+  }
+
+  const workspace = workspaceStore.currentWorkspace;
+  if (!workspace) return; 
+  if (!confirm('Bu etiketi bu veri setinden çıkarmak istediğinize emin misiniz?')) {
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const currentIds = workspace.annotationTypeIds || [];
+    const updatedIds = currentIds.filter(id => id !== currentTypeId.value);
+
+    console.log('Çıkarılıyor:', currentTypeId.value);
+    console.log('Yeni Liste (Backend\'e giden):', updatedIds);
+
+    await workspaceStore.updateWorkspace(props.workspaceId, {
+      annotation_types: updatedIds,
+    });
+    
+    toast.success('Etiket veri setinden çıkarıldı.');
+    
+    await fetchWorkspaceTypes();
+    
+    startNewType();
+  } catch (error) {
+    console.error('Silme işlemi başarısız:', error);
+    toast.error('Çıkarma işlemi sırasında bir hata oluştu.');
   } finally {
     loading.value = false;
   }
