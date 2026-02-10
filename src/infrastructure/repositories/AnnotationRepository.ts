@@ -51,7 +51,7 @@ export class AnnotationRepository implements IAnnotationRepository {
             return null;
           }
         })
-        .filter((item): item is Annotation => item !== null),
+        .filter((item: Annotation | null): item is Annotation => item !== null),
       pagination: pagination as any,
     };
   }
@@ -107,7 +107,7 @@ export class AnnotationRepository implements IAnnotationRepository {
             return null;
           }
         })
-        .filter((item): item is Annotation => item !== null),
+        .filter((item: Annotation | null): item is Annotation => item !== null),
       pagination: pagination as any,
     };
   }
