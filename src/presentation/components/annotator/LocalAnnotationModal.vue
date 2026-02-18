@@ -227,16 +227,12 @@ const isEditing = computed(
   () => props.initialValues && Object.keys(props.initialValues).length > 0
 );
 
-// Form Geçerlilik Kontrolü
 const isValid = computed(() => {
-  // 1. En az bir değer dolu olmalı
   const hasValue = Object.values(formValues.value).some((v) => v !== null && v !== undefined && v !== '');
   if (!hasValue) return false;
 
-  // 2. Dolu olan Sayısal değerler aralık (min/max) içinde olmalı
   const allNumbersValid = localTypes.value.every(type => {
     const val = formValues.value[type.id];
-    // Eğer değer sayısal tipteyse ve doluysa kontrol et
     if (checkType(type.type, 'number') && val !== null && val !== undefined && val !== '') {
       if (isNumberInvalid(type, val)) return false;
     }
@@ -274,9 +270,6 @@ function checkType(actualType: string, targetType: string | string[]): boolean {
   );
 }
 
-// --- Yeni Validasyon Metodları ---
-
-// Sayının aralık dışı olup olmadığını kontrol eder
 function isNumberInvalid(type: any, value: any): boolean {
   if (value === null || value === undefined || value === '') return false;
   const numVal = Number(value);
@@ -287,7 +280,6 @@ function isNumberInvalid(type: any, value: any): boolean {
   return false;
 }
 
-// Hata mesajı oluşturur
 function getRangeErrorMessage(type: any): string {
   if (type.min !== undefined && type.max !== undefined) {
     return `Değer ${type.min} ile ${type.max} arasında olmalıdır.`;
@@ -303,7 +295,6 @@ function handleSave() {
   const results: any[] = [];
 
   Object.entries(formValues.value).forEach(([id, value]) => {
-    // Boş değerleri filtrele
     if (value === null || value === undefined || value === '') return;
 
     const typeInfo = localTypes.value.find((t) => t.id === id);

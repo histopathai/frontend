@@ -22,8 +22,6 @@ export default defineConfig(({ command, mode }) => {
       cert: fs.readFileSync(certPath),
     };
   } else {
-    // Docker build sırasında veya sertifika yoksa burası çalışır
-    // console.log('⚠️ SSL sertifikaları bulunamadı veya tanımlı değil, HTTP modunda devam ediliyor.');
   }
 
   return {

@@ -2,7 +2,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useAdminStore } from '@/stores/admin';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { storeToRefs } from 'pinia';
-import { repositories } from '@/services'; // YENİ
+import { repositories } from '@/services';
 
 const formatDate = (date: Date): string => {
   return date.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' });

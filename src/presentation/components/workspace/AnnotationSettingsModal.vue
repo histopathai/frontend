@@ -593,20 +593,10 @@ async function handleLinkExisting() {
   try {
     await addTypeToWorkspace(currentTypeId.value);
     toast.success('Tip başarıyla veri setine eklendi.');
-
-    // Kütüphaneden ekleme yaparken sekmeyi değiştirmeye gerek yok,
-    // kullanıcı art arda ekleme yapmak isteyebilir.
-    // if (activeTab.value === 'library') {
-    //   activeTab.value = 'workspace';
-    // }
-    
     await fetchWorkspaceTypes();
     
-    // Seçimi temizle ki yeni bir tane seçebilsin
     startNewType();
     
-    // Modalın kapanmaması için emit('saved') kaldırıldı.
-    // emit('saved'); 
   } catch (error) {
     console.error(error);
     toast.error('Bağlama sırasında hata oluştu.');
@@ -634,7 +624,6 @@ async function handleSave() {
     let createdOrUpdatedType: AnnotationType | null = null;
 
     if (isEditingMode.value && currentTypeId.value) {
-      // Update payload - exclude immutable fields (is_global, tag_type)
       const updatePayload = {
         name: form.name,
         color: form.color,
@@ -649,7 +638,6 @@ async function handleSave() {
       await store.updateAnnotationType(currentTypeId.value, updatePayload);
       toast.success('Güncellendi.');
     } else {
-      // Create payload - include all fields
       const createPayload = {
         name: form.name,
         color: form.color,
@@ -703,9 +691,6 @@ async function handleRemoveFromWorkspace() {
   try {
     const currentIds = workspace.annotationTypeIds || [];
     const updatedIds = currentIds.filter(id => id !== currentTypeId.value);
-
-    console.log('Çıkarılıyor:', currentTypeId.value);
-    console.log('Yeni Liste (Backend\'e giden):', updatedIds);
 
     await workspaceStore.updateWorkspace(props.workspaceId, {
       annotation_types: updatedIds,

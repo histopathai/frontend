@@ -20,7 +20,6 @@ export function useOpenSeadragon(viewerId: string) {
   const loading = ref(false);
 
   function startDrawing() {
-    // Check if there are local annotation types
     const workspace = useWorkspaceStore().currentWorkspace;
     const allTypes = useAnnotationTypeStore().annotationTypes;
 
@@ -34,7 +33,6 @@ export function useOpenSeadragon(viewerId: string) {
       .filter((t) => t && !t.global);
 
     if (localTypes.length === 0) {
-      // Dispatch a custom event or toast to notify user
       window.dispatchEvent(
         new CustomEvent('toast-error', {
           detail: 'Bu çalışma alanı için çizim etiketi (lokal) tanımlanmamış.',
@@ -166,9 +164,7 @@ export function useOpenSeadragon(viewerId: string) {
                   const type = annotationTypeStore.annotationTypes.find(
                     (t) => t.id === ann.annotationTypeId
                   );
-                  // Need to handle missing type or pending annotations
                   const tagName = type ? type.name : 'Unknown';
-                  // Check if ann has tag object (legacy/pending) or use new structure
                   if ((ann as any).tag) {
                     return `${(ann as any).tag.tag_name}: ${(ann as any).tag.value}`;
                   }

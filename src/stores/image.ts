@@ -279,9 +279,7 @@ export const useImageStore = defineStore('image', () => {
         ],
       };
 
-      console.log('DEBUG: uploadImage started');
       const uploadPayloads: ImageUploadPayload[] = await imageRepo.create(createRequest);
-      console.log('DEBUG: create request successful, payloads:', uploadPayloads);
 
       const uploadPayload = uploadPayloads[0];
 
@@ -294,19 +292,15 @@ export const useImageStore = defineStore('image', () => {
         file,
         contentType,
         onUploadProgress: (percentage: number) => {
-          console.log(`DEBUG: Upload progress: ${percentage}%`);
           uploadProgress.value = percentage;
           options.onProgress?.(percentage);
         },
       };
 
-      console.log('DEBUG: Starting file upload...');
       await imageRepo.upload(uploadParams);
-      console.log('DEBUG: File upload completed. Refreshing list...');
 
       const paginationParams: Pagination = { ...pagination.value };
       await fetchImagesByPatient(patientId, paginationParams, { showToast: false });
-      console.log('DEBUG: List refreshed. Upload sequence finished.');
 
       toast.success(t('image.messages.upload_success'));
       return true;
@@ -315,7 +309,6 @@ export const useImageStore = defineStore('image', () => {
       handleError(err, t('image.messages.upload_error'));
       return false;
     } finally {
-      console.log('DEBUG: uploadImage finally block');
       uploading.value = false;
       resetUploadProgress();
     }
