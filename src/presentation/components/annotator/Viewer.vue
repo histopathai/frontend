@@ -8,7 +8,6 @@
       :initial-values="editInitialValues"
       @save="handleModalSave"
       @cancel="handleModalCancel"
-      @delete="handleModalDelete"
     />
   </div>
 </template>
@@ -34,11 +33,12 @@ const props = defineProps({
 const annotationTypeStore = useAnnotationTypeStore();
 const annotationStore = useAnnotationStore();
 const viewerId = 'osd-viewer-main';
-const { loadAnnotations, loadImage, startDrawing, stopDrawing, anno } = useOpenSeadragon(viewerId);
+const { loadAnnotations, loadImage, startDrawing, stopDrawing, anno, viewer, onEditLabelsClick } =
+  useOpenSeadragon(viewerId);
 
 const isModalOpen = ref(false);
-const currentDrawingData = ref<any>(null); 
-const selectedAnnotationData = ref<Annotation | null>(null); 
+const currentDrawingData = ref<any>(null);
+const selectedAnnotationData = ref<Annotation | null>(null);
 const editInitialValues = ref<Record<string, any>>({});
 
 const activeAnnotationTypes = computed(() => {
@@ -67,7 +67,7 @@ watch(
       return;
     }
     await loadImage(newImg);
-    
+
     if (newImg) {
       let targetWorkspaceId = (newImg as any).wsId;
       if (!targetWorkspaceId && newImg.parent && newImg.parent.type === 'workspace') {
@@ -86,6 +86,17 @@ watch(
       }
     }
   },
+  { immediate: false }
+);
+
+// Watch viewer to handle initial load (refresh scenario)
+watch(
+  () => viewer.value,
+  async (newViewer) => {
+    if (newViewer && props.selectedImage) {
+      await loadImage(props.selectedImage);
+    }
+  },
   { immediate: true }
 );
 
@@ -99,12 +110,21 @@ watch(
   }
 );
 
-
 onMounted(() => {
   const viewerEl = document.getElementById(viewerId);
   if (viewerEl) {
     viewerEl.addEventListener('dblclick', handleDoubleClick);
   }
+
+  // Wire the "Edit Labels" button in Annotorious editor bar to open modal
+  onEditLabelsClick.value = () => {
+    if (selectedAnnotationData.value) {
+      // Set modal open BEFORE canceling selection, so deselectAnnotation
+      // handler sees the modal is open and preserves selectedAnnotationData
+      isModalOpen.value = true;
+      if (anno.value) anno.value.cancelSelected();
+    }
+  };
 
   watch(
     () => anno.value,
@@ -112,7 +132,7 @@ onMounted(() => {
       if (!newAnno) return;
       newAnno.on('createSelection', (selection: any) => {
         currentDrawingData.value = selection;
-        selectedAnnotationData.value = null; 
+        selectedAnnotationData.value = null;
         editInitialValues.value = {};
         isModalOpen.value = true;
       });
@@ -123,13 +143,12 @@ onMounted(() => {
 
         const realAnnotation = annotationStore.annotations.find((a) => String(a.id) === targetId);
         let foundData = realAnnotation;
-      
+
         if (!foundData) {
           const pending = annotationStore.pendingAnnotations.find(
             (p) => String(p.tempId) === targetId
           );
           if (pending) {
-
             foundData = {
               id: pending.tempId,
               name: pending.name,
@@ -164,7 +183,11 @@ onMounted(() => {
               });
 
             annotationStore.pendingAnnotations
-              .filter((p) => p.imageId === props.selectedImage!.id && isSamePolygon(p.polygon || [], selectedPolygon))
+              .filter(
+                (p) =>
+                  p.imageId === props.selectedImage!.id &&
+                  isSamePolygon(p.polygon || [], selectedPolygon)
+              )
               .forEach((pending) => {
                 const type = activeAnnotationTypes.value.find((t) => t.name === pending.name);
                 if (type && !initialValues[type.id]) initialValues[type.id] = pending.value;
@@ -172,7 +195,8 @@ onMounted(() => {
           }
 
           editInitialValues.value = initialValues;
-          isModalOpen.value = true;
+          // Modal NOT opened here — user can reshape via vertex editing first.
+          // Double-click opens the modal (see handleDoubleClick).
         } else {
           console.warn('❌ Store içinde bu ID ile eşleşen veri bulunamadı:', targetId);
         }
@@ -195,7 +219,6 @@ onUnmounted(() => {
   }
 });
 
-
 function handleDoubleClick() {
   if (!anno.value) return;
   const selected = anno.value.getSelected();
@@ -203,7 +226,9 @@ function handleDoubleClick() {
   if (selected && selectedAnnotationData.value) {
     const annData = selectedAnnotationData.value;
     if ((annData as Annotation).annotationTypeId) {
-      const type = activeAnnotationTypes.value.find((t) => t.id === (annData as Annotation).annotationTypeId);
+      const type = activeAnnotationTypes.value.find(
+        (t) => t.id === (annData as Annotation).annotationTypeId
+      );
       if (type) editInitialValues.value = { [type.id]: (annData as Annotation).value };
     }
     currentDrawingData.value = null;
@@ -247,11 +272,13 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
           is_global: false,
         });
         updateCount++;
-        
+
         if (anno.value) {
           const w3cAnnotation = anno.value.getAnnotation(existingAnn.id);
           if (w3cAnnotation) {
-            w3cAnnotation.body = [{ type: 'TextualBody', value: `${res.type.name}: ${res.value}`, purpose: 'tagging' }];
+            w3cAnnotation.body = [
+              { type: 'TextualBody', value: `${res.type.name}: ${res.value}`, purpose: 'tagging' },
+            ];
             anno.value.updateAnnotation(w3cAnnotation);
           }
         }
@@ -271,19 +298,27 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
           polygon: selectedPolygon.map((p: any) => ({ x: p.x, y: p.y })),
         } as any);
         createCount++;
-        
+
         if (anno.value) {
-           const polygonStr = selectedPolygon.map((p: any) => `${p.x},${p.y}`).join(' ');
-           anno.value.addAnnotation({
+          const polygonStr = selectedPolygon.map((p: any) => `${p.x},${p.y}`).join(' ');
+          anno.value.addAnnotation({
             id: tempId,
             type: 'Annotation',
-            body: [{ type: 'TextualBody', value: `${res.type.name}: ${res.value}`, purpose: 'tagging' }],
-            target: { selector: { type: 'SvgSelector', value: `<svg><polygon points="${polygonStr}"></polygon></svg>` } },
+            body: [
+              { type: 'TextualBody', value: `${res.type.name}: ${res.value}`, purpose: 'tagging' },
+              { type: 'TextualBody', value: res.type.color || '#ec4899', purpose: 'highlighting' },
+            ],
+            target: {
+              selector: {
+                type: 'SvgSelector',
+                value: `<svg><polygon points="${polygonStr}"></polygon></svg>`,
+              },
+            },
           });
         }
       }
     }
-    
+
     if (anno.value) anno.value.cancelSelected();
     isModalOpen.value = false;
     editInitialValues.value = {};
@@ -316,7 +351,10 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
       anno.value.addAnnotation({
         id: tempId,
         type: 'Annotation',
-        body: [{ type: 'TextualBody', value: `${res.type.name}: ${res.value}`, purpose: 'tagging' }],
+        body: [
+          { type: 'TextualBody', value: `${res.type.name}: ${res.value}`, purpose: 'tagging' },
+          { type: 'TextualBody', value: res.type.color || '#ec4899', purpose: 'highlighting' },
+        ],
         target: {
           selector: {
             type: 'SvgSelector',
@@ -341,20 +379,14 @@ function handleModalCancel() {
   editInitialValues.value = {};
 }
 
-function handleModalDelete() {
-  deleteSelected();
-  isModalOpen.value = false;
-  editInitialValues.value = {};
-}
-
 async function deleteSelected() {
   if (!selectedAnnotationData.value && !currentDrawingData.value) {
-     return;
+    return;
   }
 
   if (currentDrawingData.value && !selectedAnnotationData.value) {
     if (anno.value) {
-       anno.value.cancelSelected();
+      anno.value.cancelSelected();
     }
     currentDrawingData.value = null;
     return;
@@ -362,7 +394,7 @@ async function deleteSelected() {
 
   if (selectedAnnotationData.value && props.selectedImage) {
     const targetPolygon = (selectedAnnotationData.value as any).polygon;
-    
+
     if (!targetPolygon) {
       console.warn('Silinecek poligon verisi bulunamadı.');
       return;
@@ -376,12 +408,12 @@ async function deleteSelected() {
       });
     };
 
-    const annotationsToDelete = annotationStore.annotations.filter((ann) => 
+    const annotationsToDelete = annotationStore.annotations.filter((ann) =>
       isSamePolygon(ann.polygon, targetPolygon)
     );
 
-    const pendingToDelete = annotationStore.pendingAnnotations.filter((p) => 
-      p.imageId === props.selectedImage!.id && isSamePolygon(p.polygon || [], targetPolygon)
+    const pendingToDelete = annotationStore.pendingAnnotations.filter(
+      (p) => p.imageId === props.selectedImage!.id && isSamePolygon(p.polygon || [], targetPolygon)
     );
 
     if (annotationsToDelete.length === 0 && pendingToDelete.length === 0) {
@@ -396,22 +428,20 @@ async function deleteSelected() {
       }
 
       const deletePromises = annotationsToDelete.map(async (ann) => {
-     
         await annotationStore.deleteAnnotation(String(ann.id), props.selectedImage!.id);
         if (anno.value) anno.value.removeAnnotation(ann.id);
       });
 
       await Promise.all(deletePromises);
-      
-      toast.success('Çizim ve tüm etiketleri başarıyla silindi.');
 
+      toast.success('Çizim ve tüm etiketleri başarıyla silindi.');
     } catch (e) {
       console.error('Toplu silme hatası:', e);
       toast.error('Silme işlemi sırasında hata oluştu.');
     } finally {
       console.groupEnd();
       selectedAnnotationData.value = null;
-      if (anno.value) anno.value.cancelSelected(); 
+      if (anno.value) anno.value.cancelSelected();
     }
   }
 }

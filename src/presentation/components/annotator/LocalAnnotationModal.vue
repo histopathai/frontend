@@ -13,9 +13,7 @@
           <div>
             <h3 class="font-bold text-gray-900 text-lg">Bölgesel İşaretleme</h3>
             <p class="text-xs text-gray-500">
-              {{
-                isEditing ? 'Etiketi Düzenle veya Çizimi Sil' : 'Lütfen bu alan için etiketleri doldurun'
-              }}
+              {{ isEditing ? 'Etiketi Düzenle' : 'Lütfen bu alan için etiketleri doldurun' }}
             </p>
           </div>
           <button
@@ -78,7 +76,6 @@
             </div>
 
             <div class="pl-5">
-              
               <input
                 v-if="checkType(type.type, 'text')"
                 v-model="formValues[type.id]"
@@ -117,17 +114,24 @@
                   :min="type.min"
                   :max="type.max"
                   class="w-full form-input-custom"
-                  :class="{ 
-                    'border-red-500 focus:border-red-500 focus:ring-red-200 bg-red-50': isNumberInvalid(type, formValues[type.id]) 
+                  :class="{
+                    'border-red-500 focus:border-red-500 focus:ring-red-200 bg-red-50':
+                      isNumberInvalid(type, formValues[type.id]),
                   }"
                   placeholder="Sayısal değer..."
                 />
-                
-                <p v-if="isNumberInvalid(type, formValues[type.id])" class="text-xs text-red-500 mt-1 font-medium animate-pulse">
+
+                <p
+                  v-if="isNumberInvalid(type, formValues[type.id])"
+                  class="text-xs text-red-500 mt-1 font-medium animate-pulse"
+                >
                   {{ getRangeErrorMessage(type) }}
                 </p>
-                
-                <p v-else-if="type.min !== undefined || type.max !== undefined" class="text-[10px] text-gray-400 mt-1">
+
+                <p
+                  v-else-if="type.min !== undefined || type.max !== undefined"
+                  class="text-[10px] text-gray-400 mt-1"
+                >
                   Aralık: {{ type.min ?? '-∞' }} ile {{ type.max ?? '+∞' }}
                 </p>
               </div>
@@ -167,19 +171,7 @@
         <div
           class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-between gap-3 shrink-0"
         >
-          <div>
-            <button
-              v-if="isEditing"
-              type="button"
-              @click.stop="handleDelete"
-              class="px-5 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border border-transparent hover:border-rose-100 flex items-center gap-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-              </svg>
-              Çizimi Sil
-            </button>
-          </div>
+          <div></div>
 
           <div class="flex gap-3">
             <button
@@ -211,7 +203,7 @@ const props = defineProps<{
   initialValues?: Record<string, any>;
 }>();
 
-const emit = defineEmits(['save', 'cancel', 'delete']);
+const emit = defineEmits(['save', 'cancel']);
 
 const formValues = ref<Record<string, any>>({});
 
@@ -228,10 +220,12 @@ const isEditing = computed(
 );
 
 const isValid = computed(() => {
-  const hasValue = Object.values(formValues.value).some((v) => v !== null && v !== undefined && v !== '');
+  const hasValue = Object.values(formValues.value).some(
+    (v) => v !== null && v !== undefined && v !== ''
+  );
   if (!hasValue) return false;
 
-  const allNumbersValid = localTypes.value.every(type => {
+  const allNumbersValid = localTypes.value.every((type) => {
     const val = formValues.value[type.id];
     if (checkType(type.type, 'number') && val !== null && val !== undefined && val !== '') {
       if (isNumberInvalid(type, val)) return false;
@@ -273,10 +267,10 @@ function checkType(actualType: string, targetType: string | string[]): boolean {
 function isNumberInvalid(type: any, value: any): boolean {
   if (value === null || value === undefined || value === '') return false;
   const numVal = Number(value);
-  
+
   if (type.min !== undefined && type.min !== null && numVal < type.min) return true;
   if (type.max !== undefined && type.max !== null && numVal > type.max) return true;
-  
+
   return false;
 }
 
@@ -308,12 +302,6 @@ function handleSave() {
 
 function handleCancel() {
   emit('cancel');
-}
-
-function handleDelete() {
-  if (confirm('Bu çizimi ve üzerindeki tüm etiketleri kalıcı olarak silmek istediğinize emin misiniz?')) {
-    emit('delete');
-  }
 }
 </script>
 

@@ -527,8 +527,9 @@ const unsavedCount = computed(() => {
     return val !== initial && val !== '' && val !== undefined && val !== null;
   }).length;
   const pendingLocals = annotationStore.pendingCount;
+  const dirtyLocals = annotationStore.dirtyCount;
   const demographicChange = hasDemographicsChanges.value ? 1 : 0;
-  return changedGlobals + pendingLocals + demographicChange;
+  return changedGlobals + pendingLocals + dirtyLocals + demographicChange;
 });
 
 watch(
@@ -608,7 +609,7 @@ async function handleSaveAll() {
         is_global: true,
         annotationTypeId: typeDef.id,
         imageId: props.image.id,
-        geometry: [], 
+        geometry: [],
         tags: [],
         text: `${tagName}: ${value}`,
       };
@@ -646,6 +647,11 @@ async function handleSaveAll() {
 
     if (annotationStore.pendingCount > 0) {
       const success = await annotationStore.saveAllPendingAnnotations();
+      if (!success) errorOccurred = true;
+    }
+
+    if (annotationStore.dirtyCount > 0) {
+      const success = await annotationStore.saveAllDirtyAnnotations();
       if (!success) errorOccurred = true;
     }
 

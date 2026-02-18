@@ -67,7 +67,7 @@ export const useImageStore = defineStore('image', () => {
   const error = ref<string | null>(null);
 
   const pagination = ref<Pagination>({
-    limit: 10,
+    limit: 100,
     offset: 0,
     hasMore: false,
   });
