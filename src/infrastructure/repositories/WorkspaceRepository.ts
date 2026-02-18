@@ -29,7 +29,7 @@ export class WorkspaceRepository implements IWorkspaceRepository {
     const response = await this.apiClient.get<any>('/api/v1/proxy/workspaces', params);
 
     let items = [];
-    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+    let pagination = { limit: 100, offset: 0, total: 0, has_more: false };
 
     // Handle nested structure from backend { data: { data: [], pagination: {} } }
     if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {

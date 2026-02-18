@@ -53,6 +53,13 @@ export const usePatientStore = defineStore('patient', () => {
   const hasPatients = computed(() => patients.value.length > 0);
   const totalPatients = computed(() => patients.value.length);
   const hasMore = computed(() => pagination.value.hasMore ?? false);
+  const totalPages = computed(() => {
+    const total = pagination.value.total ?? 0;
+    const limit = pagination.value.limit;
+    return total > 0 ? Math.ceil(total / limit) : 0;
+  });
+
+  const paginationByWorkspace = ref<Map<string, Pagination>>(new Map());
 
   const getPatientById = computed(() => {
     return (id: string) => patients.value.find((p) => p.id === id);
@@ -60,6 +67,10 @@ export const usePatientStore = defineStore('patient', () => {
 
   const getPatientsByWorkspaceId = computed(() => {
     return (workspaceId: string) => patientsByWorkspace.value.get(workspaceId) || [];
+  });
+
+  const getPaginationByWorkspaceId = computed(() => {
+    return (workspaceId: string) => paginationByWorkspace.value.get(workspaceId);
   });
 
   const handleError = (err: any, defaultMessage: string, showToast = true): void => {
@@ -185,6 +196,8 @@ export const usePatientStore = defineStore('patient', () => {
         ...result.pagination,
         hasMore: result.pagination?.hasMore ?? result.data.length === paginationParams.limit,
       };
+
+      paginationByWorkspace.value.set(workspaceId, pagination.value);
     } catch (err: any) {
       handleError(err, t('patient.messages.fetch_error'), showErrorToast);
       throw err;
@@ -359,9 +372,11 @@ export const usePatientStore = defineStore('patient', () => {
     hasError,
     hasPatients,
     totalPatients,
+    totalPages,
     hasMore,
     getPatientById,
     getPatientsByWorkspaceId,
+    getPaginationByWorkspaceId,
     fetchPatientById,
     fetchPatientsByWorkspace,
     loadMorePatients,

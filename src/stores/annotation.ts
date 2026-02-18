@@ -48,7 +48,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const actionLoading = ref(false);
   const error = ref<string | null>(null);
   const pagination = ref<Pagination>({
-    limit: 10,
+    limit: 100,
     offset: 0,
     hasMore: false,
   });
@@ -59,6 +59,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
   });
 
   const pendingAnnotations = ref<PendingAnnotation[]>([]);
+  const dirtyAnnotations = ref<Map<string, { polygon: { x: number; y: number }[] }>>(new Map());
   const isLoading = computed(() => loading.value);
   const isActionLoading = computed(() => actionLoading.value);
   const hasError = computed(() => !!error.value);
@@ -68,7 +69,10 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const selectedCount = computed(() => selectedAnnotations.value.size);
   const hasSelection = computed(() => selectedAnnotations.value.size > 0);
   const pendingCount = computed(() => pendingAnnotations.value.length);
-  const hasPendingChanges = computed(() => pendingAnnotations.value.length > 0);
+  const dirtyCount = computed(() => dirtyAnnotations.value.size);
+  const hasPendingChanges = computed(
+    () => pendingAnnotations.value.length > 0 || dirtyAnnotations.value.size > 0
+  );
 
   const getAnnotationById = computed(() => {
     return (id: string) => annotations.value.find((ann) => ann.id === id);
@@ -266,7 +270,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
     try {
       const paginationParams: Pagination = {
-        limit: 10,
+        limit: 100,
         offset: 0,
         ...paginationOptions,
       };
@@ -505,6 +509,88 @@ export const useAnnotationStore = defineStore('annotation', () => {
     }
   };
 
+  const addDirtyAnnotation = (annotationId: string, polygon: { x: number; y: number }[]): void => {
+    const newMap = new Map(dirtyAnnotations.value);
+    newMap.set(annotationId, { polygon });
+    dirtyAnnotations.value = newMap;
+  };
+
+  const saveAllDirtyAnnotations = async (): Promise<boolean> => {
+    console.log('[saveAllDirtyAnnotations] called, dirtyCount:', dirtyAnnotations.value.size);
+    if (dirtyAnnotations.value.size === 0) return true;
+
+    actionLoading.value = true;
+    let allSuccess = true;
+    const entries = Array.from(dirtyAnnotations.value.entries());
+
+    try {
+      for (const [annotationId, data] of entries) {
+        try {
+          const existing = annotations.value.find((a) => a.id === annotationId);
+          if (!existing) continue;
+
+          // Workaround: DELETE + CREATE because PUT is broken on backend
+
+          const createPayload: any = {
+            name: existing.name,
+            tag_type: existing.type,
+            value: existing.value,
+            polygon: data.polygon, // Updated polygon
+            color: existing.color,
+            is_global: existing.isGlobal,
+            parent: {
+              id: existing.imageId,
+              type: 'image',
+            },
+            ws_id: existing.workspaceId,
+            annotation_type_id: existing.annotationTypeId,
+          };
+
+          // 1. Delete old annotation
+          await annotationRepo.delete(annotationId);
+
+          // 2. Create new annotation
+          const newAnnotation = await annotationRepo.create(createPayload);
+
+          // 3. Update State
+          // Remove old
+          removeAnnotationFromState(annotationId, existing.imageId);
+
+          // Add new
+          annotations.value = [newAnnotation, ...annotations.value];
+          const imageAnnotations = annotationsByImage.value.get(existing.imageId) || [];
+          annotationsByImage.value.set(existing.imageId, [newAnnotation, ...imageAnnotations]);
+
+          // Restore selection if needed
+          if (currentAnnotation.value?.id === annotationId) {
+            currentAnnotation.value = newAnnotation;
+          }
+          if (selectedAnnotations.value.has(annotationId)) {
+            selectedAnnotations.value.delete(annotationId);
+            selectedAnnotations.value.add(newAnnotation.id);
+          }
+        } catch (err: any) {
+          console.error(
+            `[saveAllDirtyAnnotations] Failed to save dirty annotation ${annotationId}:`,
+            err
+          );
+          allSuccess = false;
+        }
+      }
+
+      if (allSuccess) {
+        dirtyAnnotations.value = new Map();
+      }
+      return allSuccess;
+    } finally {
+      actionLoading.value = false;
+    }
+  };
+
+  const clearDirtyAnnotations = (): void => {
+    dirtyAnnotations.value = new Map();
+  };
+
   return {
     // State
     annotations,
@@ -569,5 +655,11 @@ export const useAnnotationStore = defineStore('annotation', () => {
     removePendingAnnotation,
     clearPendingAnnotations,
     saveAllPendingAnnotations,
+
+    dirtyAnnotations,
+    dirtyCount,
+    addDirtyAnnotation,
+    saveAllDirtyAnnotations,
+    clearDirtyAnnotations,
   };
 });

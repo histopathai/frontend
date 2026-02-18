@@ -52,7 +52,6 @@ export function useAnnotatorNavigation() {
     return currentImages.value.find((img) => img.id === selectedImageId.value) || null;
   });
 
-  // BU KISIM ARTIK DIŞARIYA AKTARILIYOR (EXPORT)
   const selectedImageIndex = computed((): number => {
     if (!selectedImageId.value || currentImages.value.length === 0) return -1;
     return currentImages.value.findIndex((img) => img.id === selectedImageId.value);
@@ -194,7 +193,7 @@ export function useAnnotatorNavigation() {
     selectedImageId,
     selectedPatient,
     selectedImage,
-    selectedImageIndex, // YENİ: Dışarı aktarıldı
+    selectedImageIndex, 
     selectedAnnotationTypeId,
 
     selectWorkspace,

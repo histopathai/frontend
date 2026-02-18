@@ -16,14 +16,6 @@ export class AnnotationRepository implements IAnnotationRepository {
       params.limit = options.pagination.limit;
       params.offset = options.pagination.offset;
     }
-    if (options?.sort && options.sort.length > 0) {
-      const sortOpt = options.sort[0];
-      if (sortOpt) {
-        params.sort_by = sortOpt.field;
-        params.sort_dir = sortOpt.direction;
-      }
-    }
-    params.populate = ['tag'];
 
     const response = await this.apiClient.get<any>(
       `/api/v1/proxy/annotations/image/${imageId}`,
@@ -31,7 +23,7 @@ export class AnnotationRepository implements IAnnotationRepository {
     );
 
     let items = [];
-    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+    let pagination = { limit: 100, offset: 0, total: 0, has_more: false };
 
     if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
       items = response.data.data;
@@ -72,14 +64,6 @@ export class AnnotationRepository implements IAnnotationRepository {
       params.limit = options.pagination.limit;
       params.offset = options.pagination.offset;
     }
-    if (options?.sort && options.sort.length > 0) {
-      const sortOpt = options.sort[0];
-      if (sortOpt) {
-        params.sort_by = sortOpt.field;
-        params.sort_dir = sortOpt.direction;
-      }
-    }
-    params.populate = ['tag'];
 
     const response = await this.apiClient.get<any>(
       `/api/v1/proxy/annotations/workspace/${workspaceId}`,
@@ -87,7 +71,7 @@ export class AnnotationRepository implements IAnnotationRepository {
     );
 
     let items = [];
-    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+    let pagination = { limit: 100, offset: 0, total: 0, has_more: false };
 
     if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
       items = response.data.data;
@@ -129,7 +113,7 @@ export class AnnotationRepository implements IAnnotationRepository {
   }
 
   async update(id: string, data: Partial<CreateNewAnnotationRequest>): Promise<void> {
-    await this.apiClient.put(`/api/v1/proxy/annotations/${id}`, data);
+    await this.apiClient.put<any>(`/api/v1/proxy/annotations/${id}`, data);
   }
 
   async delete(id: string): Promise<void> {

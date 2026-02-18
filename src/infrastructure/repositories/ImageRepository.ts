@@ -38,7 +38,6 @@ export class ImageRepository implements IImageRepository {
   async upload(params: UploadImageParams): Promise<void> {
     const { payload, file, contentType, onUploadProgress } = params;
     const finalContentType = contentType || file.type;
-    console.log('DEBUG: ImageRepository.upload called with url:', payload.upload_url);
     try {
       await axios.put(payload.upload_url, file, {
         headers: {
@@ -53,9 +52,7 @@ export class ImageRepository implements IImageRepository {
           }
         },
       });
-      console.log('DEBUG: ImageRepository.upload axios.put completed');
     } catch (error) {
-      console.error('DEBUG: ImageRepository.upload failed:', error);
       throw error;
     }
   }
@@ -91,7 +88,7 @@ export class ImageRepository implements IImageRepository {
     );
 
     let items = [];
-    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+    let pagination = { limit: 100, offset: 0, total: 0, has_more: false };
 
     // Cast response to any to handle flexible structure
     const respAny = response as any;
@@ -130,7 +127,7 @@ export class ImageRepository implements IImageRepository {
     );
 
     let items = [];
-    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+    let pagination = { limit: 100, offset: 0, total: 0, has_more: false };
     const respAny = response as any;
 
     if (respAny.data && !Array.isArray(respAny.data) && Array.isArray(respAny.data.data)) {
@@ -167,7 +164,7 @@ export class ImageRepository implements IImageRepository {
     );
 
     let items = [];
-    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+    let pagination = { limit: 100, offset: 0, total: 0, has_more: false };
     const respAny = response as any;
 
     if (respAny.data && !Array.isArray(respAny.data) && Array.isArray(respAny.data.data)) {
@@ -207,7 +204,7 @@ export class ImageRepository implements IImageRepository {
     );
 
     let items = [];
-    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+    let pagination = { limit: 100, offset: 0, total: 0, has_more: false };
     const respAny = response as any;
 
     if (respAny.data && !Array.isArray(respAny.data) && Array.isArray(respAny.data.data)) {

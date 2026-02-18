@@ -44,7 +44,7 @@ export class PatientRepository implements IPatientRepository {
     const response = await this.apiClient.get<any>('/api/v1/proxy/patients', params);
 
     let items = [];
-    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+    let pagination = { limit: 100, offset: 0, total: 0, has_more: false };
 
     if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
       items = response.data.data;
@@ -86,11 +86,17 @@ export class PatientRepository implements IPatientRepository {
     );
 
     let items = [];
-    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+    let pagination = { limit: 100, offset: 0, total: 0, has_more: false };
 
     if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
       items = response.data.data;
-      if (response.data.pagination) pagination = response.data.pagination;
+      if (response.data.pagination) {
+        pagination = response.data.pagination;
+        console.log(
+          '[PatientRepository.listByWorkspace] Pagination data:',
+          JSON.stringify(pagination)
+        );
+      }
     } else if (Array.isArray(response.data)) {
       items = response.data;
       if (response.pagination) pagination = response.pagination;

@@ -434,7 +434,6 @@ function formatIndex(idx: number) {
   return idx + 1;
 }
 
-// Tip Kontrol Helper'ı (LocalAnnotationModal ile aynı mantık)
 function checkType(actualType: string, targetType: string | string[]): boolean {
   if (!actualType) return false;
   const normalizedActual = actualType.toString().toLowerCase();
@@ -501,7 +500,6 @@ watch(
       }
     });
 
-    // Ensure all dynamic fields have entries in localMetadata for reactivity
     if (activeAnnotationTypes.value) {
       activeAnnotationTypes.value.forEach((t) => {
         if (t.global && !(t.name in localMetadata)) {
@@ -526,19 +524,18 @@ const hasDemographicsChanges = computed(() => {
 const unsavedCount = computed(() => {
   const changedGlobals = Object.entries(localMetadata).filter(([key, val]) => {
     const initial = initialMetadata.value[key];
-    // Basit eşitlik kontrolü yerine deep check gerekebilir ama şimdilik primitive değerler için yeterli
     return val !== initial && val !== '' && val !== undefined && val !== null;
   }).length;
   const pendingLocals = annotationStore.pendingCount;
+  const dirtyLocals = annotationStore.dirtyCount;
   const demographicChange = hasDemographicsChanges.value ? 1 : 0;
-  return changedGlobals + pendingLocals + demographicChange;
+  return changedGlobals + pendingLocals + dirtyLocals + demographicChange;
 });
 
 watch(
   () => props.image,
   async (newImage) => {
     if (newImage) {
-      // Correct logic to determine Workspace ID
       let targetWorkspaceId = (newImage as any).wsId;
       if (!targetWorkspaceId && newImage.parent?.type === 'workspace') {
         targetWorkspaceId = newImage.parent.id;
@@ -577,7 +574,6 @@ async function handleSaveAll() {
   let errorOccurred = false;
 
   try {
-    // 1. Demografi Güncelleme
     if (hasDemographicsChanges.value) {
       try {
         const payload: any = {
@@ -593,7 +589,6 @@ async function handleSaveAll() {
       }
     }
 
-    // 2. Global Etiketler Güncelleme
     const changedGlobalEntries = Object.entries(localMetadata).filter(([key, val]) => {
       const initial = initialMetadata.value[key];
       return val !== initial && val !== '' && val !== undefined && val !== null;
@@ -612,25 +607,20 @@ async function handleSaveAll() {
         value: value,
         color: typeDef.color || '#4f46e5',
         is_global: true,
-        // Backend için create request'e uygun ek alanlar
         annotationTypeId: typeDef.id,
         imageId: props.image.id,
-        geometry: [], // Global olduğu için boş geometry
+        geometry: [],
         tags: [],
         text: `${tagName}: ${value}`,
       };
 
       if (existingAnn) {
-        // Update
         return await annotationStore.updateAnnotation(existingAnn.id, {
           ...tagData,
-          // update request body yapısına göre düzenlenmeli
           value: value,
         } as any);
       } else {
-        // Create
         try {
-          // Use wsId or fallback to parent ID if workspace type
           const safeWsId =
             (props.image as any).wsId ||
             (props.image.parent?.type === 'workspace' ? props.image.parent.id : undefined);
@@ -655,9 +645,13 @@ async function handleSaveAll() {
     const globalResults = await Promise.all(globalPromises);
     if (globalResults.some((res) => res === false)) errorOccurred = true;
 
-    // 3. Local (Pending) Annotations Save
     if (annotationStore.pendingCount > 0) {
       const success = await annotationStore.saveAllPendingAnnotations();
+      if (!success) errorOccurred = true;
+    }
+
+    if (annotationStore.dirtyCount > 0) {
+      const success = await annotationStore.saveAllDirtyAnnotations();
       if (!success) errorOccurred = true;
     }
 
@@ -665,7 +659,6 @@ async function handleSaveAll() {
       toast.error('Bazı veriler kaydedilemedi.');
     } else {
       toast.success('Tüm değişiklikler kaydedildi');
-      // Başarılı kayıttan sonra referans değerleri güncelle
       Object.assign(initialMetadata.value, JSON.parse(JSON.stringify(localMetadata)));
       activePopover.value = null;
     }

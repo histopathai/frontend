@@ -28,7 +28,7 @@ export class AnnotationTypeRepository implements IAnnotationTypeRepository {
     const response = await this.apiClient.get<any>('/api/v1/proxy/annotation-types', params);
 
     let items = [];
-    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+    let pagination = { limit: 100, offset: 0, total: 0, has_more: false };
 
     if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
       items = response.data.data;
@@ -65,7 +65,7 @@ export class AnnotationTypeRepository implements IAnnotationTypeRepository {
     const response = await this.apiClient.get<any>('/api/v1/proxy/annotation-types', params);
 
     let items = [];
-    let pagination = { limit: 10, offset: 0, total: 0, has_more: false };
+    let pagination = { limit: 100, offset: 0, total: 0, has_more: false };
 
     if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
       items = response.data.data;

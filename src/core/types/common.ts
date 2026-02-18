@@ -15,6 +15,7 @@ export interface Pagination {
   sortBy?: string;
   sortDir?: 'asc' | 'desc';
   hasMore?: boolean;
+  total?: number;
 }
 
 export interface QueryOptions {
