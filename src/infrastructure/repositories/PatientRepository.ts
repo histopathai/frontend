@@ -90,7 +90,13 @@ export class PatientRepository implements IPatientRepository {
 
     if (response.data && !Array.isArray(response.data) && Array.isArray(response.data.data)) {
       items = response.data.data;
-      if (response.data.pagination) pagination = response.data.pagination;
+      if (response.data.pagination) {
+        pagination = response.data.pagination;
+        console.log(
+          '[PatientRepository.listByWorkspace] Pagination data:',
+          JSON.stringify(pagination)
+        );
+      }
     } else if (Array.isArray(response.data)) {
       items = response.data;
       if (response.pagination) pagination = response.pagination;

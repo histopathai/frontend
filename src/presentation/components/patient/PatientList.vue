@@ -199,13 +199,22 @@
               >
                 &lt;
               </button>
-              <span
-                class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
-                >{{ currentPage }}</span
-              >
+              <div class="relative inline-flex items-center border-y border-gray-300 bg-white">
+                <input
+                  type="number"
+                  :value="currentPage"
+                  min="1"
+                  :max="totalPages > 0 ? totalPages : undefined"
+                  class="w-16 border-0 p-0 text-center text-sm font-medium text-gray-700 focus:ring-0"
+                  @change="handlePageInput"
+                />
+                <span v-if="totalPages > 0" class="border-l border-gray-300 px-2 text-gray-500">
+                  / {{ totalPages }}
+                </span>
+              </div>
               <button
                 @click="changePage(currentPage + 1)"
-                :disabled="!hasMore"
+                :disabled="!hasMore && (totalPages === 0 || currentPage >= totalPages)"
                 class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
               >
                 &gt;
@@ -268,6 +277,7 @@ const {
   loading,
   actionLoading,
   currentPage,
+  totalPages,
   hasMore,
   selectedIds,
   selectedPatient,
@@ -297,5 +307,27 @@ defineExpose({
 
 function goToPatientDetail(patientId: string) {
   router.push({ name: 'PatientDetail', params: { workspaceId: props.workspaceId, patientId } });
+}
+
+function handlePageInput(event: Event) {
+  const target = event.target as HTMLInputElement;
+  let page = parseInt(target.value);
+
+  if (isNaN(page) || page < 1) {
+    page = 1;
+  }
+
+  if (totalPages.value > 0 && page > totalPages.value) {
+    page = totalPages.value;
+  }
+
+  // Update input value to properly formatted/clamped number if needed
+  if (target.value !== page.toString()) {
+    target.value = page.toString();
+  }
+
+  if (page !== currentPage.value) {
+    changePage(page);
+  }
 }
 </script>

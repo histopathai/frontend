@@ -9,7 +9,8 @@ export function usePatientList(workspaceId: string) {
   const { t } = useI18n();
 
   const limit = 20;
-  const offset = ref(0);
+  const savedPagination = store.getPaginationByWorkspaceId(workspaceId);
+  const offset = ref(savedPagination?.offset || 0);
   const selectedIds = ref<string[]>([]);
   const idsToDelete = ref<string[]>([]);
 
@@ -27,6 +28,7 @@ export function usePatientList(workspaceId: string) {
   const loading = computed(() => store.loading);
   const actionLoading = computed(() => store.actionLoading);
   const currentPage = computed(() => Math.floor(offset.value / limit) + 1);
+  const totalPages = computed(() => store.totalPages);
   const hasMore = computed(() => store.pagination.hasMore ?? false);
 
   const isAllSelected = computed(() => {
@@ -46,6 +48,7 @@ export function usePatientList(workspaceId: string) {
 
   function changePage(newPage: number) {
     if (newPage < 1) return;
+    if (totalPages.value > 0 && newPage > totalPages.value) return;
     offset.value = (newPage - 1) * limit;
     loadPatients();
   }
@@ -126,6 +129,7 @@ export function usePatientList(workspaceId: string) {
     loading,
     actionLoading,
     currentPage,
+    totalPages,
     hasMore,
     selectedIds,
     selectedPatient,
