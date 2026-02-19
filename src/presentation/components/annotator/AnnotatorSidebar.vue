@@ -140,6 +140,7 @@
             @click="togglePatient(patient)"
             class="relative flex items-center justify-between px-4 py-3 cursor-pointer transition-all duration-200 hover:bg-gray-50 select-none group"
             :class="{ 'bg-indigo-50/60': isSelected(patient.id) }"
+            :style="getPatientProgressStyle(patient)"
           >
             <div
               class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-600 rounded-r transition-transform duration-200"
@@ -329,20 +330,6 @@
         </svg>
       </button>
     </div>
-
-    <div
-      v-if="selectedImageId && globalAnnotationTypes.length > 0"
-      class="border-t border-gray-200 bg-gray-50/80 p-3"
-    >
-      <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">
-        Global Etiketler
-      </div>
-      <AnnotationTagForm
-        :annotation-types="globalAnnotationTypes"
-        v-model="globalFormValues"
-        @save="handleGlobalSave"
-      />
-    </div>
   </div>
 </template>
 
@@ -352,8 +339,7 @@ import type { PropType } from 'vue';
 import type { Workspace } from '@/core/entities/Workspace';
 import type { Patient } from '@/core/entities/Patient';
 import type { Image } from '@/core/entities/Image';
-import type { AnnotationType } from '@/core/entities/AnnotationType';
-import AnnotationTagForm from './AnnotationTagForm.vue';
+
 import { useAnnotationStore } from '@/stores/annotation';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
@@ -364,7 +350,7 @@ const props = defineProps({
   workspaces: { type: Array as PropType<Workspace[]>, required: true },
   patients: { type: Array as PropType<Patient[]>, required: true },
   images: { type: Array as PropType<Image[]>, required: true },
-  annotationTypes: { type: Array as PropType<AnnotationType[]>, default: () => [] },
+
   selectedWorkspaceId: String,
   selectedPatientId: String,
   selectedImageId: String,
@@ -390,7 +376,7 @@ const apiClient = new ApiClient(API_BASE_URL);
 
 const searchQuery = ref('');
 const isLoadingAll = ref(false);
-const globalFormValues = ref<Record<string, any>>({});
+
 const annotatedImageSet = ref(new Set<string>());
 
 const filteredPatients = computed(() => {
@@ -398,6 +384,90 @@ const filteredPatients = computed(() => {
   const lowerQuery = searchQuery.value.toLocaleLowerCase('tr');
   return props.patients.filter((p) => p.name?.toLocaleLowerCase('tr').includes(lowerQuery));
 });
+
+// Restore stats when patients list changes (e.g. pagination)
+// Restore stats when patients list changes (e.g. pagination) and fetch missing stats
+watch(
+  filteredPatients,
+  async (newPatients) => {
+    // 1. Restore existing stats
+    const missingStatsPatients: Patient[] = [];
+    newPatients.forEach((patient) => {
+      const stats = patientStore.getPatientStats(patient.id);
+      if (stats) {
+        patient.updateAnnotationStats(stats.total, stats.annotated);
+      } else {
+        missingStatsPatients.push(patient);
+      }
+    });
+
+    // 2. Fetch missing stats in background (chunked to avoid overloading)
+    if (missingStatsPatients.length === 0) return;
+
+    const chunkSize = 3;
+    for (let i = 0; i < missingStatsPatients.length; i += chunkSize) {
+      const chunk = missingStatsPatients.slice(i, i + chunkSize);
+      // We don't await the entire process to block UI, but we await chunks to manage load
+      await Promise.all(chunk.map((p) => fetchPatientStats(p)));
+    }
+  },
+  { immediate: true }
+);
+
+async function fetchPatientStats(patient: Patient) {
+  try {
+    // Check if we already have stats in store (double check for race conditions)
+    if (patientStore.getPatientStats(patient.id)) return;
+
+    // 1. Fetch images for the patient
+    const imagesResult = await apiClient.get<any>(`/api/v1/proxy/patients/${patient.id}/images`);
+    let images: any[] = [];
+
+    // Handle different response structures (similar to ImageRepository)
+    if (imagesResult.data && Array.isArray(imagesResult.data.data)) {
+      images = imagesResult.data.data;
+    } else if (Array.isArray(imagesResult.data)) {
+      images = imagesResult.data;
+    }
+
+    if (images.length === 0) {
+      patient.updateAnnotationStats(0, 0);
+      patientStore.updatePatientStats(patient.id, 0, 0);
+      return;
+    }
+
+    // 2. Check annotations for each image
+    // Optimization: If we just need count, we can parallelize this too
+    let annotatedCount = 0;
+    const imagePromises = images.map(async (img: any) => {
+      try {
+        const result = await apiClient.get<any>(
+          `/api/v1/proxy/annotations/image/${img.id}?limit=1`
+        );
+        if (
+          result &&
+          result.data &&
+          ((Array.isArray(result.data) && result.data.length > 0) ||
+            (result.data.data && Array.isArray(result.data.data) && result.data.data.length > 0))
+        ) {
+          return true;
+        }
+      } catch (e) {
+        /* ignore error */
+      }
+      return false;
+    });
+
+    const results = await Promise.all(imagePromises);
+    annotatedCount = results.filter((r) => r).length;
+
+    // 3. Update stats
+    patient.updateAnnotationStats(images.length, annotatedCount);
+    patientStore.updatePatientStats(patient.id, images.length, annotatedCount);
+  } catch (error) {
+    console.error(`Failed to fetch stats for patient ${patient.id}`, error);
+  }
+}
 
 const hasMoreData = computed(() => patientStore.pagination.hasMore);
 
@@ -421,18 +491,16 @@ async function loadAllData() {
   }
 }
 
-const globalAnnotationTypes = computed(() =>
-  props.annotationTypes.filter((t) => t.global === true)
-);
-
 watch(
-  () => props.images,
-  async (newImages) => {
+  [() => props.images, () => authStore.token],
+  async ([newImages, token]) => {
     if (!newImages || newImages.length === 0) {
       annotatedImageSet.value = new Set();
       return;
     }
-    if (!authStore.token && !localStorage.getItem('token')) return;
+
+    // ApiClient relies on authStore.token. If it's not ready, we wait.
+    if (!token) return;
 
     const tempSet = new Set<string>();
     if (props.selectedImageId && annotationStore.annotations.length > 0) {
@@ -457,6 +525,15 @@ watch(
       if (id) tempSet.add(id);
     });
     annotatedImageSet.value = tempSet;
+
+    // Update the patient's stats dynamically
+    if (props.selectedPatientId) {
+      const patient = props.patients.find((p) => p.id === props.selectedPatientId);
+      if (patient) {
+        patient.updateAnnotationStats(props.images.length, tempSet.size);
+        patientStore.updatePatientStats(patient.id, props.images.length, tempSet.size);
+      }
+    }
   },
   { immediate: true }
 );
@@ -469,30 +546,36 @@ watch(
     if (newAnnotations.length > 0) newSet.add(props.selectedImageId);
     else newSet.delete(props.selectedImageId);
     annotatedImageSet.value = newSet;
-    updateGlobalFormValues(newAnnotations);
+
+    // Update stats on annotation change
+    if (props.selectedPatientId) {
+      const patient = props.patients.find((p) => p.id === props.selectedPatientId);
+      if (patient) {
+        patient.updateAnnotationStats(props.images.length, newSet.size);
+        patientStore.updatePatientStats(patient.id, props.images.length, newSet.size);
+      }
+    }
   },
   { deep: true }
 );
 
-function updateGlobalFormValues(annotations: any[]) {
-  const currentGlobals: Record<string, any> = {};
-  const normalize = (s: any) =>
-    String(s || '')
-      .trim()
-      .toLowerCase();
-  annotations.forEach((ann) => {
-    const matchingType = props.annotationTypes.find(
-      (t) => normalize(t.name) === normalize(ann.name) || t.id === ann.annotationTypeId
-    );
-    if (matchingType && matchingType.global /* || ann.is_global if available? */) {
-      currentGlobals[matchingType.id] = ann.value;
-    }
-  });
-  globalFormValues.value = currentGlobals;
-}
-
 function isSelected(patientId: string) {
   return props.selectedPatientId === patientId;
+}
+
+function getPatientProgressStyle(patient: Patient) {
+  if (!patient.imageCount || patient.imageCount === 0) return {};
+
+  const percentage = Math.min(
+    100,
+    Math.max(0, (patient.annotatedImageCount / patient.imageCount) * 100)
+  );
+
+  if (percentage === 0) return {};
+
+  return {
+    background: `linear-gradient(to right, rgba(16, 185, 129, 0.15) ${percentage}%, transparent ${percentage}%)`,
+  };
 }
 
 function getImageClasses(image: any) {
@@ -519,45 +602,6 @@ function getThumbnailUrl(image: any): string {
   if (!image || !image.status.isProcessed())
     return 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
   return `${API_BASE_URL}/api/v1/proxy/${image.id}/thumbnail.jpg`;
-}
-
-async function handleGlobalSave(results: Array<any>) {
-  if (!props.selectedImageId || results.length === 0) return;
-  try {
-    const existingAnnotations = annotationStore.annotations;
-    const normalize = (s: any) =>
-      String(s || '')
-        .trim()
-        .toLowerCase();
-    for (const res of results) {
-      const targetName = normalize(res.type.name);
-      const existingAnn = existingAnnotations.find(
-        (a) =>
-          normalize(a.name) === targetName ||
-          (a.annotationTypeId &&
-            props.annotationTypes.find((t) => t.name === targetName && t.id === a.annotationTypeId))
-      );
-      const tagData = {
-        tag_type: res.type.type,
-        name: res.type.name,
-        value: res.value,
-        color: res.type.color || '#333',
-        is_global: true,
-      };
-
-      if (existingAnn)
-        await annotationStore.updateAnnotation(String(existingAnn.id), tagData as any);
-      else
-        await annotationStore.createAnnotation(props.selectedImageId, {
-          ...tagData,
-          polygon: [],
-          ws_id: props.workspaces.find((w) => w.id === props.selectedWorkspaceId)?.id || '',
-        } as any);
-    }
-    toast.success('Global etiketler kaydedildi.');
-  } catch (e) {
-    toast.error('Kayıt başarısız.');
-  }
 }
 </script>
 
