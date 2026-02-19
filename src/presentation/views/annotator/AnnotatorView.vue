@@ -9,10 +9,13 @@
         :selected-patient-id="selectedPatientId"
         :selected-image-id="selectedImageId"
         :loading="loading"
+        :current-page="currentPage"
+        :total-pages="totalPages"
+        :has-more="hasMore"
         @workspace-selected="selectWorkspace"
         @patient-selected="selectPatient"
         @image-selected="selectImage"
-        @load-more="loadMorePatients"
+        @page-change="setPage"
       />
     </aside>
 
@@ -33,6 +36,7 @@
         <Viewer
           ref="viewerRef"
           :selected-image="selectedImage"
+          :is-drawing-mode="isDrawingMode"
           @prev-image="prevImage"
           @next-image="nextImage"
         />
@@ -64,7 +68,10 @@ const {
   selectImage,
   nextImage,
   prevImage,
-  loadMorePatients,
+  currentPage,
+  totalPages,
+  hasMore,
+  setPage,
 } = useAnnotatorNavigation();
 
 const totalImagesCount = computed(() => currentImages.value.length);
@@ -74,12 +81,12 @@ const viewerRef = ref<InstanceType<typeof Viewer> | null>(null);
 
 function handleStartDrawing() {
   isDrawingMode.value = true;
-  viewerRef.value?.startDrawing();
+  // viewerRef.value?.startDrawing(); // Removed: Viewer watches prop
 }
 
 function handleStopDrawing() {
   isDrawingMode.value = false;
-  viewerRef.value?.stopDrawing();
+  // viewerRef.value?.stopDrawing(); // Removed: Viewer watches prop
 }
 </script>
 
