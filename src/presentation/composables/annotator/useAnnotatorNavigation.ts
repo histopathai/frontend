@@ -75,6 +75,61 @@ export function useAnnotatorNavigation() {
       { limit: 100 },
       { refresh: true, parentId: workspace.id }
     );
+
+    // Reset pagination on workspace change
+    currentPage.value = 1;
+    limit.value = 20; // Default limit
+    loadPatientsPage();
+  }
+
+  // --- Pagination Logic ---
+  const currentPage = ref(1);
+  const limit = ref(20);
+
+  const totalPages = computed(() => {
+    if (!selectedWorkspaceId.value) return 0;
+    const pag = patientStore.getPaginationByWorkspaceId(selectedWorkspaceId.value);
+    if (!pag) return 0;
+    const total = pag.total ?? 0;
+    return Math.ceil(total / limit.value);
+  });
+
+  const hasMore = computed(() => {
+    if (!selectedWorkspaceId.value) return false;
+    const pag = patientStore.getPaginationByWorkspaceId(selectedWorkspaceId.value);
+    return pag?.hasMore ?? false;
+  });
+
+  const totalPatientsCount = computed(() => {
+    if (!selectedWorkspaceId.value) return 0;
+    const pag = patientStore.getPaginationByWorkspaceId(selectedWorkspaceId.value);
+    return pag?.total ?? 0;
+  });
+
+  function setPage(page: number) {
+    if (page < 1) return;
+    if (totalPages.value > 0 && page > totalPages.value) return;
+
+    // If we don't know total pages but hasMore is true, allow next page
+    if (totalPages.value === 0 && page > currentPage.value && !hasMore.value) return;
+
+    currentPage.value = page;
+    loadPatientsPage();
+  }
+
+  function loadPatientsPage() {
+    if (!selectedWorkspaceId.value) return;
+
+    const offset = (currentPage.value - 1) * limit.value;
+
+    // We utilize fetchPatientsByWorkspace with explicit offset and limit
+    // Note: We are replacing the list, not appending (append: false is default)
+    patientStore.fetchPatientsByWorkspace(
+      selectedWorkspaceId.value,
+      { limit: limit.value, offset: offset },
+      undefined,
+      { refresh: true } // Force refresh to replace current list
+    );
   }
 
   function selectAnnotationType(typeId: string) {
@@ -193,7 +248,7 @@ export function useAnnotatorNavigation() {
     selectedImageId,
     selectedPatient,
     selectedImage,
-    selectedImageIndex, 
+    selectedImageIndex,
     selectedAnnotationTypeId,
 
     selectWorkspace,
@@ -204,5 +259,13 @@ export function useAnnotatorNavigation() {
     prevImage,
     searchPatients,
     loadMorePatients,
+
+    // Pagination exports
+    currentPage,
+    totalPages,
+    hasMore,
+    limit,
+    totalPatientsCount,
+    setPage,
   };
 }

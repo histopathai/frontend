@@ -101,7 +101,7 @@
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto custom-scrollbar" @scroll="handleScroll">
+    <div class="flex-1 overflow-y-auto custom-scrollbar">
       <div
         v-if="loading && patients.length === 0"
         class="flex flex-col items-center justify-center h-32 text-gray-400 text-sm"
@@ -277,15 +277,57 @@
             </div>
           </transition>
         </div>
-
-        <div
-          v-if="loading && patients.length > 0"
-          class="py-3 text-center text-[10px] text-gray-400 flex items-center justify-center gap-2"
-        >
-          <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse"></div>
-          Yükleniyor...
-        </div>
       </div>
+    </div>
+
+    <!-- Pagination Footer -->
+    <div
+      v-if="selectedWorkspaceId && !searchQuery"
+      class="border-t border-gray-200 bg-gray-50 p-2 flex items-center justify-between shrink-0"
+    >
+      <button
+        @click="$emit('page-change', currentPage - 1)"
+        :disabled="currentPage <= 1 || loading"
+        class="p-1.5 rounded-lg hover:bg-gray-200 text-gray-500 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-4 w-4"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </button>
+
+      <div class="text-[10px] font-medium text-gray-500">
+        Sayfa {{ currentPage }} <span v-if="totalPages > 0">/ {{ totalPages }}</span>
+      </div>
+
+      <button
+        @click="$emit('page-change', currentPage + 1)"
+        :disabled="
+          (totalPages > 0 && currentPage >= totalPages) || (totalPages === 0 && !hasMore) || loading
+        "
+        class="p-1.5 rounded-lg hover:bg-gray-200 text-gray-500 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-4 w-4"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </button>
     </div>
 
     <div
@@ -327,9 +369,17 @@ const props = defineProps({
   selectedPatientId: String,
   selectedImageId: String,
   loading: Boolean,
+  currentPage: { type: Number, default: 1 },
+  totalPages: { type: Number, default: 1 },
+  hasMore: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['workspace-selected', 'patient-selected', 'image-selected', 'load-more']);
+const emit = defineEmits([
+  'workspace-selected',
+  'patient-selected',
+  'image-selected',
+  'page-change',
+]);
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const annotationStore = useAnnotationStore();
@@ -469,13 +519,6 @@ function getThumbnailUrl(image: any): string {
   if (!image || !image.status.isProcessed())
     return 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
   return `${API_BASE_URL}/api/v1/proxy/${image.id}/thumbnail.jpg`;
-}
-
-function handleScroll(event: Event) {
-  if (searchQuery.value || isLoadingAll.value) return;
-
-  const el = event.target as HTMLElement;
-  if (!props.loading && el.scrollTop + el.clientHeight >= el.scrollHeight - 50) emit('load-more');
 }
 
 async function handleGlobalSave(results: Array<any>) {

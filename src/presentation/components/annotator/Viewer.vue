@@ -28,6 +28,7 @@ const toast = useToast();
 
 const props = defineProps({
   selectedImage: { type: Object as PropType<Image | null>, default: null },
+  isDrawingMode: { type: Boolean, default: false },
 });
 
 const annotationTypeStore = useAnnotationTypeStore();
@@ -108,6 +109,18 @@ watch(
       await loadAnnotations(props.selectedImage.id);
     }
   }
+);
+
+watch(
+  () => props.isDrawingMode,
+  (val) => {
+    if (val) {
+      startDrawing();
+    } else {
+      stopDrawing();
+    }
+  },
+  { immediate: true }
 );
 
 onMounted(() => {
@@ -323,6 +336,11 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
     isModalOpen.value = false;
     editInitialValues.value = {};
     if (updateCount > 0 || createCount > 0) toast.success('Kaydedildi.');
+
+    // Persist drawing mode if active
+    if (props.isDrawingMode) {
+      startDrawing();
+    }
     return;
   }
 
@@ -370,6 +388,11 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
   currentDrawingData.value = null;
   editInitialValues.value = {};
   toast.info(`${results.length} etiket eklendi.`);
+
+  // Persist drawing mode if active
+  if (props.isDrawingMode) {
+    startDrawing();
+  }
 }
 
 function handleModalCancel() {
@@ -377,6 +400,11 @@ function handleModalCancel() {
   isModalOpen.value = false;
   currentDrawingData.value = null;
   editInitialValues.value = {};
+
+  // Persist drawing mode if active
+  if (props.isDrawingMode) {
+    startDrawing();
+  }
 }
 
 async function deleteSelected() {
