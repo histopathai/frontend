@@ -14,6 +14,8 @@ export interface PatientProps {
   history: string | null;
 
   metadata: Record<string, any>;
+  imageCount: number;
+  annotatedImageCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,6 +64,10 @@ export class Patient {
 
       metadata: rest || {},
 
+      // Parse from metadata or root properties (adjust based on actual API response)
+      imageCount: data.image_count ?? rest.image_count ?? 0,
+      annotatedImageCount: data.annotated_image_count ?? rest.annotated_image_count ?? 0,
+
       createdAt: typeof created_at === 'string' ? new Date(created_at) : created_at,
       updatedAt: typeof updated_at === 'string' ? new Date(updated_at) : updated_at,
     });
@@ -108,11 +114,25 @@ export class Patient {
   get metadata(): Record<string, any> {
     return this.props.metadata;
   }
+
+  get imageCount(): number {
+    return this.props.imageCount;
+  }
+
+  get annotatedImageCount(): number {
+    return this.props.annotatedImageCount;
+  }
+
   get createdAt(): Date {
     return this.props.createdAt;
   }
   get updatedAt(): Date {
     return this.props.updatedAt;
+  }
+
+  updateAnnotationStats(total: number, annotated: number) {
+    this.props.imageCount = total;
+    this.props.annotatedImageCount = annotated;
   }
 
   toJSON() {

@@ -359,6 +359,23 @@ export const usePatientStore = defineStore('patient', () => {
     }
   };
 
+  // --- Stats Persistence ---
+  const patientAnnotationStats = ref<Map<string, { total: number; annotated: number }>>(new Map());
+
+  const updatePatientStats = (patientId: string, total: number, annotated: number) => {
+    patientAnnotationStats.value.set(patientId, { total, annotated });
+
+    // Update current patient in state if it exists
+    const patient = patients.value.find((p) => p.id === patientId);
+    if (patient) {
+      patient.updateAnnotationStats(total, annotated);
+    }
+  };
+
+  const getPatientStats = (patientId: string) => {
+    return patientAnnotationStats.value.get(patientId);
+  };
+
   return {
     patients,
     patientsByWorkspace,
@@ -393,5 +410,10 @@ export const usePatientStore = defineStore('patient', () => {
     refreshPatient,
     getPatientCount,
     resetError,
+
+    // Stats Persistence
+    patientAnnotationStats,
+    updatePatientStats,
+    getPatientStats,
   };
 });

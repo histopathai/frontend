@@ -206,7 +206,13 @@
       <div class="relative">
         <button
           @click="togglePopover('global_tags')"
-          class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600 transition-all relative text-xs font-bold"
+          class="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all relative"
+          :class="[
+            missingRequired
+              ? 'animate-pulse text-red-600 border-red-400 bg-red-50 hover:bg-red-100'
+              : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600',
+          ]"
+          :style="indicatorStyle"
           title="Global Etiketler"
         >
           <svg
@@ -268,9 +274,9 @@
               </div>
 
               <input
-                v-if="field.type === TagType.Text"
+                v-if="checkType(field.type, TagType.Text)"
                 type="text"
-                v-model="localMetadata[field.name]"
+                v-model="localMetadata[field.id]"
                 class="form-input-modern"
                 placeholder="Metin giriniz..."
               />
@@ -278,7 +284,7 @@
               <div v-else-if="checkType(field.type, 'number')">
                 <input
                   type="number"
-                  v-model.number="localMetadata[field.name]"
+                  v-model.number="localMetadata[field.id]"
                   :min="field.min"
                   :max="field.max"
                   class="form-input-modern"
@@ -294,7 +300,7 @@
 
               <div v-else-if="checkType(field.type, ['select', 'multi_select', 'multiselect'])">
                 <select
-                  v-model="localMetadata[field.name]"
+                  v-model="localMetadata[field.id]"
                   class="form-select-modern"
                   :multiple="checkType(field.type, ['multi_select', 'multiselect'])"
                   :size="checkType(field.type, ['multi_select', 'multiselect']) ? 4 : 1"
@@ -312,10 +318,10 @@
 
               <div v-else-if="checkType(field.type, 'boolean')" class="flex gap-2 pt-1">
                 <button
-                  @click="localMetadata[field.name] = true"
+                  @click="localMetadata[field.id] = true"
                   class="flex-1 py-1.5 rounded-md text-xs font-semibold border transition-all"
                   :class="
-                    localMetadata[field.name] === true
+                    localMetadata[field.id] === true
                       ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
                       : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
                   "
@@ -323,10 +329,10 @@
                   EVET
                 </button>
                 <button
-                  @click="localMetadata[field.name] = false"
+                  @click="localMetadata[field.id] = false"
                   class="flex-1 py-1.5 rounded-md text-xs font-semibold border transition-all"
                   :class="
-                    localMetadata[field.name] === false
+                    localMetadata[field.id] === false
                       ? 'bg-rose-500 text-white border-rose-600 shadow-sm'
                       : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
                   "
@@ -336,14 +342,14 @@
               </div>
 
               <input
-                v-else-if="field.type === TagType.Number"
+                v-else-if="checkType(field.type, TagType.Number)"
                 type="number"
-                v-model.number="localMetadata[field.name]"
+                v-model.number="localMetadata[field.id]"
                 class="form-input-modern"
               />
               <select
-                v-else-if="[TagType.Select, TagType.MultiSelect].includes(field.type)"
-                v-model="localMetadata[field.name]"
+                v-else-if="checkType(field.type, [TagType.Select, TagType.MultiSelect])"
+                v-model="localMetadata[field.id]"
                 class="form-input-modern"
                 disabled
                 :placeholder="'Desteklenmeyen tip: ' + field.type"
@@ -449,29 +455,17 @@ function checkType(actualType: string, targetType: string | string[]): boolean {
   );
 }
 
-watch(
-  () => props.patient,
-  (newPatient) => {
-    Object.keys(localMetadata).forEach((k) => delete localMetadata[k]);
-    Object.keys(initialMetadata.value).forEach((k) => delete initialMetadata.value[k]);
-    if (newPatient && newPatient.metadata) {
-      Object.assign(localMetadata, newPatient.metadata);
-      Object.assign(initialMetadata.value, newPatient.metadata);
-    }
-  },
-  { immediate: true, deep: true }
-);
-
 const imageAnnotations = computed(() =>
   props.image?.id ? annotationStore.getAnnotationsByImageId(props.image.id) : []
 );
 
+// We keep a reference to know which image we loaded metadata for.
+const loadedForImageId = ref<string | null>(null);
+
 const activeAnnotationTypes = computed(() => {
   if (!workspaceStore.currentWorkspace) return [];
-  const ids = workspaceStore.currentWorkspace.annotationTypeIds || [];
-  return ids
-    .map((id) => annotationTypeStore.getAnnotationTypeById(id))
-    .filter((t): t is any => !!t);
+  // Use the store's list, which is populated by fetchAnnotationTypes({ parentId: workspace.id })
+  return annotationTypeStore.annotationTypes;
 });
 
 const dynamicFields = computed(() =>
@@ -490,25 +484,47 @@ const dynamicFields = computed(() =>
 );
 
 watch(
-  imageAnnotations,
-  (annotations) => {
-    annotations.forEach((ann) => {
-      const type = annotationTypeStore.getAnnotationTypeById(ann.annotationTypeId);
-      if (type && type.global) {
-        localMetadata[type.name] = ann.value;
-        initialMetadata.value[type.name] = ann.value;
+  () => props.image,
+  async (newImage) => {
+    if (newImage && newImage.id !== loadedForImageId.value) {
+      for (const key of Object.keys(localMetadata)) {
+        delete localMetadata[key];
       }
-    });
+      for (const key of Object.keys(initialMetadata.value)) {
+        delete initialMetadata.value[key];
+      }
+      loadedForImageId.value = newImage.id;
+    } else if (!newImage) {
+      for (const key of Object.keys(localMetadata)) {
+        delete localMetadata[key];
+      }
+      for (const key of Object.keys(initialMetadata.value)) {
+        delete initialMetadata.value[key];
+      }
+      loadedForImageId.value = null;
+    }
 
-    if (activeAnnotationTypes.value) {
-      activeAnnotationTypes.value.forEach((t) => {
-        if (t.global && !(t.name in localMetadata)) {
-          localMetadata[t.name] = undefined;
+    if (newImage) {
+      let targetWorkspaceId = (newImage as any).wsId;
+      if (!targetWorkspaceId && newImage.parent?.type === 'workspace') {
+        targetWorkspaceId = newImage.parent.id;
+      }
+
+      if (targetWorkspaceId) {
+        if (
+          !workspaceStore.currentWorkspace ||
+          workspaceStore.currentWorkspace.id !== targetWorkspaceId
+        ) {
+          try {
+            await workspaceStore.fetchWorkspaceById(targetWorkspaceId, { showToast: false });
+          } catch (e) {
+            console.error('Workspace fetch failed:', e);
+          }
         }
-      });
+      }
     }
   },
-  { immediate: true, deep: true }
+  { immediate: true }
 );
 
 const hasDemographicsChanges = computed(() => {
@@ -533,37 +549,115 @@ const unsavedCount = computed(() => {
 });
 
 watch(
-  () => props.image,
-  async (newImage) => {
-    if (newImage) {
-      let targetWorkspaceId = (newImage as any).wsId;
-      if (!targetWorkspaceId && newImage.parent?.type === 'workspace') {
-        targetWorkspaceId = newImage.parent.id;
-      }
+  () => [imageAnnotations.value, activeAnnotationTypes.value] as const,
+  ([annotations, types]) => {
+    // Only update if we're on a valid image
+    if (!props.image || !props.image.id) return;
 
-      if (targetWorkspaceId) {
-        if (
-          !workspaceStore.currentWorkspace ||
-          workspaceStore.currentWorkspace.id !== targetWorkspaceId
-        ) {
-          try {
-            await workspaceStore.fetchWorkspaceById(targetWorkspaceId, { showToast: false });
-          } catch (e) {
-            console.error('Workspace fetch failed:', e);
+    // We only want to populate initial states. If the user edited something,
+    // it will not be equal to initialMetadata anymore. We should not overwrite dirty fields.
+
+    // 1. Initialize all global fields to undefined if they don't exist
+    if (types) {
+      types.forEach((t) => {
+        if (t.global) {
+          if (!(t.id in localMetadata)) {
+            localMetadata[t.id] = undefined;
+          }
+          if (!(t.id in initialMetadata.value)) {
+            initialMetadata.value[t.id] = undefined;
           }
         }
+      });
+    }
+
+    // 2. Populate from specific annotations
+    if (annotations && annotations.length > 0) {
+      let hasChanges = false;
+      annotations.forEach((ann) => {
+        const type =
+          types?.find((t) => String(t.id) === String(ann.annotationTypeId)) ||
+          annotationTypeStore.getAnnotationTypeById(ann.annotationTypeId);
+
+        if (type && type.global) {
+          let valueToSet = ann.value;
+
+          // Normalization for Select/MultiSelect to handle case mismatch
+          if (
+            checkType(type.type, [TagType.Select, TagType.MultiSelect]) &&
+            type.options &&
+            type.options.length > 0 &&
+            valueToSet !== null &&
+            valueToSet !== undefined
+          ) {
+            const lowerVal = String(valueToSet).trim().toLowerCase();
+            const matchedOption = type.options.find(
+              (opt) => String(opt).trim().toLowerCase() === lowerVal
+            );
+
+            if (matchedOption) {
+              valueToSet = matchedOption;
+            }
+          }
+
+          // Only overwrite if the field hasn't been modified by user
+          // (i.e., local equals initial) OR it's a completely new incoming value
+          if (
+            localMetadata[type.id] === initialMetadata.value[type.id] ||
+            initialMetadata.value[type.id] === undefined
+          ) {
+            if (initialMetadata.value[type.id] !== valueToSet) {
+              localMetadata[type.id] = valueToSet;
+              initialMetadata.value[type.id] = valueToSet;
+              hasChanges = true;
+            }
+          }
+        }
+      });
+
+      if (hasChanges) {
+        // Force vue to notice the reactivity update on a reactive object
+        Object.assign(localMetadata, { ...localMetadata });
       }
     }
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 );
 
 const hasFilledMetadata = computed(() =>
   dynamicFields.value.some((f) => {
-    const val = localMetadata[f.name];
+    const val = localMetadata[f.id];
     return val !== null && val !== undefined && val !== '';
   })
 );
+
+const missingRequired = computed(() => {
+  return dynamicFields.value.some((f) => {
+    if (!f.required) return false;
+    const val = localMetadata[f.id];
+    // A required field is missing if it's null, undefined, or empty string.
+    // Boolean false and numeric 0 are considered valid filled values.
+    return val === null || val === undefined || val === '';
+  });
+});
+
+const indicatorStyle = computed(() => {
+  const total = dynamicFields.value.length;
+  if (total === 0) return {};
+  const filled = dynamicFields.value.filter((f) => {
+    const val = localMetadata[f.id];
+    // Include all valid values in progress (including boolean false and number 0)
+    return val !== null && val !== undefined && val !== '';
+  }).length;
+
+  if (total === 0) return {};
+
+  const percentage = Math.round((filled / total) * 100);
+
+  return {
+    background: `linear-gradient(to right, rgba(34, 197, 94, 0.4) ${percentage}%, transparent ${percentage}%)`,
+  };
+});
 
 function togglePopover(name: string) {
   activePopover.value = activePopover.value === name ? null : name;
@@ -594,16 +688,17 @@ async function handleSaveAll() {
       return val !== initial && val !== '' && val !== undefined && val !== null;
     });
 
-    const globalPromises = changedGlobalEntries.map(async ([tagName, value]) => {
+    const globalPromises = changedGlobalEntries.map(async ([typeId, value]) => {
       if (!props.image?.id) return true;
-      const typeDef = activeAnnotationTypes.value.find((t) => t.name === tagName && t.global);
+      // Key is now typeId
+      const typeDef = activeAnnotationTypes.value.find((t) => t.id === typeId && t.global);
       if (!typeDef) return true;
 
       const existingAnn = imageAnnotations.value.find((a) => a.annotationTypeId === typeDef.id);
 
       const tagData = {
         tag_type: typeDef.type,
-        name: tagName,
+        name: typeDef.name,
         value: value,
         color: typeDef.color || '#4f46e5',
         is_global: true,
@@ -611,7 +706,7 @@ async function handleSaveAll() {
         imageId: props.image.id,
         geometry: [],
         tags: [],
-        text: `${tagName}: ${value}`,
+        text: `${typeDef.name}: ${value}`,
       };
 
       if (existingAnn) {
