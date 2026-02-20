@@ -324,7 +324,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
   const createAnnotation = async (
     imageId: string,
-    data: Omit<CreateNewAnnotationRequest, 'parent'>
+    data: Omit<CreateNewAnnotationRequest, 'parent'>,
+    options: FetchOptions = { showToast: true }
   ): Promise<Annotation | null> => {
     actionLoading.value = true;
     resetError();
@@ -346,10 +347,12 @@ export const useAnnotationStore = defineStore('annotation', () => {
       const imageAnnotations = annotationsByImage.value.get(imageId) || [];
       annotationsByImage.value.set(imageId, [newAnnotation, ...imageAnnotations]);
 
-      toast.success(t('annotation.messages.create_success'));
+      if (options.showToast) {
+        toast.success(t('annotation.messages.create_success'));
+      }
       return newAnnotation;
     } catch (err: any) {
-      handleError(err, t('annotation.messages.create_error'));
+      handleError(err, t('annotation.messages.create_error'), options.showToast);
       throw err;
     } finally {
       actionLoading.value = false;
@@ -358,7 +361,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
   const updateAnnotation = async (
     annotationId: string,
-    data: Partial<Omit<CreateNewAnnotationRequest, 'image_id' | 'annotator_id'>>
+    data: Partial<Omit<CreateNewAnnotationRequest, 'image_id' | 'annotator_id'>>,
+    options: FetchOptions = { showToast: true }
   ): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
@@ -385,27 +389,35 @@ export const useAnnotationStore = defineStore('annotation', () => {
         updateAnnotationInState(updatedAnnotationResult);
       }
 
-      toast.success(t('annotation.messages.update_success'));
+      if (options.showToast) {
+        toast.success(t('annotation.messages.update_success'));
+      }
       return true;
     } catch (err: any) {
-      handleError(err, t('annotation.messages.update_error'));
+      handleError(err, t('annotation.messages.update_error'), options.showToast);
       return false;
     } finally {
       actionLoading.value = false;
     }
   };
 
-  const deleteAnnotation = async (annotationId: string, imageId: string): Promise<boolean> => {
+  const deleteAnnotation = async (
+    annotationId: string,
+    imageId: string,
+    options: FetchOptions = { showToast: true }
+  ): Promise<boolean> => {
     actionLoading.value = true;
     resetError();
 
     try {
       await annotationRepo.delete(annotationId);
       removeAnnotationFromState(annotationId, imageId);
-      toast.success(t('annotation.messages.delete_success'));
+      if (options.showToast) {
+        toast.success(t('annotation.messages.delete_success'));
+      }
       return true;
     } catch (err: any) {
-      handleError(err, t('annotation.messages.delete_error'));
+      handleError(err, t('annotation.messages.delete_error'), options.showToast);
       return false;
     } finally {
       actionLoading.value = false;
