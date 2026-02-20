@@ -206,14 +206,19 @@
       <div class="relative">
         <button
           @click="togglePopover('global_tags')"
+          :disabled="dynamicFields.length === 0"
           class="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all relative"
           :class="[
-            missingRequired
-              ? 'animate-pulse text-red-600 border-red-400 bg-red-50 hover:bg-red-100'
-              : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600',
+            dynamicFields.length === 0
+              ? 'opacity-50 cursor-not-allowed border-gray-100 text-gray-400 bg-gray-50'
+              : missingRequired
+                ? 'animate-pulse text-red-600 border-red-400 bg-red-50 hover:bg-red-100'
+                : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600',
           ]"
           :style="indicatorStyle"
-          title="Global Etiketler"
+          :title="
+            dynamicFields.length === 0 ? 'Bu veri setinin global etiketi yok' : 'Global Etiketler'
+          "
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -273,87 +278,118 @@
                 >
               </div>
 
-              <input
-                v-if="checkType(field.type, TagType.Text)"
-                type="text"
-                v-model="localMetadata[field.id]"
-                class="form-input-modern"
-                placeholder="Metin giriniz..."
-              />
-
-              <div v-else-if="checkType(field.type, 'number')">
+              <div class="flex items-center gap-2">
                 <input
+                  v-if="checkType(field.type, TagType.Text)"
+                  type="text"
+                  v-model="localMetadata[field.id]"
+                  class="form-input-modern flex-1"
+                  placeholder="Metin giriniz..."
+                />
+
+                <div v-else-if="checkType(field.type, 'number')" class="flex-1">
+                  <input
+                    type="number"
+                    v-model.number="localMetadata[field.id]"
+                    :min="field.min"
+                    :max="field.max"
+                    class="form-input-modern w-full"
+                    placeholder="Sayısal değer..."
+                  />
+                  <p
+                    v-if="field.min !== undefined || field.max !== undefined"
+                    class="text-[9px] text-gray-400 mt-0.5"
+                  >
+                    Aralık: {{ field.min ?? '-∞' }} - {{ field.max ?? '+∞' }}
+                  </p>
+                </div>
+
+                <div
+                  v-else-if="checkType(field.type, ['select', 'multi_select', 'multiselect'])"
+                  class="flex-1"
+                >
+                  <select
+                    v-model="localMetadata[field.id]"
+                    class="form-select-modern w-full"
+                    :multiple="checkType(field.type, ['multi_select', 'multiselect'])"
+                    :size="checkType(field.type, ['multi_select', 'multiselect']) ? 4 : 1"
+                  >
+                    <option :value="undefined" disabled>Seçiniz</option>
+                    <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
+                  </select>
+                  <p
+                    v-if="checkType(field.type, ['multi_select', 'multiselect'])"
+                    class="text-[9px] text-gray-400 mt-1 italic"
+                  >
+                    Çoklu seçim için CTRL tuşunu basılı tutun.
+                  </p>
+                </div>
+
+                <div v-else-if="checkType(field.type, 'boolean')" class="flex gap-2 flex-1 pt-1">
+                  <button
+                    @click="localMetadata[field.id] = true"
+                    class="flex-1 py-1.5 rounded-md text-xs font-semibold border transition-all"
+                    :class="
+                      localMetadata[field.id] === true
+                        ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
+                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                    "
+                  >
+                    EVET
+                  </button>
+                  <button
+                    @click="localMetadata[field.id] = false"
+                    class="flex-1 py-1.5 rounded-md text-xs font-semibold border transition-all"
+                    :class="
+                      localMetadata[field.id] === false
+                        ? 'bg-rose-500 text-white border-rose-600 shadow-sm'
+                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                    "
+                  >
+                    HAYIR
+                  </button>
+                </div>
+
+                <input
+                  v-else-if="checkType(field.type, TagType.Number)"
                   type="number"
                   v-model.number="localMetadata[field.id]"
-                  :min="field.min"
-                  :max="field.max"
-                  class="form-input-modern"
-                  placeholder="Sayısal değer..."
+                  class="form-input-modern flex-1"
                 />
-                <p
-                  v-if="field.min !== undefined || field.max !== undefined"
-                  class="text-[9px] text-gray-400 mt-0.5"
-                >
-                  Aralık: {{ field.min ?? '-∞' }} - {{ field.max ?? '+∞' }}
-                </p>
-              </div>
-
-              <div v-else-if="checkType(field.type, ['select', 'multi_select', 'multiselect'])">
                 <select
+                  v-else-if="checkType(field.type, [TagType.Select, TagType.MultiSelect])"
                   v-model="localMetadata[field.id]"
-                  class="form-select-modern"
-                  :multiple="checkType(field.type, ['multi_select', 'multiselect'])"
-                  :size="checkType(field.type, ['multi_select', 'multiselect']) ? 4 : 1"
-                >
-                  <option :value="undefined" disabled>Seçiniz</option>
-                  <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
-                </select>
-                <p
-                  v-if="checkType(field.type, ['multi_select', 'multiselect'])"
-                  class="text-[9px] text-gray-400 mt-1 italic"
-                >
-                  Çoklu seçim için CTRL tuşunu basılı tutun.
-                </p>
-              </div>
+                  class="form-input-modern flex-1"
+                  disabled
+                  :placeholder="'Desteklenmeyen tip: ' + field.type"
+                />
 
-              <div v-else-if="checkType(field.type, 'boolean')" class="flex gap-2 pt-1">
                 <button
-                  @click="localMetadata[field.id] = true"
-                  class="flex-1 py-1.5 rounded-md text-xs font-semibold border transition-all"
-                  :class="
-                    localMetadata[field.id] === true
-                      ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
-                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                  v-if="
+                    localMetadata[field.id] !== undefined &&
+                    localMetadata[field.id] !== null &&
+                    localMetadata[field.id] !== ''
                   "
+                  @click="localMetadata[field.id] = undefined"
+                  class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                  title="Etiketi Temizle"
                 >
-                  EVET
-                </button>
-                <button
-                  @click="localMetadata[field.id] = false"
-                  class="flex-1 py-1.5 rounded-md text-xs font-semibold border transition-all"
-                  :class="
-                    localMetadata[field.id] === false
-                      ? 'bg-rose-500 text-white border-rose-600 shadow-sm'
-                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                  "
-                >
-                  HAYIR
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
                 </button>
               </div>
-
-              <input
-                v-else-if="checkType(field.type, TagType.Number)"
-                type="number"
-                v-model.number="localMetadata[field.id]"
-                class="form-input-modern"
-              />
-              <select
-                v-else-if="checkType(field.type, [TagType.Select, TagType.MultiSelect])"
-                v-model="localMetadata[field.id]"
-                class="form-input-modern"
-                disabled
-                :placeholder="'Desteklenmeyen tip: ' + field.type"
-              />
             </div>
           </div>
           <div class="mt-4 flex justify-end">
@@ -463,9 +499,11 @@ const imageAnnotations = computed(() =>
 const loadedForImageId = ref<string | null>(null);
 
 const activeAnnotationTypes = computed(() => {
-  if (!workspaceStore.currentWorkspace) return [];
-  // Use the store's list, which is populated by fetchAnnotationTypes({ parentId: workspace.id })
-  return annotationTypeStore.annotationTypes;
+  const ws = workspaceStore.currentWorkspace;
+  if (!ws) return [];
+
+  const validIds = ws.annotationTypeIds || [];
+  return annotationTypeStore.annotationTypes.filter((t) => validIds.includes(t.id));
 });
 
 const dynamicFields = computed(() =>
@@ -540,7 +578,10 @@ const hasDemographicsChanges = computed(() => {
 const unsavedCount = computed(() => {
   const changedGlobals = Object.entries(localMetadata).filter(([key, val]) => {
     const initial = initialMetadata.value[key];
-    return val !== initial && val !== '' && val !== undefined && val !== null;
+    // We only compare to initial value.
+    // If it changed from some value to undefined/empty, it's a deletion.
+    // If it changed from undefined/empty to a value, it's a creation.
+    return val !== initial;
   }).length;
   const pendingLocals = annotationStore.pendingCount;
   const dirtyLocals = annotationStore.dirtyCount;
@@ -685,7 +726,10 @@ async function handleSaveAll() {
 
     const changedGlobalEntries = Object.entries(localMetadata).filter(([key, val]) => {
       const initial = initialMetadata.value[key];
-      return val !== initial && val !== '' && val !== undefined && val !== null;
+      // We only compare to initial value.
+      // If it changed from some value to undefined, it's a deletion.
+      // If it changed from undefined to a value, it's a creation.
+      return val !== initial;
     });
 
     const globalPromises = changedGlobalEntries.map(async ([typeId, value]) => {
@@ -695,6 +739,18 @@ async function handleSaveAll() {
       if (!typeDef) return true;
 
       const existingAnn = imageAnnotations.value.find((a) => a.annotationTypeId === typeDef.id);
+
+      // If value is cleared and an annotation exists, delete it
+      if (existingAnn && (value === undefined || value === null || value === '')) {
+        return await annotationStore.deleteAnnotation(existingAnn.id, props.image.id, {
+          showToast: false,
+        });
+      }
+
+      // If value is cleared but no annotation exists, do nothing
+      if (!existingAnn && (value === undefined || value === null || value === '')) {
+        return true;
+      }
 
       const tagData = {
         tag_type: typeDef.type,
@@ -710,10 +766,14 @@ async function handleSaveAll() {
       };
 
       if (existingAnn) {
-        return await annotationStore.updateAnnotation(existingAnn.id, {
-          ...tagData,
-          value: value,
-        } as any);
+        return await annotationStore.updateAnnotation(
+          existingAnn.id,
+          {
+            ...tagData,
+            value: value,
+          } as any,
+          { showToast: false }
+        );
       } else {
         try {
           const safeWsId =
@@ -724,11 +784,15 @@ async function handleSaveAll() {
             return false;
           }
 
-          await annotationStore.createAnnotation(props.image.id, {
-            ...tagData,
-            ...tagData,
-            ws_id: safeWsId,
-          } as any);
+          await annotationStore.createAnnotation(
+            props.image.id,
+            {
+              ...tagData,
+              ...tagData,
+              ws_id: safeWsId,
+            } as any,
+            { showToast: false }
+          );
           return true;
         } catch (e) {
           console.error('Global annotation creation failed', e);
@@ -754,7 +818,9 @@ async function handleSaveAll() {
       toast.error('Bazı veriler kaydedilemedi.');
     } else {
       toast.success('Tüm değişiklikler kaydedildi');
-      Object.assign(initialMetadata.value, JSON.parse(JSON.stringify(localMetadata)));
+      Object.keys(localMetadata).forEach((key) => {
+        initialMetadata.value[key] = localMetadata[key];
+      });
       activePopover.value = null;
     }
   } catch (e) {
