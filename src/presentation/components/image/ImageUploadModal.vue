@@ -155,51 +155,28 @@
               <div
                 class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 h-full overflow-y-auto"
               >
-                <div
-                  class="flex items-center justify-between border-b border-gray-200 pb-2 flex-shrink-0"
+                <div class="border-b border-gray-200 pb-2">
+                  <h4 class="text-sm font-semibold text-gray-700">PiCam Ayarları</h4>
+                </div>
+                <!-- Advanced settings button -->
+                <button
+                  @click="showPiCamSettings = true"
+                  class="w-full mt-4 btn btn-outline py-1.5 flex justify-center items-center gap-1.5 min-h-[32px] rounded border-gray-300 text-gray-600 hover:text-indigo-600 hover:border-indigo-600 transition-colors"
                 >
-                  <h4 class="text-sm font-semibold text-gray-700">Ayarlar</h4>
-                  <button
-                    @click="resetCameraSettings"
-                    class="text-xs text-indigo-600 hover:text-indigo-800"
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-4 w-4"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
                   >
-                    Sıfırla
-                  </button>
-                </div>
-                <div class="space-y-4">
-                  <div class="space-y-1">
-                    <div class="flex items-center justify-between">
-                      <label class="text-xs font-medium text-gray-700">Pozlama</label>
-                      <span class="text-xs text-gray-500">{{
-                        exposureTime ? `${exposureTime} μs` : 'Oto'
-                      }}</span>
-                    </div>
-                    <input
-                      type="range"
-                      v-model.number="exposureTime"
-                      min="0"
-                      max="100000"
-                      step="1000"
-                      class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    <path
+                      fill-rule="evenodd"
+                      d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+                      clip-rule="evenodd"
                     />
-                  </div>
-                  <div class="space-y-1">
-                    <div class="flex items-center justify-between">
-                      <label class="text-xs font-medium text-gray-700">Gain (ISO)</label>
-                      <span class="text-xs text-gray-500">{{
-                        gain ? `${gain.toFixed(1)}x` : 'Oto'
-                      }}</span>
-                    </div>
-                    <input
-                      type="range"
-                      v-model.number="gain"
-                      min="0"
-                      max="16"
-                      step="0.1"
-                      class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                    />
-                  </div>
-                </div>
+                  </svg>
+                  <span class="text-sm font-medium">Gelişmiş Ayarlar</span>
+                </button>
               </div>
             </div>
           </div>
@@ -287,6 +264,50 @@
       </div>
     </div>
   </div>
+
+  <!-- PiCam Advanced Settings Modal -->
+  <div
+    v-if="showPiCamSettings"
+    class="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-75 p-4 sm:p-6"
+    @click.self="showPiCamSettings = false"
+  >
+    <div
+      class="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden relative backdrop-blur-sm"
+    >
+      <div
+        class="px-5 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 flex-shrink-0"
+      >
+        <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+          <span class="text-xl">🔬</span> PiCam Gelişmiş Ayarlar
+        </h3>
+        <button
+          @click="showPiCamSettings = false"
+          class="text-gray-500 hover:text-gray-800 p-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+              clip-rule="evenodd"
+            />
+          </svg>
+        </button>
+      </div>
+      <div class="flex-1 bg-gray-100 overflow-hidden relative">
+        <iframe
+          src="https://192.168.7.2/camera_controls.html"
+          class="w-full h-full border-none"
+          title="PiCam Controls"
+          allow="camera; microphone; fullscreen"
+        ></iframe>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -312,8 +333,6 @@ const {
   mediaStream,
   cameras,
   selectedDeviceId,
-  exposureTime,
-  gain,
   handleFileSelect,
   handleDrop,
   captureFromMicroscope,
@@ -321,10 +340,10 @@ const {
   clearSelection,
   stopWebcam,
   initCameraSystem,
-  resetCameraSettings,
 } = useImageUpload(props.patientId, emit);
 
 const videoRef = ref<HTMLVideoElement | null>(null);
+const showPiCamSettings = ref(false);
 
 const isPiCam = computed(() => {
   const currentCamera = cameras.value.find((c) => c.deviceId === selectedDeviceId.value);
