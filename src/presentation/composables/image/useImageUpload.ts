@@ -38,8 +38,6 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
 
   const cameras = ref<MediaDeviceInfo[]>([]);
   const selectedDeviceId = ref<string>('');
-  const exposureTime = ref<number>(0);
-  const gain = ref<number>(0);
 
   const MICROSCOPE_URL = import.meta.env.VITE_MICROSCOPE_API_URL;
 
@@ -140,11 +138,6 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
     }
   }
 
-  function resetCameraSettings() {
-    exposureTime.value = 0;
-    gain.value = 0;
-  }
-
   async function captureFromMicroscope() {
     microscopeError.value = null;
 
@@ -157,15 +150,7 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
       let file: File;
 
       if (isPiCam) {
-        const params = new URLSearchParams();
-        if (exposureTime.value > 0) {
-          params.append('exposure', exposureTime.value.toString());
-        }
-        if (gain.value > 0) {
-          params.append('gain', gain.value.toString());
-        }
-
-        const url = `https://192.168.7.2/capture${params.toString() ? '?' + params.toString() : ''}`;
+        const url = `https://192.168.7.2/capture?format=dng`;
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
@@ -246,8 +231,6 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
     mediaStream,
     cameras,
     selectedDeviceId,
-    exposureTime,
-    gain,
     handleFileSelect,
     handleDrop,
     captureFromMicroscope,
@@ -255,6 +238,5 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
     clearSelection,
     stopWebcam,
     initCameraSystem,
-    resetCameraSettings,
   };
 }
