@@ -252,38 +252,79 @@ const {
   transferSingle,
 } = useImageList(props.patientId, emit);
 
-let pollInterval: ReturnType<typeof setInterval> | null = null;
+// --- Smart polling with exponential backoff ---
+// Instead of refreshing the entire list every 2s, we track each
+// pending/processing image individually and poll them with increasing delays.
+// Intervals: 2s → 4s → 8s → 16s → 30s (capped). Stops when all are done.
 
-const hasProcessingImages = computed(() => {
-  return images.value.some(
-    (img) =>
-      img.status.toString() === 'processing' ||
-      img.status.toString() === 'pending' ||
-      (!img.status.isProcessed() && !img.status.isFailed())
-  );
-});
+const POLL_INITIAL_MS = 2000;
+const POLL_MAX_MS = 30000;
+
+// Map of imageId → current poll delay (ms)
+const pollDelays = new Map<string, number>();
+// Map of imageId → timeout handle
+const pollTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleImagePoll(imageId: string) {
+  const delay = pollDelays.get(imageId) ?? POLL_INITIAL_MS;
+  const timer = setTimeout(async () => {
+    pollTimers.delete(imageId);
+    await imageStore.fetchImageById(imageId, { showToast: false });
+
+    // After fetching, check if still pending
+    const updated = imageStore.getImageById(imageId);
+    if (updated && !updated.status.isProcessed() && !updated.status.isFailed()) {
+      // Still processing — back off and reschedule
+      const nextDelay = Math.min(delay * 2, POLL_MAX_MS);
+      pollDelays.set(imageId, nextDelay);
+      scheduleImagePoll(imageId);
+    } else {
+      // Done (processed or failed) — clean up
+      pollDelays.delete(imageId);
+    }
+  }, delay);
+  pollTimers.set(imageId, timer);
+}
+
+function cancelAllPolls() {
+  for (const timer of pollTimers.values()) {
+    clearTimeout(timer);
+  }
+  pollTimers.clear();
+  pollDelays.clear();
+}
 
 watch(
-  hasProcessingImages,
-  (isProcessing) => {
-    if (isProcessing) {
-      if (!pollInterval) {
-        pollInterval = setInterval(() => {
-          loadImages(true);
-        }, 2000);
+  images,
+  (currentImages) => {
+    const pendingIds = new Set(
+      currentImages
+        .filter((img) => !img.status.isProcessed() && !img.status.isFailed())
+        .map((img) => img.id)
+    );
+
+    // Cancel polls for images that are no longer pending
+    for (const [id, timer] of pollTimers.entries()) {
+      if (!pendingIds.has(id)) {
+        clearTimeout(timer);
+        pollTimers.delete(id);
+        pollDelays.delete(id);
       }
-    } else {
-      if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
+    }
+
+    // Start polls for newly discovered pending images
+    for (const id of pendingIds) {
+      if (!pollTimers.has(id)) {
+        pollDelays.set(id, POLL_INITIAL_MS);
+        scheduleImagePoll(id);
       }
     }
   },
-  { immediate: true }
+  { immediate: true, deep: false }
 );
 
 onUnmounted(() => {
-  if (pollInterval) clearInterval(pollInterval);
+  cancelAllPolls();
 });
 
 const isDeleteModalOpen = ref(false);

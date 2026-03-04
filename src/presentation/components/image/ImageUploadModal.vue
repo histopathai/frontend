@@ -106,77 +106,75 @@
                 {{ camera.label || `Kamera ${camera.deviceId.substring(0, 5)}...` }}
               </option>
             </select>
+
+            <!-- PiCam settings icon — enabled only when PiCam is selected and reachable -->
+            <button
+              @click="piCamReachable && (showPiCamSettings = true)"
+              :disabled="!piCamReachable"
+              :title="
+                !isPiCam
+                  ? 'Sadece PiCam cihazı seçiliyken erişilebilir'
+                  : !piCamReachable
+                    ? 'PiCam bağlı değil (192.168.7.2)'
+                    : 'PiCam Gelişmiş Ayarlar'
+              "
+              class="flex-shrink-0 p-1.5 rounded-md border transition-colors"
+              :class="
+                piCamReachable
+                  ? 'border-indigo-200 text-indigo-600 hover:bg-indigo-50 cursor-pointer'
+                  : 'border-gray-200 text-gray-300 cursor-not-allowed'
+              "
+            >
+              <!-- gear / settings icon -->
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <!-- small lock overlay when not reachable -->
+              <span v-if="isPiCam && !piCamReachable" class="sr-only">Kilitli</span>
+            </button>
           </div>
 
-          <div
-            class="flex-1 min-h-0 grid gap-4"
-            :class="isPiCam ? 'grid-cols-1 lg:grid-cols-4' : 'grid-cols-1'"
-          >
+          <div class="flex-1 min-h-0">
             <div
-              class="flex flex-col h-full overflow-hidden"
-              :class="isPiCam ? 'lg:col-span-3' : 'w-full'"
+              class="relative bg-black rounded-lg w-full h-full flex items-center justify-center overflow-hidden border border-gray-300"
             >
-              <div
-                class="relative bg-black rounded-lg w-full h-full flex items-center justify-center overflow-hidden border border-gray-300"
-              >
-                <video
-                  v-if="mediaStream"
-                  ref="videoRef"
-                  autoplay
-                  playsinline
-                  muted
-                  class="w-full h-full object-contain"
-                ></video>
+              <video
+                v-if="mediaStream"
+                ref="videoRef"
+                autoplay
+                playsinline
+                muted
+                class="w-full h-full object-contain"
+              ></video>
 
-                <div v-else class="text-gray-400 flex flex-col items-center">
-                  <span v-if="!microscopeError" class="text-3xl mb-2 animate-pulse">📷</span>
-                  <span v-if="!microscopeError">Kamera Başlatılıyor...</span>
-                </div>
-
-                <div
-                  v-if="microscopeError"
-                  class="absolute inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-10"
-                >
-                  <div class="text-center text-red-400">
-                    <p class="font-bold">Bağlantı Hatası</p>
-                    <p class="text-sm mb-2">{{ microscopeError }}</p>
-                    <button
-                      @click="initCameraSystem"
-                      class="text-white underline text-sm hover:text-gray-200"
-                    >
-                      Tekrar Dene
-                    </button>
-                  </div>
-                </div>
+              <div v-else class="text-gray-400 flex flex-col items-center">
+                <span v-if="!microscopeError" class="text-3xl mb-2 animate-pulse">📷</span>
+                <span v-if="!microscopeError">Kamera Başlatılıyor...</span>
               </div>
-            </div>
 
-            <div v-if="isPiCam" class="lg:col-span-1 h-full flex flex-col min-h-0">
               <div
-                class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4 h-full overflow-y-auto"
+                v-if="microscopeError"
+                class="absolute inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-10"
               >
-                <div class="border-b border-gray-200 pb-2">
-                  <h4 class="text-sm font-semibold text-gray-700">PiCam Ayarları</h4>
-                </div>
-                <!-- Advanced settings button -->
-                <button
-                  @click="showPiCamSettings = true"
-                  class="w-full mt-4 btn btn-outline py-1.5 flex justify-center items-center gap-1.5 min-h-[32px] rounded border-gray-300 text-gray-600 hover:text-indigo-600 hover:border-indigo-600 transition-colors"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-4 w-4"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
+                <div class="text-center text-red-400">
+                  <p class="font-bold">Bağlantı Hatası</p>
+                  <p class="text-sm mb-2">{{ microscopeError }}</p>
+                  <button
+                    @click="initCameraSystem"
+                    class="text-white underline text-sm hover:text-gray-200"
                   >
-                    <path
-                      fill-rule="evenodd"
-                      d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
-                      clip-rule="evenodd"
-                    />
-                  </svg>
-                  <span class="text-sm font-medium">Gelişmiş Ayarlar</span>
-                </button>
+                    Tekrar Dene
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -344,11 +342,43 @@ const {
 
 const videoRef = ref<HTMLVideoElement | null>(null);
 const showPiCamSettings = ref(false);
+const piCamReachable = ref(false);
 
 const isPiCam = computed(() => {
   const currentCamera = cameras.value.find((c) => c.deviceId === selectedDeviceId.value);
   return currentCamera?.label.toLowerCase().includes('picam') || false;
 });
+
+// Check whether the PiCam device at 192.168.7.2 is actually reachable.
+// We do a quick fetch with a short timeout so the icon reacts promptly.
+async function checkPiCamReachability() {
+  try {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 3000);
+    await fetch('https://192.168.7.2/camera_status', {
+      signal: controller.signal,
+      mode: 'no-cors', // avoids CORS error; we only care about network reachability
+    });
+    clearTimeout(tid);
+    // 'no-cors' always gives opaque response (status 0) on success
+    piCamReachable.value = true;
+  } catch {
+    piCamReachable.value = false;
+  }
+}
+
+// Probe only when a PiCam device is selected
+watch(
+  isPiCam,
+  (is) => {
+    if (is) {
+      checkPiCamReachability();
+    } else {
+      piCamReachable.value = false;
+    }
+  },
+  { immediate: true }
+);
 
 watch(
   mediaStream,
