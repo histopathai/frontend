@@ -253,17 +253,16 @@ export const useImageStore = defineStore('image', () => {
     try {
       const extension = file.name.split('.').pop()?.toLowerCase() || 'unknown';
 
-      let contentType = file.type;
-      if (!contentType && MIME_TYPES[extension]) {
-        contentType = MIME_TYPES[extension];
-      }
-
-      if (!contentType) {
-        contentType = 'application/octet-stream';
-      }
+      // Extension-based MIME takes priority over file.type because browsers may
+      // report incorrect types for raw/scientific formats (e.g. DNG → "image/dng").
+      const contentType = MIME_TYPES[extension] || file.type || 'application/octet-stream';
 
       const workspaceStore = useWorkspaceStore();
-      const wsId = workspaceStore.currentWorkspace?.id || '';
+      const wsId = workspaceStore.currentWorkspace?.id;
+
+      if (!wsId) {
+        throw new Error('Görüntü yüklemek için önce bir workspace seçmelisiniz.');
+      }
 
       const createRequest: CreateNewImageRequest = {
         parent: { id: patientId, type: 'patient' },
