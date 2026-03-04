@@ -183,7 +183,7 @@
             <button
               @click="captureFromMicroscope"
               class="btn btn-primary flex items-center gap-2 px-6 py-2 shadow-lg hover:scale-105 transition-transform"
-              :disabled="!mediaStream && !isPiCam"
+              :disabled="isCapturing || (!mediaStream && !isPiCam)"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -325,6 +325,7 @@ const {
   selectedFile,
   previewUrl,
   loading,
+  isCapturing,
   uploadProgress,
   microscopeError,
   MICROSCOPE_URL,
