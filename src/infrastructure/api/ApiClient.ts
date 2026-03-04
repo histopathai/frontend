@@ -15,6 +15,21 @@ export class ApiClient {
       },
       withCredentials: true,
       timeout: 30000,
+      transformResponse: [
+        (data, headers) => {
+          // Safe JSON parse: if the body is not valid JSON (e.g. backend returns
+          // plain-text or HTML on error), return a wrapper object so the
+          // response interceptor can extract a message without throwing SyntaxError.
+          if (typeof data === 'string' && data.length > 0) {
+            try {
+              return JSON.parse(data);
+            } catch {
+              return { _rawBody: data, message: data.substring(0, 200) };
+            }
+          }
+          return data;
+        },
+      ],
     });
 
     this.setupInterceptors();
@@ -47,6 +62,15 @@ export class ApiClient {
           return Promise.reject({
             message: t('errors.401'),
             status: 401,
+            originalError: error,
+          });
+        }
+
+        if (error.response?.status === 400) {
+          const data = error.response.data as any;
+          return Promise.reject({
+            message: data?.message || data?.error || t('errors.unknown'),
+            status: 400,
             originalError: error,
           });
         }
