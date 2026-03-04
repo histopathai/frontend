@@ -138,7 +138,11 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
     }
   }
 
+  const isCapturing = ref(false);
+
   async function captureFromMicroscope() {
+    if (isCapturing.value) return; // prevent double-click
+    isCapturing.value = true;
     microscopeError.value = null;
 
     const currentCamera = cameras.value.find((c) => c.deviceId === selectedDeviceId.value);
@@ -195,6 +199,8 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
         microscopeError.value = `Hata: ${err.message}`;
       }
       toast.error('Görüntü yakalanamadı.');
+    } finally {
+      isCapturing.value = false;
     }
   }
 
@@ -227,6 +233,7 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
     selectedFile,
     previewUrl,
     loading,
+    isCapturing,
     microscopeError,
     uploadProgress: computed(() => store.uploadProgress),
     MICROSCOPE_URL,
