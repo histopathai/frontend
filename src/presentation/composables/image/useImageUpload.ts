@@ -165,7 +165,9 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
 
           const blob = await response.blob();
           const filename = `microscope_capture_${new Date().getTime()}.dng`;
-          file = new File([blob], filename, { type: blob.type || 'image/x-adobe-dng' });
+          // Do NOT use blob.type here — PiCam sends "image/dng" which is a
+          // non-standard MIME type that GCS rejects. Always derive from extension.
+          file = new File([blob], filename, { type: 'image/x-adobe-dng' });
         } finally {
           clearTimeout(timeoutId);
         }
