@@ -38,6 +38,13 @@ export class ImageRepository implements IImageRepository {
   async upload(params: UploadImageParams): Promise<void> {
     const { payload, file, contentType, onUploadProgress } = params;
     const finalContentType = contentType || file.type;
+
+    console.log('DEBUG upload: url=', payload.upload_url?.substring(0, 100));
+    console.log(
+      'DEBUG upload: headers=',
+      JSON.stringify({ ...payload.headers, 'Content-Type': finalContentType })
+    );
+
     try {
       await axios.put(payload.upload_url, file, {
         headers: {
@@ -52,7 +59,11 @@ export class ImageRepository implements IImageRepository {
           }
         },
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('DEBUG upload error response:', error.response?.status, error.response?.data);
+      if (error.response?.data && typeof error.response.data === 'string') {
+        console.error('DEBUG GCS error body:', error.response.data);
+      }
       throw error;
     }
   }
