@@ -444,25 +444,26 @@ export const useAnnotationStore = defineStore('annotation', () => {
       // SAHİPLİK KONTROLÜ: Eğer yaratıcı biz değilsek Review oluştur!
       if (creatorId !== currentUserId || creatorId === '') {
         console.log(`📡 [REDIRECT TO REVIEW] Global/Modal update for ${annotationId}. Routing to Review...`);
+        
+        // HER ZAMAN tam durumu gönderiyoruz
         const payload: any = {
           annotation_id: annotationId,
           status: 'modified',
           comments: 'Modified via tagging modal or global tags.',
-          modified_value: data.value,
+          modified_value: data.value !== undefined ? data.value : existingAnnotation.value,
+          modified_polygon: (data.polygon || existingAnnotation.polygon).map((p: any) => ({ 
+            X: Number(p.x !== undefined ? p.x : p.X), 
+            Y: Number(p.y !== undefined ? p.y : p.Y) 
+          }))
         };
-        
-        if (data.polygon) {
-          payload.modified_polygon = data.polygon;
-        }
 
-        await repositories.annotationReview.create(payload as any);
+        const success = await createReview(payload as any);
         
-        if (options.showToast) {
+        if (success && options.showToast) {
           toast.success(t('annotation.messages.update_success') + ' (İnceleme olarak kaydedildi)');
         }
         
-        await fetchAnnotationById(annotationId, { showToast: false });
-        return true;
+        return success;
       }
 
       // Biz yaratıcıyız, orijinal veriyi güncelle
@@ -601,6 +602,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
     annotationsByImage.value.delete(imageId);
   };
 
+
+
   const refreshAnnotation = async (annotationId: string): Promise<void> => {
     await fetchAnnotationById(annotationId, { showToast: false });
   };
@@ -654,19 +657,21 @@ export const useAnnotationStore = defineStore('annotation', () => {
               status: 'modified',
               comments: 'Expert modified geometry and/or value directly via UI.',
               // HER ZAMAN tam durumu gönderiyoruz (Orijinal anotasyon yapısı gibi)
-              modified_polygon: data.polygon || existing.polygon.map((p: any) => ({ x: Number(p.x), y: Number(p.y) })),
+              modified_polygon: (data.polygon || existing.polygon).map((p: any) => ({ 
+                X: Number(p.x !== undefined ? p.x : p.X), 
+                Y: Number(p.y !== undefined ? p.y : p.Y) 
+              })),
               modified_value: data.value !== undefined ? data.value : existing.value
             };
 
             console.log('📤 [FINAL FULL-STATE PAYLOAD]:', JSON.stringify(payload, null, 2));
-            await repositories.annotationReview.create(payload as any);
+            await createReview(payload as any);
             
             // Bayrakları temizle
             existing.isDirty = false;
             existing.isPolygonDirty = false;
 
-            // Veriyi yenile
-            await fetchAnnotationById(annotationId, { showToast: false });
+            // createReview zaten fetchAnnotationById yapıyor, ama biz review'ı da hemen uygulayalım
             await fetchAndApplyReview(annotationId);
             
             console.groupEnd();
@@ -737,7 +742,28 @@ export const useAnnotationStore = defineStore('annotation', () => {
     actionLoading.value = true;
     resetError();
     try {
-      await repositories.annotationReview.create(data);
+      const currentUserId = String(useAuthStore().user?.userId || '');
+      
+      // 1. Mevcut review'ları kontrol et
+      const reviews = await repositories.annotationReview.getByAnnotationId(data.annotation_id);
+      
+      // Bu kullanıcıya ait herhangi bir inceleme var mı?
+      const existingReview = reviews.find(r => 
+        String(r.reviewerId) === currentUserId
+      );
+
+      if (!data.parent_id && data.annotation_id) {
+        (data as any).parent_id = data.annotation_id;
+      }
+
+      if (existingReview) {
+        console.log(`🔄 Updating existing review ${existingReview.id} for annotation ${data.annotation_id}`);
+        await repositories.annotationReview.update(existingReview.id, data);
+      } else {
+        console.log(`🆕 Creating new review for annotation ${data.annotation_id}`);
+        await repositories.annotationReview.create(data);
+      }
+
       // Refresh the annotation to get updated review_ids
       await fetchAnnotationById(data.annotation_id, { showToast: false });
       return true;
@@ -750,22 +776,50 @@ export const useAnnotationStore = defineStore('annotation', () => {
   };
 
   const approveAnnotation = async (annotationId: string): Promise<boolean> => {
-    return await createReview({
+    const existing = annotations.value.find(a => String(a.id) === String(annotationId));
+    
+    const success = await createReview({
       annotation_id: annotationId,
+      parent_id: annotationId,
       status: 'approved',
       comments: 'Expert approved.',
-    });
+      modified_value: existing?.value,
+      modified_polygon: existing?.polygon.map((p: any) => ({ 
+        X: Number(p.x !== undefined ? p.x : p.X), 
+        Y: Number(p.y !== undefined ? p.y : p.Y) 
+      }))
+    } as any);
+    
+    if (success) {
+      if (existing) {
+        existing.color = '#10b981'; // Expert Approved Green
+        annotations.value = [...annotations.value];
+      }
+    }
+    return success;
   };
 
   const rejectAnnotation = async (annotationId: string, imageId: string): Promise<boolean> => {
     // According to user requirement: "bu poligon doğru değil yalnızca bu poligonu sil"
     // We first mark as rejected, then delete it.
+    const existing = annotations.value.find(a => String(a.id) === String(annotationId));
+
     await createReview({
       annotation_id: annotationId,
+      parent_id: annotationId,
       status: 'rejected',
-      comments: 'Expert rejected and deleted.',
-    });
-    return await deleteAnnotation(annotationId, imageId);
+      comments: 'Expert rejected and hidden.',
+      modified_value: existing?.value,
+      modified_polygon: existing?.polygon.map((p: any) => ({ 
+        X: Number(p.x !== undefined ? p.x : p.X), 
+        Y: Number(p.y !== undefined ? p.y : p.Y) 
+      }))
+    } as any);
+
+    // According to user requirement: "arkaplanda db de silinmesin sadece gizlensin"
+    // Just remove from local state
+    removeAnnotationFromState(annotationId, imageId);
+    return true;
   };
 
   const editAndApproveAnnotation = async (annotationId: string, polygon: any[]): Promise<boolean> => {
@@ -787,7 +841,10 @@ export const useAnnotationStore = defineStore('annotation', () => {
       parent_id: annotationId,
       status: 'modified',
       comments: 'Expert modified and approved.',
-      modified_polygon: finalPolygon.map((p: any) => ({ x: Number(p.x), y: Number(p.y) })),
+      modified_polygon: finalPolygon.map((p: any) => ({ 
+        X: Number(p.x !== undefined ? p.x : p.X), 
+        Y: Number(p.y !== undefined ? p.y : p.Y) 
+      })),
       modified_value: finalValue
     };
 
@@ -795,6 +852,13 @@ export const useAnnotationStore = defineStore('annotation', () => {
     const success = await createReview(payload as any);
 
     if (success) {
+      // Color update for feedback
+      const ann = annotations.value.find(a => String(a.id) === String(annotationId));
+      if (ann) {
+        ann.color = '#10b981'; // Expert Approved Green
+        annotations.value = [...annotations.value];
+      }
+
       // 4. Remove from dirty annotations so we DON'T try to update the original later!
       const newMap = new Map(dirtyAnnotations.value);
       newMap.delete(annotationId);
@@ -833,8 +897,25 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
       console.log(`📥 Received ${reviews.length} reviews for: ${annotationId}`);
 
+      const latestReview = reviews
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+      if (latestReview && latestReview.status === 'rejected') {
+        console.log(`🚫 Annotation ${annotationId} is REJECTED. Hiding from state.`);
+        removeAnnotationFromState(annotationId);
+        return true;
+      }
+
+      const index = annotations.value.findIndex(a => a.id === annotationId);
+      if (latestReview && latestReview.status === 'approved' && index !== -1) {
+        console.log(`✅ Annotation ${annotationId} is APPROVED. Turning green.`);
+        annotations.value[index].color = '#10b981';
+        annotations.value = [...annotations.value];
+      }
+
       const latestModified = reviews
-        .filter(r => r.status === 'modified' && (r.modifiedPolygon || r.modifiedValue))
+        .filter(r => r.status === 'modified' || r.status === 'approved')
+        .filter(r => r.modifiedPolygon || r.modifiedValue)
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
 
       if (latestModified) {
@@ -947,6 +1028,10 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
     // Actions - Review
     createReview,
+    approveAnnotation,
+    rejectAnnotation,
+    editAndApproveAnnotation,
+    fetchAndApplyReview,
     deleteReview,
     fetchAnnotationsByImageId,
     fetchAndApplyReview,

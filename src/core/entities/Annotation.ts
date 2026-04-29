@@ -114,6 +114,9 @@ export class Annotation {
   get color(): string | null {
     return this.props.color;
   }
+  set color(val: string | null) {
+    this.props.color = val;
+  }
   get resource(): 'manual' | 'model' | 'imported' {
     return this.props.resource;
   }

@@ -10,6 +10,7 @@ export interface CreateAnnotationReviewRequest {
 
 export interface IAnnotationReviewRepository {
   create(data: CreateAnnotationReviewRequest): Promise<AnnotationReview>;
+  update(id: string, data: Partial<CreateAnnotationReviewRequest>): Promise<AnnotationReview>;
   delete(id: string): Promise<void>;
   getByAnnotationId(annotationId: string): Promise<AnnotationReview[]>;
 }

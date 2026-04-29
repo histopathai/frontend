@@ -14,8 +14,14 @@ export class AnnotationReviewRepository implements IAnnotationReviewRepository {
     return AnnotationReview.create(result);
   }
 
+  async update(id: string, data: Partial<CreateAnnotationReviewRequest>): Promise<AnnotationReview> {
+    const response = await this.apiClient.put<any>(`/api/v1/proxy/annotation-reviews/${id}`, data);
+    const result = response.data || response;
+    return AnnotationReview.create(result);
+  }
+
   async delete(id: string): Promise<void> {
-    await this.apiClient.delete(`/api/v1/annotation-reviews/${id}`);
+    await this.apiClient.delete(`/api/v1/proxy/annotation-reviews/${id}`);
   }
 
   async getByAnnotationId(annotationId: string): Promise<AnnotationReview[]> {

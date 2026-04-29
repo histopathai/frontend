@@ -429,22 +429,31 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
 
 async function handleApprove() {
   if (!selectedAnnotationData.value) return;
-  const success = await annotationStore.approveAnnotation(String(selectedAnnotationData.value.id));
+  const id = String(selectedAnnotationData.value.id);
+  const success = await annotationStore.approveAnnotation(id);
   if (success) {
     toast.success('Onaylandı.');
     isModalOpen.value = false;
+    if (anno.value) {
+      anno.value.cancelSelected();
+    }
+    updateLabelOverlays();
   }
 }
 
 async function handleReject() {
   if (!selectedAnnotationData.value || !props.selectedImage) return;
   if (confirm('Bu poligonu silmek ve reddetmek istediğinize emin misiniz?')) {
+    const id = String(selectedAnnotationData.value.id);
     const success = await annotationStore.rejectAnnotation(
-      String(selectedAnnotationData.value.id),
+      id,
       props.selectedImage.id
     );
     if (success) {
-      if (anno.value) anno.value.removeAnnotation(String(selectedAnnotationData.value.id));
+      if (anno.value) {
+        anno.value.removeAnnotation(id);
+        anno.value.cancelSelected();
+      }
       updateLabelOverlays();
       toast.error('Reddedildi ve silindi.');
       isModalOpen.value = false;
