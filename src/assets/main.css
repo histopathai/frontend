@@ -78,3 +78,102 @@
     @apply text-indigo-600 font-semibold;
   }
 }
+
+/* --- PREMIUM ANNOTATION UI --- */
+
+/* Glassmorphism Token */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.glass-panel-dark {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Floating Review Widget */
+.a9s-premium-widget {
+  @apply rounded-2xl shadow-2xl overflow-hidden min-w-[260px] max-w-[340px] glass-panel transition-all duration-300;
+  animation: premium-slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.a9s-widget-header {
+  @apply px-5 py-4 border-b border-gray-100/50 flex items-center justify-between bg-white/40;
+}
+
+.a9s-creator-badge {
+  @apply inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-widest shadow-sm;
+}
+
+.badge-model { @apply bg-gradient-to-br from-purple-500 to-indigo-600 text-white border-none !important; }
+.badge-manual { @apply bg-gradient-to-br from-blue-500 to-indigo-500 text-white border-none !important; }
+.badge-imported { @apply bg-gradient-to-br from-amber-400 to-orange-500 text-white border-none !important; }
+
+.a9s-widget-body {
+  @apply p-5;
+}
+
+/* Persistent Label UI */
+.a9s-persistent-label-html {
+  @apply pointer-events-none select-none z-[100];
+}
+
+/* Animations */
+@keyframes premium-slide-up {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px) scale(0.98); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Annotorious Overrides */
+.a9s-annotation .a9s-inner {
+  stroke-width: 2.5px !important;
+  transition: all 0.2s ease;
+}
+
+.a9s-annotation:hover .a9s-inner {
+  stroke-width: 4px !important;
+  filter: drop-shadow(0 0 4px rgba(255,255,255,0.5));
+}
+
+.a9s-selection .a9s-inner {
+  stroke-dasharray: 5, 5;
+  animation: dash 1s linear infinite;
+}
+
+@keyframes dash {
+  to { stroke-dashoffset: -10; }
+}
+
+/* Scrollbar Style */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full hover:bg-gray-400 transition-colors;
+}

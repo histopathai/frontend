@@ -5,6 +5,7 @@ import { PatientRepository } from '@/infrastructure/repositories/PatientReposito
 import { ImageRepository } from '@/infrastructure/repositories/ImageRepository';
 import { AnnotationRepository } from '@/infrastructure/repositories/AnnotationRepository';
 import { AnnotationTypeRepository } from '@/infrastructure/repositories/AnnotationTypeRepository';
+import { AnnotationReviewRepository } from './infrastructure/repositories/AnnotationReviewRepository';
 import { AdminRepository } from './infrastructure/repositories/AdminRepository';
 
 const apiClient = new ApiClient(import.meta.env.VITE_API_BASE_URL);
@@ -17,4 +18,5 @@ export const repositories = {
   image: new ImageRepository(apiClient),
   annotation: new AnnotationRepository(apiClient),
   annotationType: new AnnotationTypeRepository(apiClient),
+  annotationReview: new AnnotationReviewRepository(apiClient),
 };

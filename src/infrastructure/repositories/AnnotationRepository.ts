@@ -1,6 +1,7 @@
 import type {
   CreateNewAnnotationRequest,
   IAnnotationRepository,
+  UpdateAnnotationRequest,
 } from '@/core/repositories/IAnnotation';
 import type { PaginatedResult, QueryOptions } from '@/core/types/common';
 
@@ -107,12 +108,12 @@ export class AnnotationRepository implements IAnnotationRepository {
   }
 
   async getById(id: string): Promise<Annotation> {
-    const response = await this.apiClient.get<any>(`/api/v1/proxy/annotations/${id}`);
+    const response = await this.apiClient.get<any>(`/api/v1/proxy/annotations/${id}?_t=${Date.now()}`);
     const annotationData = response.data || response;
     return Annotation.create(annotationData);
   }
 
-  async update(id: string, data: Partial<CreateNewAnnotationRequest>): Promise<void> {
+  async update(id: string, data: UpdateAnnotationRequest): Promise<void> {
     await this.apiClient.put<any>(`/api/v1/proxy/annotations/${id}`, data);
   }
 

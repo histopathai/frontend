@@ -12,11 +12,16 @@ export interface AnnotationProps {
   polygon: Point[] | null;
   isGlobal: boolean;
   color: string | null;
+  resource: 'manual' | 'model' | 'imported';
+  reviewIds: string[];
   createdAt: Date;
   updatedAt: Date;
 }
 
 export class Annotation {
+  public isDirty = false;
+  public isPolygonDirty = false;
+
   private constructor(private props: AnnotationProps) {}
 
   static create(data: any): Annotation {
@@ -58,9 +63,14 @@ export class Annotation {
       workspaceId: workspaceId,
       value: data.value,
       type: tagType as TagType,
-      polygon: data.polygon,
+      polygon: (data.polygon || []).map((p: any) => ({
+        x: p.x !== undefined ? p.x : p.X,
+        y: p.y !== undefined ? p.y : p.Y,
+      })),
       isGlobal: data.is_global || data.isGlobal,
       color: data.color,
+      resource: data.resource || 'manual',
+      reviewIds: data.review_ids || data.reviewIds || [],
       createdAt:
         typeof data.created_at === 'string'
           ? new Date(data.created_at)
@@ -92,6 +102,9 @@ export class Annotation {
   get value(): any {
     return this.props.value;
   }
+  set value(val: any) {
+    this.props.value = val;
+  }
   get type(): TagType {
     return this.props.type;
   }
@@ -100,6 +113,15 @@ export class Annotation {
   }
   get color(): string | null {
     return this.props.color;
+  }
+  set color(val: string | null) {
+    this.props.color = val;
+  }
+  get resource(): 'manual' | 'model' | 'imported' {
+    return this.props.resource;
+  }
+  get reviewIds(): string[] {
+    return this.props.reviewIds;
   }
   get createdAt(): Date {
     return this.props.createdAt;
@@ -122,6 +144,9 @@ export class Annotation {
 
   get polygon(): Point[] {
     return [...(this.props.polygon || [])];
+  }
+  set polygon(pts: Point[]) {
+    this.props.polygon = pts;
   }
 
   getPolygonForSerialization(): { x: number; y: number }[] {

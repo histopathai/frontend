@@ -9,8 +9,6 @@ import { useToast } from 'vue-toastification';
 import { i18n } from '@/i18n';
 
 const t = i18n.global.t;
-const authRepo = repositories.auth;
-
 export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false);
   const error = ref<string | null>(null);
@@ -51,12 +49,12 @@ export const useAuthStore = defineStore('auth', () => {
 
     loading.value = true;
     try {
-      const currentSession = await authRepo.checkSession();
+      const currentSession = await repositories.auth.checkSession();
 
       if (currentSession) {
         session.value = currentSession;
 
-        const profile = await authRepo.getProfile();
+        const profile = await repositories.auth.getProfile();
         user.value = profile;
       } else {
         clearAuthData();
@@ -74,7 +72,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     error.value = null;
     try {
-      const newUser = await authRepo.register(payload);
+      const newUser = await repositories.auth.register(payload);
       toast.success(t('auth.register_success'));
       return newUser;
     } catch (err: any) {
@@ -91,10 +89,10 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     error.value = null;
     try {
-      const createdSession = await authRepo.login(token);
+      const createdSession = await repositories.auth.login(token);
       session.value = createdSession;
 
-      const profile = await authRepo.getProfile();
+      const profile = await repositories.auth.getProfile();
       user.value = profile;
 
       if (!profile.adminApproved) {
@@ -117,7 +115,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     error.value = null;
     try {
-      const profile = await authRepo.getProfile();
+      const profile = await repositories.auth.getProfile();
       user.value = profile;
       return profile;
     } catch (err: any) {
@@ -133,7 +131,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!isAuthenticated.value) return;
 
     try {
-      const profile = await authRepo.getProfile();
+      const profile = await repositories.auth.getProfile();
       user.value = profile;
     } catch (err: any) {
       console.error('Profile refresh failed:', err);
@@ -149,7 +147,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     error.value = null;
     try {
-      await authRepo.logout();
+      await repositories.auth.logout();
       toast.success(t('auth.logout_success'));
     } catch (err: any) {
       console.error('Logout error:', err);
@@ -182,7 +180,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     error.value = null;
     try {
-      await authRepo.deleteAccount();
+      await repositories.auth.deleteAccount();
       toast.success(t('auth.delete_account_success'));
       clearAuthData();
       router.push('/auth/login');
@@ -200,7 +198,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     error.value = null;
     try {
-      return await authRepo.listMySessions();
+      return await repositories.auth.listMySessions();
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || t('auth.list_sessions_failed');
       error.value = errorMessage;
@@ -215,7 +213,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     error.value = null;
     try {
-      await authRepo.revokeSession(sessionId);
+      await repositories.auth.revokeSession(sessionId);
       toast.success(t('auth.revoke_session_success'));
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || t('auth.revoke_session_failed');
