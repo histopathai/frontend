@@ -193,7 +193,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
             value: pending.value,
             color: pending.color,
             is_global: pending.is_global,
-            polygon: (pending.polygon || []).map(p => ({ x: p.x, y: p.y })),
+            polygon: (pending.polygon || []).map(p => ({ x: Number(p.x), y: Number(p.y) })) as any,
             parent: {
               id: pending.imageId,
               type: 'image',
@@ -310,7 +310,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
           const chunkSize = 5;
           for (let i = 0; i < annotationsToCheck.length; i += chunkSize) {
             const chunk = annotationsToCheck.slice(i, i + chunkSize);
-            await Promise.all(chunk.map(ann => fetchAndApplyReview(ann.id)));
+            await Promise.all(chunk.map((ann: any) => fetchAndApplyReview(ann.id)));
           }
         }, 100);
       }
@@ -356,7 +356,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
       // Performans için: Şimdilik sadece sonuçları ham haliyle koyuyoruz.
       // Review'ları her anotasyon için tek tek çekmek yerine, 
       // ileride tek bir toplu istek (bulk) ile çekmek daha sağlıklı olacaktır.
-      const annotationsWithMetadata = results.map(ann => {
+      const annotationsWithMetadata = results.data.map((ann: any) => {
         const isReview = String(ann.creatorId) !== currentUserId;
         (ann as any).isReview = isReview;
         return ann;
@@ -366,7 +366,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
       // PARALEL REVIEW YÜKLEME (Daha Geniş Kapsamlı)
       // Sadece reviewIds olanlar değil, başkasına ait (isReview: true) olan her şeyi kontrol edelim
-      const annotationsToCheck = annotationsWithMetadata.filter(ann => (ann.isReview) || (ann.reviewIds && ann.reviewIds.length > 0));
+      const annotationsToCheck = annotationsWithMetadata.filter((ann: any) => (ann.isReview) || (ann.reviewIds && ann.reviewIds.length > 0));
       
       console.log(`🔍 Checking ${annotationsToCheck.length} annotations for potential reviews...`);
 
@@ -374,7 +374,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
         const chunkSize = 5; // Hız için paket büyüklüğünü ayarlıyoruz
         for (let i = 0; i < annotationsToCheck.length; i += chunkSize) {
           const chunk = annotationsToCheck.slice(i, i + chunkSize);
-          await Promise.all(chunk.map(ann => fetchAndApplyReview(ann.id)));
+          await Promise.all(chunk.map((ann: any) => fetchAndApplyReview(ann.id)));
         }
       }
 
@@ -752,7 +752,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
         String(r.reviewerId) === currentUserId
       );
 
-      if (!data.parent_id && data.annotation_id) {
+      if (data.annotation_id) {
         (data as any).parent_id = data.annotation_id;
       }
 
@@ -909,8 +909,11 @@ export const useAnnotationStore = defineStore('annotation', () => {
       const index = annotations.value.findIndex(a => a.id === annotationId);
       if (latestReview && latestReview.status === 'approved' && index !== -1) {
         console.log(`✅ Annotation ${annotationId} is APPROVED. Turning green.`);
-        annotations.value[index].color = '#10b981';
-        annotations.value = [...annotations.value];
+        const ann = annotations.value[index];
+        if (ann) {
+          ann.color = '#10b981';
+          annotations.value = [...annotations.value];
+        }
       }
 
       const latestModified = reviews
@@ -925,15 +928,15 @@ export const useAnnotationStore = defineStore('annotation', () => {
           const ann = annotations.value[index]!;
           
           if (latestModified.modifiedPolygon) {
-            const pts = latestModified.modifiedPolygon.map(p => {
-              const x = p.x !== undefined ? p.x : (p as any).X;
-              const y = p.y !== undefined ? p.y : (p as any).Y;
+            const pts = (latestModified.modifiedPolygon as any[]).map((p: any) => {
+              const x = p.x !== undefined ? p.x : p.X;
+              const y = p.y !== undefined ? p.y : p.Y;
               return { x: Number(x), y: Number(y) };
-            }).filter(p => !isNaN(p.x) && !isNaN(p.y));
+            }).filter((p: any) => !isNaN(p.x) && !isNaN(p.y));
 
             if (pts.length >= 3) {
               // Reaktiviteyi bozmadan poligonu güncelle
-              ann.polygon = pts;
+              ann.polygon = pts as any;
               console.log(`✅ Polygon updated for: ${annotationId}`, pts);
             }
           }
@@ -1034,6 +1037,5 @@ export const useAnnotationStore = defineStore('annotation', () => {
     fetchAndApplyReview,
     deleteReview,
     fetchAnnotationsByImageId,
-    fetchAndApplyReview,
   };
 })
