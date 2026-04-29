@@ -61,6 +61,32 @@
 
       <div v-else class="text-sm text-gray-400 italic">Hasta seçilmedi</div>
 
+      <!-- İNCELEME MODU GÖSTERGESİ -->
+      <transition
+        enter-active-class="transition duration-300 ease-out"
+        enter-from-class="transform -translate-y-2 opacity-0"
+        enter-to-class="transform translate-y-0 opacity-100"
+        leave-active-class="transition duration-200 ease-in"
+        leave-from-class="transform translate-y-0 opacity-100"
+        leave-to-class="transform -translate-y-2 opacity-0"
+      >
+        <div
+          v-if="isReviewModeActive"
+          class="ml-6 flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-full shadow-sm animate-pulse"
+        >
+          <div class="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]"></div>
+          <span class="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">İnceleme Modu Aktif</span>
+          <div class="group relative">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-indigo-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div class="absolute left-0 top-6 w-48 p-2 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
+              Bu anotasyon size ait olmadığı için yaptığınız değişiklikler "İnceleme (Review)" olarak kaydedilecektir.
+            </div>
+          </div>
+        </div>
+      </transition>
+
       <div
         v-if="activePopover === 'demographics'"
         class="absolute top-14 left-0 mt-1 w-80 bg-white rounded-xl shadow-xl border border-gray-100 p-5 z-50 animate-fade-in origin-top-left"
@@ -441,6 +467,8 @@ import { usePatientStore } from '@/stores/patient';
 import { usePatientEditor } from '@/presentation/composables/annotator/usePatientEditor';
 import { useToast } from 'vue-toastification';
 
+import { useAuthStore } from '@/stores/auth';
+
 const props = defineProps({
   patient: { type: Object as PropType<any>, default: null },
   image: { type: Object as PropType<any>, default: null },
@@ -455,6 +483,7 @@ const annotationStore = useAnnotationStore();
 const annotationTypeStore = useAnnotationTypeStore();
 const workspaceStore = useWorkspaceStore();
 const patientStore = usePatientStore();
+const authStore = useAuthStore();
 const toast = useToast();
 
 const activePopover = ref<string | null>(null);
@@ -497,6 +526,17 @@ const imageAnnotations = computed(() =>
 
 // We keep a reference to know which image we loaded metadata for.
 const loadedForImageId = ref<string | null>(null);
+
+const isReviewModeActive = computed(() => {
+  const selected = annotationStore.currentAnnotation;
+  if (!selected) return false;
+  
+  const currentUserId = String(authStore.user?.userId || '');
+  const creatorId = String(selected.creatorId || '');
+  
+  // Yaratıcı biz değilsek veya bilgi yoksa Review modundayız demektir
+  return creatorId !== currentUserId || creatorId === '';
+});
 
 const activeAnnotationTypes = computed(() => {
   const ws = workspaceStore.currentWorkspace;

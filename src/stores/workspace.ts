@@ -34,7 +34,7 @@ interface FetchOptions {
 export const useWorkspaceStore = defineStore('workspace', () => {
   const { t } = useI18n();
   const toast = useToast();
-  const workspaceRepo = repositories.workspace;
+  
 
   // ===========================
   // State
@@ -132,7 +132,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         ...paginationOptions,
       };
 
-      const result: PaginatedResult<Workspace> = await workspaceRepo.list({
+      const result: PaginatedResult<Workspace> = await repositories.workspace.list({
         pagination: paginationParams,
         sort: [{ field: sort.value.by, direction: sort.value.dir }],
       });
@@ -160,7 +160,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     resetError();
 
     try {
-      const workspace = await workspaceRepo.getById(workspaceId);
+      const workspace = await repositories.workspace.getById(workspaceId);
 
       if (workspace) {
         currentWorkspace.value = workspace;
@@ -193,7 +193,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     resetError();
 
     try {
-      const newWorkspace = await workspaceRepo.create(data);
+      const newWorkspace = await repositories.workspace.create(data);
       workspaces.value = [newWorkspace, ...workspaces.value];
 
       toast.success(t('workspace.messages.create_success'));
@@ -218,8 +218,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     resetError();
 
     try {
-      await workspaceRepo.update(workspaceId, data);
-      const updatedWorkspace = await workspaceRepo.getById(workspaceId);
+      await repositories.workspace.update(workspaceId, data);
+      const updatedWorkspace = await repositories.workspace.getById(workspaceId);
 
       if (updatedWorkspace) {
         updateWorkspaceInState(updatedWorkspace);
@@ -244,7 +244,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     resetError();
 
     try {
-      await workspaceRepo.delete(workspaceId);
+      await repositories.workspace.delete(workspaceId);
 
       removeWorkspaceFromState(workspaceId);
 
@@ -263,7 +263,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     resetError();
 
     try {
-      await workspaceRepo.softDeleteMany(workspaceIds);
+      await repositories.workspace.softDeleteMany(workspaceIds);
 
       // Remove all deleted workspaces from state
       workspaces.value = workspaces.value.filter((w) => !workspaceIds.includes(w.id));
@@ -307,7 +307,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
   const getWorkspaceCount = async (): Promise<number> => {
     try {
-      return await workspaceRepo.count();
+      return await repositories.workspace.count();
     } catch (err: any) {
       handleError(err, 'Failed to get workspace count', false);
       return 0;

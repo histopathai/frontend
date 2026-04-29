@@ -60,7 +60,28 @@
     "export_error": "Anotasyonlar dışa aktarılamadı",
     "image_required": "Anotasyon kaydetmek için bir görüntü seçili olmalı",
     "polygon_required": "Poligon çizilmelidir",
-    "score_out_of_range": "Skor {min} ile {max} arasında olmalıdır"
+    "score_out_of_range": "Skor {min} ile {max} arasında olmalıdır",
+    "review_success": "İnceleme başarıyla kaydedildi",
+    "review_error": "İnceleme kaydedilemedi",
+    "review_delete_success": "İnceleme başarıyla silindi",
+    "review_delete_error": "İnceleme silinemedi"
+  },
+  "review": {
+    "status": {
+      "approved": "Onaylandı",
+      "rejected": "Reddedildi",
+      "modified": "Düzenlendi ve Onaylandı"
+    },
+    "resource": {
+      "manual": "Manuel",
+      "model": "AI Model",
+      "imported": "Dışarıdan Aktarılan"
+    },
+    "actions": {
+      "approve": "Onayla",
+      "reject": "Reddet",
+      "modify": "Düzenle ve Onayla"
+    }
   },
   "validation": {
     "polygon_required": "Poligon zorunludur",

@@ -36,7 +36,7 @@ interface FetchOptions {
 export const useAnnotationTypeStore = defineStore('annotationType', () => {
   const { t } = useI18n();
   const toast = useToast();
-  const annotationTypeRepo = repositories.annotationType;
+  
 
   // ===========================
   // State
@@ -147,12 +147,12 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
       let result: PaginatedResult<AnnotationType>;
 
       if (parentId) {
-        result = await annotationTypeRepo.listByParent(parentId, {
+        result = await repositories.annotationType.listByParent(parentId, {
           pagination: paginationParams,
           sort: [{ field: sort.value.by, direction: sort.value.dir }],
         });
       } else {
-        result = await annotationTypeRepo.list({
+        result = await repositories.annotationType.list({
           pagination: paginationParams,
           sort: [{ field: sort.value.by, direction: sort.value.dir }],
         });
@@ -183,7 +183,7 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     resetError();
 
     try {
-      const annotationType = await annotationTypeRepo.getById(annotationTypeId);
+      const annotationType = await repositories.annotationType.getById(annotationTypeId);
 
       if (annotationType) {
         currentAnnotationType.value = annotationType;
@@ -224,7 +224,7 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
         throw new Error(t('annotation_type.validation.name_required') || 'Name is required');
       }
 
-      const newAnnotationType = await annotationTypeRepo.create(data);
+      const newAnnotationType = await repositories.annotationType.create(data);
       annotationTypes.value = [newAnnotationType, ...annotationTypes.value];
       toast.success(t('annotation_type.messages.create_success'));
 
@@ -249,8 +249,8 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     resetError();
 
     try {
-      await annotationTypeRepo.update(annotationTypeId, data);
-      const updatedAnnotationType = await annotationTypeRepo.getById(annotationTypeId);
+      await repositories.annotationType.update(annotationTypeId, data);
+      const updatedAnnotationType = await repositories.annotationType.getById(annotationTypeId);
 
       if (updatedAnnotationType) {
         updateAnnotationTypeInState(updatedAnnotationType);
@@ -275,7 +275,7 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     resetError();
 
     try {
-      await annotationTypeRepo.delete(annotationTypeId);
+      await repositories.annotationType.delete(annotationTypeId);
 
       removeAnnotationTypeFromState(annotationTypeId);
 
@@ -294,7 +294,7 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
     resetError();
 
     try {
-      await annotationTypeRepo.softDeleteMany(annotationTypeIds);
+      await repositories.annotationType.softDeleteMany(annotationTypeIds);
       annotationTypes.value = annotationTypes.value.filter(
         (at) => !annotationTypeIds.includes(at.id)
       );
@@ -338,7 +338,7 @@ export const useAnnotationTypeStore = defineStore('annotationType', () => {
 
   const getAnnotationTypeCount = async (): Promise<number> => {
     try {
-      return await annotationTypeRepo.count();
+      return await repositories.annotationType.count();
     } catch (err: any) {
       handleError(err, 'Failed to get annotation type count', false);
       return 0;

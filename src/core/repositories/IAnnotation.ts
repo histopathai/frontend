@@ -17,6 +17,19 @@ export interface CreateNewAnnotationRequest {
   polygon?: Point[];
 }
 
+export interface PointRequest {
+  x: number;
+  y: number;
+}
+
+export interface UpdateAnnotationRequest {
+  creator_id: string;
+  value?: any;
+  color?: string;
+  is_global?: boolean;
+  polygon?: PointRequest[];
+}
+
 export interface IAnnotationRepository {
   listByImage(imageId: string, options?: QueryOptions): Promise<PaginatedResult<Annotation>>;
   listByParent(parentId: string, options?: QueryOptions): Promise<PaginatedResult<Annotation>>;
@@ -26,7 +39,7 @@ export interface IAnnotationRepository {
   ): Promise<PaginatedResult<Annotation>>;
   create(data: CreateNewAnnotationRequest): Promise<Annotation>;
   getById(id: string): Promise<Annotation>;
-  update(id: string, data: Partial<CreateNewAnnotationRequest>): Promise<void>;
+  update(id: string, data: UpdateAnnotationRequest): Promise<void>;
   delete(id: string): Promise<void>;
   count(): Promise<number>;
   softDeleteMany(ids: string[]): Promise<void>;

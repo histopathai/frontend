@@ -60,7 +60,28 @@
     "export_error": "Failed to export annotations",
     "image_required": "An image must be selected to save an annotation",
     "polygon_required": "A polygon must be drawn",
-    "score_out_of_range": "Score must be between {min} and {max}"
+    "score_out_of_range": "Score must be between {min} and {max}",
+    "review_success": "Review saved successfully",
+    "review_error": "Failed to save review",
+    "review_delete_success": "Review deleted successfully",
+    "review_delete_error": "Failed to delete review"
+  },
+  "review": {
+    "status": {
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "modified": "Modified & Approved"
+    },
+    "resource": {
+      "manual": "Manual",
+      "model": "AI Model",
+      "imported": "Imported"
+    },
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "modify": "Modify & Approve"
+    }
   },
   "validation": {
     "polygon_required": "Polygon is required",

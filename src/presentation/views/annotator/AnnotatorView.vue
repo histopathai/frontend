@@ -81,12 +81,10 @@ const viewerRef = ref<InstanceType<typeof Viewer> | null>(null);
 
 function handleStartDrawing() {
   isDrawingMode.value = true;
-  // viewerRef.value?.startDrawing(); // Removed: Viewer watches prop
 }
 
 function handleStopDrawing() {
   isDrawingMode.value = false;
-  // viewerRef.value?.stopDrawing(); // Removed: Viewer watches prop
 }
 </script>
 

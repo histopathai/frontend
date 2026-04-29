@@ -11,6 +11,8 @@ export interface ImageProps {
   parent: ParentRef;
   name: string;
   creatorId: string;
+  path: string;
+  processedpath: string; // Restoring this field as it might be used for DZI loading
 
   // Basic image properties
   format: string;
@@ -29,6 +31,7 @@ export class Image {
   private constructor(private props: ImageProps) {}
 
   static create(data: any): Image {
+    console.log('🖼️ Image.create data:', data);
     if (!data.parent) {
       throw new Error('Parent reference is required');
     }
@@ -49,6 +52,8 @@ export class Image {
       parent: data.parent,
       creatorId: data.creator_id,
       name: data.name,
+      path: data.path || data.file_path || data.full_path || '',
+      processedpath: data.processed_path || data.processedpath || data.id,
       format: data.format,
       width: data.width ?? null,
       height: data.height ?? null,
@@ -81,6 +86,14 @@ export class Image {
 
   get name(): string {
     return this.props.name;
+  }
+
+  get path(): string {
+    return this.props.path;
+  }
+
+  get processedpath(): string {
+    return this.props.processedpath;
   }
 
   get format(): string {

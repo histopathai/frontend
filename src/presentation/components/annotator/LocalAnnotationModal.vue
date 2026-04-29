@@ -2,13 +2,13 @@
   <Teleport to="body">
     <div
       v-if="isOpen"
-      class="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4 transition-opacity"
+      class="fixed inset-0 z-[999999] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4 transition-opacity"
     >
       <div
-        class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in flex flex-col max-h-[90vh]"
+        class="glass-panel rounded-[2rem] shadow-[0_32px_64px_-15px_rgba(0,0,0,0.3)] w-full max-w-lg overflow-hidden animate-fade-in flex flex-col max-h-[90vh] border-white/40"
       >
         <div
-          class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50"
+          class="px-8 py-6 border-b border-gray-100/50 flex justify-between items-center bg-white/40 backdrop-blur-md"
         >
           <div>
             <h3 class="font-bold text-gray-900 text-lg">Bölgesel İşaretleme</h3>
@@ -37,12 +37,12 @@
           </button>
         </div>
 
-        <div class="p-6 overflow-y-auto custom-scrollbar space-y-6 flex-1">
-          <div v-if="localTypes.length === 0" class="flex flex-col items-center py-8 text-center">
-            <div class="bg-amber-50 p-3 rounded-full mb-3">
+        <div class="p-8 overflow-y-auto custom-scrollbar space-y-8 flex-1">
+          <div v-if="localTypes.length === 0" class="flex flex-col items-center py-12 text-center">
+            <div class="bg-amber-50 p-4 rounded-2xl mb-4 shadow-inner">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                class="h-8 w-8 text-amber-500"
+                class="h-10 w-10 text-amber-500"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -55,8 +55,8 @@
                 />
               </svg>
             </div>
-            <p class="text-sm font-medium text-gray-700">Tanımlı Lokal Etiket Bulunamadı</p>
-            <p class="text-xs text-gray-500 mt-1">
+            <p class="text-base font-bold text-gray-800">Tanımlı Lokal Etiket Bulunamadı</p>
+            <p class="text-xs text-gray-500 mt-2 max-w-[200px] leading-relaxed">
               Lütfen çalışma alanı ayarlarından lokal etiket ekleyin.
             </p>
           </div>
@@ -64,7 +64,7 @@
           <div
             v-for="type in localTypes"
             :key="type.id"
-            class="group p-4 rounded-xl border border-gray-100 bg-gray-50/30 hover:bg-white hover:border-indigo-100 hover:shadow-sm transition-all space-y-3"
+            class="group p-5 rounded-2xl border border-white/60 bg-white/40 hover:bg-white/60 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 space-y-4"
           >
             <div class="flex items-center gap-2">
               <span
@@ -136,25 +136,25 @@
                 </p>
               </div>
 
-              <div v-else-if="checkType(type.type, 'boolean')" class="flex gap-2">
+              <div v-else-if="checkType(type.type, 'boolean')" class="flex gap-3">
                 <button
                   @click="formValues[type.id] = true"
-                  class="px-4 py-2 rounded-lg text-xs font-semibold border transition-all"
+                  class="flex-1 px-4 py-3 rounded-xl text-[11px] font-bold border transition-all duration-300"
                   :class="
                     formValues[type.id] === true
-                      ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
-                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                      ? 'bg-emerald-500 text-white border-emerald-600 shadow-lg shadow-emerald-200'
+                      : 'bg-white/50 text-gray-500 border-gray-200 hover:bg-white hover:border-emerald-200'
                   "
                 >
                   EVET (Pozitif)
                 </button>
                 <button
                   @click="formValues[type.id] = false"
-                  class="px-4 py-2 rounded-lg text-xs font-semibold border transition-all"
+                  class="flex-1 px-4 py-3 rounded-xl text-[11px] font-bold border transition-all duration-300"
                   :class="
                     formValues[type.id] === false
-                      ? 'bg-rose-500 text-white border-rose-600 shadow-sm'
-                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                      ? 'bg-rose-500 text-white border-rose-600 shadow-lg shadow-rose-200'
+                      : 'bg-white/50 text-gray-500 border-gray-200 hover:bg-white hover:border-rose-200'
                   "
                 >
                   HAYIR (Negatif)
@@ -169,21 +169,23 @@
         </div>
 
         <div
-          class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-between gap-3 shrink-0"
+          class="px-8 py-6 bg-white/40 backdrop-blur-md border-t border-gray-100/50 flex justify-between gap-3 shrink-0"
         >
           <div></div>
 
-          <div class="flex gap-3">
+          <div class="flex gap-4">
             <button
               @click="handleCancel"
-              class="px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-200 rounded-xl transition-colors"
+              class="px-6 py-3 text-xs font-bold text-gray-500 hover:text-gray-800 hover:bg-white/50 rounded-xl transition-all"
             >
               Vazgeç
             </button>
+
+            <!-- Normal Mode Buttons -->
             <button
               @click="handleSave"
               :disabled="!isValid"
-              class="px-8 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-40 disabled:grayscale transition-all shadow-md hover:shadow-indigo-200"
+              class="px-10 py-3 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-40 disabled:grayscale transition-all shadow-xl shadow-indigo-200 hover:scale-[1.02] active:scale-[0.98]"
             >
               {{ isEditing ? 'Güncelle' : 'Kaydet' }}
             </button>
@@ -201,9 +203,10 @@ const props = defineProps<{
   isOpen: boolean;
   annotationTypes: any[];
   initialValues?: Record<string, any>;
+  isReviewMode?: boolean;
 }>();
 
-const emit = defineEmits(['save', 'cancel']);
+const emit = defineEmits(['save', 'cancel', 'approve', 'reject', 'editAndApprove']);
 
 const formValues = ref<Record<string, any>>({});
 
@@ -239,6 +242,7 @@ const isValid = computed(() => {
 watch(
   () => props.isOpen,
   (val) => {
+    console.log('🔍 LocalAnnotationModal: isOpen changed to', val);
     if (val) {
       if (props.initialValues) {
         formValues.value = JSON.parse(JSON.stringify(props.initialValues));
@@ -298,6 +302,17 @@ function handleSave() {
   });
 
   emit('save', results);
+}
+
+function handleEditAndApprove() {
+  const results: any[] = [];
+  Object.entries(formValues.value).forEach(([id, value]) => {
+    const typeInfo = localTypes.value.find((t) => t.id === id);
+    if (typeInfo && value !== undefined) {
+      results.push({ type: typeInfo, value });
+    }
+  });
+  emit('editAndApprove', results);
 }
 
 function handleCancel() {
