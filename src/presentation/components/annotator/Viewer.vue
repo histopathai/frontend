@@ -54,8 +54,8 @@ const isReviewModeActive = computed(() => {
   }
   
   // 2. Eğer görüntüdeki HERHANGİ BİR anotasyon (global veya poligon) başkasına aitse
-  const list = annotationStore.annotations || [];
-  return list.some(a => String(a.creatorId || '') !== currentUserId);
+  const list = (annotationStore.annotations as any[]) || [];
+  return list.some((a: any) => String(a.creatorId || '') !== currentUserId);
 });
 
 const props = defineProps({
@@ -208,7 +208,7 @@ onMounted(() => {
     const targetId = rawId.startsWith('#') ? rawId.slice(1) : rawId;
 
     // 1. Try to find in persisted annotations
-    let found = annotationStore.annotations.find(a => String(a.id) === targetId);
+    let found = annotationStore.annotations.find((a: any) => String(a.id) === targetId);
     if (found) console.log('🎯 Found by ID (Persisted):', targetId);
     
     // 2. Try to find in pending annotations
@@ -274,11 +274,11 @@ onMounted(() => {
   onAnnotationDeselected.value = () => {
     // Re-enable navigation if it was disabled for point editing
     if (viewer.value) {
-      viewer.value.setMouseNavEnabled(true);
-      viewer.value.panHorizontal = true;
-      viewer.value.panVertical = true;
-      viewer.value.gestureSettingsMouse.clickToZoom = true;
-      viewer.value.gestureSettingsMouse.dblClickToZoom = true;
+      (viewer.value as any).setMouseNavEnabled(true);
+      (viewer.value as any).panHorizontal = true;
+      (viewer.value as any).panVertical = true;
+      (viewer.value as any).gestureSettingsMouse.clickToZoom = true;
+      (viewer.value as any).gestureSettingsMouse.dblClickToZoom = true;
     }
     if (!isModalOpen.value) selectedAnnotationData.value = null;
   };
@@ -399,16 +399,18 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
       // 2. Add ONLY ONE polygon to Annotorious for visualization/selection
       // This prevents multiple overlapping polygons for the same area.
       if (anno.value && results.length > 0) {
-        const polygonStr = pts.map(p => `${p.x},${p.y}`).join(' ');
+        const ptsStr = pts.map(p => `${p.x},${p.y}`).join(' ');
         const mainRes = results[0];
-        anno.value.addAnnotation({
-          id: firstTempId, type: 'Annotation',
-          body: [
-            { type: 'TextualBody', value: `${mainRes.type.name}: ${mainRes.value}`, purpose: 'tagging' }, 
-            { type: 'TextualBody', value: mainRes.type.color || '#ec4899', purpose: 'highlighting' }
-          ],
-          target: { selector: { type: 'SvgSelector', value: `<svg><polygon points="${polygonStr}"></polygon></svg>` } },
-        });
+        if (mainRes) {
+          anno.value.addAnnotation({
+            id: firstTempId, type: 'Annotation',
+            body: [
+              { type: 'TextualBody', value: `${mainRes.type.name}: ${mainRes.value}`, purpose: 'tagging' }, 
+              { type: 'TextualBody', value: mainRes.type.color || '#ec4899', purpose: 'highlighting' }
+            ],
+            target: { selector: { type: 'SvgSelector', value: `<svg><polygon points="${ptsStr}"></polygon></svg>` } },
+          });
+        }
       }
     }
 
