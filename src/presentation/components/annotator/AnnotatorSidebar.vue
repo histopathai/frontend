@@ -465,7 +465,6 @@ async function fetchPatientStats(patient: Patient) {
     patient.updateAnnotationStats(images.length, annotatedCount);
     patientStore.updatePatientStats(patient.id, images.length, annotatedCount);
   } catch (error) {
-    console.error(`Failed to fetch stats for patient ${patient.id}`, error);
   }
 }
 
@@ -484,7 +483,6 @@ async function loadAllData() {
     }
     toast.success('Tüm kayıtlar yüklendi.');
   } catch (error) {
-    console.error(error);
     toast.error('Veri yüklenirken hata oluştu.');
   } finally {
     isLoadingAll.value = false;
@@ -564,11 +562,15 @@ function isSelected(patientId: string) {
 }
 
 function getPatientProgressStyle(patient: Patient) {
-  if (!patient.imageCount || patient.imageCount === 0) return {};
+  const stats = patientStore.getPatientStats(patient.id);
+  const imageCount = stats?.total ?? patient.imageCount;
+  const annotatedImageCount = stats?.annotated ?? patient.annotatedImageCount;
+
+  if (!imageCount || imageCount === 0) return {};
 
   const percentage = Math.min(
     100,
-    Math.max(0, (patient.annotatedImageCount / patient.imageCount) * 100)
+    Math.max(0, (annotatedImageCount / imageCount) * 100)
   );
 
   if (percentage === 0) return {};

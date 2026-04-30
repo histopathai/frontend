@@ -60,12 +60,10 @@ export function useRegistration() {
 
         successMessage.value = t('auth.register_success');
       } catch (backendError: any) {
-        console.error('Backend registration failed, rolling back Firebase user:', backendError);
 
         try {
           await deleteUser(firebaseUser);
         } catch (deleteError) {
-          console.error('❌ Failed to delete Firebase user during rollback:', deleteError);
         }
 
         error.value = backendError.message || t('auth.register_failed');

@@ -51,7 +51,6 @@ export function usePasswordChange() {
       newPassword.value = '';
       confirmNewPassword.value = '';
     } catch (err: any) {
-      console.error('Password change error:', err);
 
       if (err.code === 'auth/wrong-password') {
         error.value = t('auth.wrong_current_password');

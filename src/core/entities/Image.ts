@@ -31,7 +31,6 @@ export class Image {
   private constructor(private props: ImageProps) {}
 
   static create(data: any): Image {
-    console.log('🖼️ Image.create data:', data);
     if (!data.parent) {
       throw new Error('Parent reference is required');
     }

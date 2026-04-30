@@ -42,7 +42,6 @@ export class AuthRepository implements IAuthRepository {
       }
       return session;
     } catch (error) {
-      console.error('Login error:', error);
       throw error;
     }
   }
@@ -64,7 +63,6 @@ export class AuthRepository implements IAuthRepository {
     try {
       await this.apiClient.delete('/api/v1/sessions/current');
     } catch (error) {
-      console.error('Logout error:', error);
       throw error;
     }
   }
@@ -88,5 +86,13 @@ export class AuthRepository implements IAuthRepository {
   }
   async deleteAccount(): Promise<void> {
     await this.apiClient.delete('/api/v1/user/account');
+  }
+  async getPublicUser(uid: string): Promise<any> {
+    try {
+      const response = await this.apiClient.get<any>(`/api/v1/users/${uid}`);
+      return (response as any).data || response;
+    } catch (error) {
+      return null;
+    }
   }
 }

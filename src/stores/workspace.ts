@@ -77,7 +77,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const handleError = (err: any, defaultMessage: string, showToast = true): void => {
     const errorMessage = err.response?.data?.message || err.message || defaultMessage;
     error.value = errorMessage;
-    console.error(defaultMessage, err);
 
     if (showToast) {
       toast.error(errorMessage);

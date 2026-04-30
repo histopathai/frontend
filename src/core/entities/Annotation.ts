@@ -14,6 +14,7 @@ export interface AnnotationProps {
   color: string | null;
   resource: 'manual' | 'model' | 'imported';
   reviewIds: string[];
+  creatorName?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,6 +72,7 @@ export class Annotation {
       color: data.color,
       resource: data.resource || 'manual',
       reviewIds: data.review_ids || data.reviewIds || [],
+      creatorName: data.displayName || data.display_name || data.creator_name || data.creatorName,
       createdAt:
         typeof data.created_at === 'string'
           ? new Date(data.created_at)
@@ -122,6 +124,9 @@ export class Annotation {
   }
   get reviewIds(): string[] {
     return this.props.reviewIds;
+  }
+  get creatorName(): string | undefined {
+    return this.props.creatorName;
   }
   get createdAt(): Date {
     return this.props.createdAt;

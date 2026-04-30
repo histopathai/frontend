@@ -511,7 +511,6 @@ async function fetchWorkspaceTypes() {
 
     await store.fetchAnnotationTypes({ limit: 100 }, { refresh: true });
   } catch (error) {
-    console.error(error);
   } finally {
     loadingTypes.value = false;
   }
@@ -596,6 +595,14 @@ async function addTypeToWorkspace(typeId: string) {
   });
 }
 
+watch(() => form.color, (newColor) => {
+  const reserved = ['#10b981', '#3b82f6'];
+  if (reserved.includes(newColor.toLowerCase())) {
+    toast.warning('Bu renk inceleme modu için ayrılmıştır. Lütfen başka bir renk seçiniz.');
+    form.color = '#4F46E5'; // Reset to default
+  }
+});
+
 async function handleLinkExisting() {
   if (!currentTypeId.value) return;
 
@@ -607,7 +614,6 @@ async function handleLinkExisting() {
 
     startNewType();
   } catch (error) {
-    console.error(error);
     toast.error('Bağlama sırasında hata oluştu.');
   } finally {
     loading.value = false;
@@ -677,7 +683,6 @@ async function handleSave() {
     startNewType();
     emit('saved');
   } catch (error) {
-    console.error(error);
     if (!store.error) toast.error('Hata oluştu.');
   } finally {
     loading.value = false;
@@ -714,7 +719,6 @@ async function handleRemoveFromWorkspace() {
 
     startNewType();
   } catch (error) {
-    console.error('Silme işlemi başarısız:', error);
     toast.error('Çıkarma işlemi sırasında bir hata oluştu.');
   } finally {
     loading.value = false;

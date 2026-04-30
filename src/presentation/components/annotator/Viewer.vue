@@ -128,14 +128,14 @@ function convertAnnotoriousToPoints(selection: any): Array<{ x: number; y: numbe
     }, []);
 }
 
-defineExpose({ startDrawing, stopDrawing });
+defineExpose({ startDrawing, stopDrawing, loadAnnotations });
 
 // --- WATCHERS ---
 
 watch(
   () => props.selectedImage,
   async (newImg) => {
-    if (newImg) await loadImage(newImg);
+    await loadImage(newImg);
   }
 );
 
@@ -153,8 +153,8 @@ watch(
   () => annotationStore.pendingCount,
   async (newCount, oldCount) => {
     if (oldCount > 0 && newCount === 0 && props.selectedImage) {
-      console.log('🔄 Global Save (Pending) completed, UI will update via reactive store.');
       selectedAnnotationData.value = null;
+      updateLabelOverlays();
     }
   }
 );
@@ -163,8 +163,8 @@ watch(
   () => annotationStore.dirtyCount,
   async (newCount, oldCount) => {
     if (oldCount > 0 && newCount === 0 && props.selectedImage) {
-      console.log('🔄 Global Save (Dirty) completed, UI will update via reactive store.');
       selectedAnnotationData.value = null;
+      updateLabelOverlays();
     }
   }
 );
@@ -196,10 +196,8 @@ onMounted(() => {
   };
 
   onAnnotationSelected.value = (annotation: any) => {
-    console.log('🔍 Polygon selected:', annotation.id);
     // If we just clicked 'Edit Points', skip opening the modal once
     if ((window as any)._skipAnnotationModal) {
-      console.log('✏️ Edit mode detected, skipping modal');
       (window as any)._skipAnnotationModal = false;
       return;
     }
@@ -209,12 +207,10 @@ onMounted(() => {
 
     // 1. Try to find in persisted annotations
     let found = annotationStore.annotations.find((a: any) => String(a.id) === targetId);
-    if (found) console.log('🎯 Found by ID (Persisted):', targetId);
     
     // 2. Try to find in pending annotations
     if (!found) {
       found = annotationStore.pendingAnnotations.find(p => String(p.tempId) === targetId) as any;
-      if (found) console.log('🎯 Found by ID (Pending):', targetId);
     }
 
     // 3. Fallback: match by polygon geometry
@@ -222,10 +218,8 @@ onMounted(() => {
       const pts = convertAnnotoriousToPoints(annotation);
       found = annotationStore.annotations.find(a => isSamePolygon(a.polygon, pts));
       if (found) {
-        console.log('🎯 Found by Geometry (Persisted)');
       } else {
         found = annotationStore.pendingAnnotations.find(p => isSamePolygon(p.polygon || [], pts)) as any;
-        if (found) console.log('🎯 Found by Geometry (Pending)');
       }
     }
 
@@ -259,11 +253,9 @@ onMounted(() => {
         });
       
       editInitialValues.value = initial;
-      console.log('✨ Opening modal for existing/pending annotation', initial);
       nextTick(() => { isModalOpen.value = true; });
     } else {
       // 4. Case: Poligon is on the viewer but not in any store (e.g. modal was cancelled previously)
-      console.log('❓ Unsaved/Unpending annotation selected, opening modal as new');
       currentDrawingData.value = annotation;
       selectedAnnotationData.value = null;
       editInitialValues.value = {};
@@ -324,7 +316,6 @@ async function executeDelete() {
         }
         if (anno.value) anno.value.removeAnnotation(String(a.id));
       } catch (e) {
-        console.error('Delete error for annotation:', a.id, e);
       }
     }
     updateLabelOverlays();

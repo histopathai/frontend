@@ -40,7 +40,6 @@ export class AnnotationRepository implements IAnnotationRepository {
           try {
             return Annotation.create(item);
           } catch (e) {
-            console.warn('Skipping invalid annotation:', item, e);
             return null;
           }
         })
@@ -88,7 +87,6 @@ export class AnnotationRepository implements IAnnotationRepository {
           try {
             return Annotation.create(item);
           } catch (e) {
-            console.warn('Skipping invalid annotation:', item, e);
             return null;
           }
         })

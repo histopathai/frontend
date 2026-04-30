@@ -30,6 +30,7 @@
         @stop-drawing="handleStopDrawing"
         @prev="prevImage"
         @next="nextImage"
+        @refresh-viewer="handleRefreshViewer"
       />
 
       <div class="flex-1 w-full overflow-hidden relative group">
@@ -86,10 +87,16 @@ function handleStartDrawing() {
 function handleStopDrawing() {
   isDrawingMode.value = false;
 }
+
+function handleRefreshViewer() {
+  if (selectedImageId.value) {
+    viewerRef.value?.loadAnnotations(selectedImageId.value);
+  }
+}
 </script>
 
 <style scoped>
 .w-85 {
-  width: 340px;
+  width: clamp(240px, 18vw, 320px);
 }
 </style>
