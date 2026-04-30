@@ -82,7 +82,6 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
         await startWebcam();
       }
     } catch (err: any) {
-      console.error('Kamera başlatma hatası:', err);
       microscopeError.value = 'Kameraya erişilemedi. İzinleri kontrol edin.';
     }
   }
@@ -102,7 +101,6 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
         },
       });
     } catch (err: any) {
-      console.error('Akış başlatma hatası:', err);
       microscopeError.value = 'Seçilen kamera başlatılamadı.';
     }
   }
@@ -192,7 +190,6 @@ export function useImageUpload(patientId: string, emit: (event: 'close' | 'uploa
       setFile(file);
       toast.success(isPiCam ? 'Görüntü cihazdan alındı.' : 'Görüntü yakalandı.');
     } catch (err: any) {
-      console.error(err);
       if (err.name === 'AbortError') {
         microscopeError.value = 'Bağlantı zaman aşımına uğradı (30sn).';
       } else {

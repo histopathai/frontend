@@ -150,7 +150,6 @@ async function loadWorkspace() {
   try {
     await workspaceStore.fetchWorkspaceById(props.workspaceId);
   } catch (e) {
-    console.error('Workspace yüklenirken hata:', e);
   }
 }
 

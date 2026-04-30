@@ -184,7 +184,7 @@
             <!-- Normal Mode Buttons -->
             <button
               @click="handleSave"
-              :disabled="!isValid"
+              :disabled="!isValid || (isReviewMode && !isDirty)"
               class="px-10 py-3 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-40 disabled:grayscale transition-all shadow-xl shadow-indigo-200 hover:scale-[1.02] active:scale-[0.98]"
             >
               {{ isEditing ? 'Güncelle' : 'Kaydet' }}
@@ -222,6 +222,11 @@ const isEditing = computed(
   () => props.initialValues && Object.keys(props.initialValues).length > 0
 );
 
+const isDirty = computed(() => {
+  if (!props.initialValues) return false;
+  return JSON.stringify(formValues.value) !== JSON.stringify(props.initialValues);
+});
+
 const isValid = computed(() => {
   const hasValue = Object.values(formValues.value).some(
     (v) => v !== null && v !== undefined && v !== ''
@@ -242,7 +247,6 @@ const isValid = computed(() => {
 watch(
   () => props.isOpen,
   (val) => {
-    console.log('🔍 LocalAnnotationModal: isOpen changed to', val);
     if (val) {
       if (props.initialValues) {
         formValues.value = JSON.parse(JSON.stringify(props.initialValues));

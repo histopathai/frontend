@@ -60,7 +60,6 @@ export const useAuthStore = defineStore('auth', () => {
         clearAuthData();
       }
     } catch (err: any) {
-      console.error('Auth initialization error:', err);
       clearAuthData();
     } finally {
       loading.value = false;
@@ -134,7 +133,6 @@ export const useAuthStore = defineStore('auth', () => {
       const profile = await repositories.auth.getProfile();
       user.value = profile;
     } catch (err: any) {
-      console.error('Profile refresh failed:', err);
     }
   }
 
@@ -150,7 +148,6 @@ export const useAuthStore = defineStore('auth', () => {
       await repositories.auth.logout();
       toast.success(t('auth.logout_success'));
     } catch (err: any) {
-      console.error('Logout error:', err);
       toast.warning(t('auth.logout_failed'));
     } finally {
       clearAuthData();
@@ -171,7 +168,6 @@ export const useAuthStore = defineStore('auth', () => {
 
       return isAuthenticated.value;
     } catch (err) {
-      console.error('Auth check failed:', err);
       return false;
     }
   }

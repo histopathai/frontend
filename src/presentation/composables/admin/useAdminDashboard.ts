@@ -35,7 +35,6 @@ export function useAdminDashboard() {
       totalPatients.value = pCount;
       totalImages.value = iCount;
     } catch (e) {
-      console.error('İstatistikler yüklenemedi', e);
     }
   });
 

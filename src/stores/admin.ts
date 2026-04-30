@@ -35,7 +35,6 @@ export const useAdminStore = defineStore('admin', () => {
       const result = await adminRepo.getAllUsers(pagination);
       users.value = result.data;
     } catch (err: any) {
-      console.error('Fetch Users Error:', err);
       const errorMessage = err.response?.data?.message || t('admin.users_fetch_failed');
       error.value = errorMessage;
       toast.error(errorMessage);
@@ -52,7 +51,6 @@ export const useAdminStore = defineStore('admin', () => {
       updateUserInState(updatedUser);
       toast.success(t('admin.user_approved'));
     } catch (err: any) {
-      console.error('Approve User Error:', err);
       const errorMessage = err.response?.data?.message || t('admin.user_approval_failed');
       error.value = errorMessage;
       toast.error(errorMessage);
@@ -69,7 +67,6 @@ export const useAdminStore = defineStore('admin', () => {
       updateUserInState(updatedUser);
       toast.success(t('admin.user_suspended'));
     } catch (err: any) {
-      console.error('Suspend User Error:', err);
       const errorMessage = err.response?.data?.message || t('admin.user_suspend_failed');
       error.value = errorMessage;
       toast.error(errorMessage);
@@ -86,7 +83,6 @@ export const useAdminStore = defineStore('admin', () => {
       updateUserInState(updatedUser);
       toast.success(t('admin.user_made_admin'));
     } catch (err: any) {
-      console.error('Make Admin Error:', err);
       const errorMessage = err.response?.data?.message || t('admin.user_make_admin_failed');
       error.value = errorMessage;
       toast.error(errorMessage);
@@ -103,7 +99,6 @@ export const useAdminStore = defineStore('admin', () => {
       users.value = users.value.filter((user) => user.userId !== uid);
       toast.success(t('admin.user_deleted'));
     } catch (err: any) {
-      console.error('Delete User Error:', err);
       const errorMessage = err.response?.data?.message || t('admin.user_delete_failed');
       error.value = errorMessage;
       toast.error(errorMessage);

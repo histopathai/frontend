@@ -23,7 +23,6 @@ export function usePasswordReset() {
       toast.success('Sıfırlama linki gönderildi!');
       email.value = '';
     } catch (err: any) {
-      console.error('Password reset error:', err);
       if (err.code === 'auth/user-not-found') {
         error.value = 'Bu e-posta adresi ile kayıtlı bir kullanıcı bulunamadı.';
       } else {

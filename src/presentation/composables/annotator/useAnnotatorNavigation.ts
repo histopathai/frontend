@@ -2,6 +2,7 @@ import { ref, computed, watch } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { usePatientStore } from '@/stores/patient';
 import { useImageStore } from '@/stores/image';
+import { useAnnotationStore } from '@/stores/annotation';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { storeToRefs } from 'pinia';
 import type { Patient } from '@/core/entities/Patient';
@@ -13,6 +14,7 @@ export function useAnnotatorNavigation() {
   const patientStore = usePatientStore();
   const imageStore = useImageStore();
   const annotationTypeStore = useAnnotationTypeStore();
+  const annotationStore = useAnnotationStore();
 
   const { workspaces } = storeToRefs(workspaceStore);
   const { patientsByWorkspace } = storeToRefs(patientStore);
@@ -27,9 +29,14 @@ export function useAnnotatorNavigation() {
       annotationTypeStore.loading
   );
 
-  const selectedWorkspaceId = ref<string | undefined>(undefined);
-  const selectedPatientId = ref<string | undefined>(undefined);
-  const selectedImageId = ref<string | undefined>(undefined);
+  const STORAGE_KEY_WS = 'annotator_selected_workspace_id';
+  const STORAGE_KEY_PT = 'annotator_selected_patient_id';
+  const STORAGE_KEY_IMG = 'annotator_selected_image_id';
+  const STORAGE_KEY_PAGE = 'annotator_patients_page';
+
+  const selectedWorkspaceId = ref<string | undefined>(localStorage.getItem(STORAGE_KEY_WS) || undefined);
+  const selectedPatientId = ref<string | undefined>(localStorage.getItem(STORAGE_KEY_PT) || undefined);
+  const selectedImageId = ref<string | undefined>(localStorage.getItem(STORAGE_KEY_IMG) || undefined);
   const selectedAnnotationTypeId = ref<string | undefined>(undefined);
 
   const currentPatients = computed((): Patient[] => {
@@ -61,29 +68,37 @@ export function useAnnotatorNavigation() {
     return currentPatients.value.findIndex((p) => p.id === selectedPatientId.value);
   });
 
+  function clearAllStates() {
+    annotationStore.clearAnnotations();
+    patientStore.clearPatients();
+    imageStore.clearImages();
+    selectedPatientId.value = undefined;
+    selectedImageId.value = undefined;
+    localStorage.removeItem(STORAGE_KEY_PT);
+    localStorage.removeItem(STORAGE_KEY_IMG);
+  }
+
   function selectWorkspace(workspace: Workspace) {
     if (selectedWorkspaceId.value === workspace.id) return;
 
+    clearAllStates();
     selectedWorkspaceId.value = workspace.id;
-    selectedPatientId.value = undefined;
-    selectedImageId.value = undefined;
-
+    localStorage.setItem(STORAGE_KEY_WS, workspace.id);
+    
     workspaceStore.setCurrentWorkspace(workspace);
 
-    patientStore.fetchPatientsByWorkspace(workspace.id);
     annotationTypeStore.fetchAnnotationTypes(
       { limit: 100 },
       { refresh: true, parentId: workspace.id }
     );
 
-    // Reset pagination on workspace change
     currentPage.value = 1;
-    limit.value = 20; // Default limit
+    localStorage.setItem(STORAGE_KEY_PAGE, '1');
     loadPatientsPage();
   }
 
   // --- Pagination Logic ---
-  const currentPage = ref(1);
+  const currentPage = ref(Number(localStorage.getItem(STORAGE_KEY_PAGE)) || 1);
   const limit = ref(20);
 
   const totalPages = computed(() => {
@@ -140,16 +155,34 @@ export function useAnnotatorNavigation() {
     if (!patient) {
       selectedPatientId.value = undefined;
       selectedImageId.value = undefined;
+      localStorage.removeItem(STORAGE_KEY_PT);
+      localStorage.removeItem(STORAGE_KEY_IMG);
+      imageStore.clearImages();
+      annotationStore.clearAnnotations();
       return;
     }
 
-    if (selectedPatientId.value === patient.id) {
-      return;
-    }
+    if (selectedPatientId.value === patient.id) return;
+
+    // Clear previous patient's state
+    imageStore.clearImages();
+    annotationStore.clearAnnotations();
+    selectedImageId.value = undefined;
+    localStorage.removeItem(STORAGE_KEY_IMG);
 
     selectedPatientId.value = patient.id;
-    selectedImageId.value = undefined;
-    imageStore.fetchImagesByPatient(patient.id);
+    localStorage.setItem(STORAGE_KEY_PT, patient.id);
+    patientStore.setCurrentPatient(patient);
+
+    // Load images for the new patient
+    imageStore.fetchImagesByPatient(patient.id, { limit: 100 }, { refresh: true }).then(() => {
+      // Auto-select first image if none selected
+      const images = imageStore.getImagesByPatientId(patient.id);
+      const firstImage = images[0];
+      if (firstImage && !selectedImageId.value) {
+        selectImage(firstImage as any);
+      }
+    });
   }
 
   function selectImage(image: Image) {
@@ -202,19 +235,54 @@ export function useAnnotatorNavigation() {
     }
   }
 
+  // --- Persistence Watchers ---
+  watch(selectedWorkspaceId, (val) => {
+    if (val) localStorage.setItem(STORAGE_KEY_WS, val);
+    else localStorage.removeItem(STORAGE_KEY_WS);
+  });
+  watch(selectedPatientId, (val) => {
+    if (val) localStorage.setItem(STORAGE_KEY_PT, val);
+    else localStorage.removeItem(STORAGE_KEY_PT);
+  });
+  watch(selectedImageId, (val) => {
+    if (val) localStorage.setItem(STORAGE_KEY_IMG, val);
+    else localStorage.removeItem(STORAGE_KEY_IMG);
+  });
+  watch(currentPage, (val) => {
+    localStorage.setItem(STORAGE_KEY_PAGE, val.toString());
+  });
+
   watch(currentImages, (newImages) => {
-    const firstImage = newImages[0];
-    if (firstImage && !selectedImageId.value) {
-      selectImage(firstImage);
+    if (newImages.length === 0) return;
+    if (!selectedImageId.value) {
+      const firstImage = newImages[0];
+      if (firstImage) selectImage(firstImage);
     }
   });
 
   watch(
     currentPatients,
     (newPatients) => {
-      if (newPatients && newPatients.length > 0 && !selectedPatientId.value) {
-        const firstPatient = newPatients[0];
-        if (firstPatient) selectPatient(firstPatient);
+      if (newPatients && newPatients.length > 0) {
+        if (!selectedPatientId.value) {
+          const firstPatient = newPatients[0];
+          if (firstPatient) selectPatient(firstPatient);
+        } else {
+          // Check if stored patient exists in the current list
+          const exists = newPatients.some((p) => p.id === selectedPatientId.value);
+          if (exists) {
+            // Restore side effect: fetch images for this patient (only if not already loaded)
+            const patientId = selectedPatientId.value as string;
+            const alreadyLoaded = imageStore.getImagesByPatientId(patientId).length > 0;
+            if (!alreadyLoaded) {
+              imageStore.fetchImagesByPatient(patientId);
+            }
+          } else {
+            // Fallback to first patient if stored ID is invalid for this workspace
+            const firstPatient = newPatients[0];
+            if (firstPatient) selectPatient(firstPatient);
+          }
+        }
       }
     },
     { immediate: true }
@@ -223,10 +291,34 @@ export function useAnnotatorNavigation() {
   watch(
     workspaces,
     (newWorkspaces) => {
-      if (newWorkspaces && newWorkspaces.length > 0 && !selectedWorkspaceId.value) {
-        const firstWorkspace = newWorkspaces[0];
-        if (firstWorkspace) {
-          selectWorkspace(firstWorkspace);
+      if (newWorkspaces && newWorkspaces.length > 0) {
+        if (!selectedWorkspaceId.value) {
+          const firstWorkspace = newWorkspaces[0];
+          if (firstWorkspace) {
+            selectWorkspace(firstWorkspace);
+          }
+        } else {
+          // Check if stored workspace exists
+          const workspace = newWorkspaces.find((w) => w.id === selectedWorkspaceId.value);
+          if (workspace) {
+            // Restore side effects
+            workspaceStore.setCurrentWorkspace(workspace);
+            
+            // Check if patients for this workspace are already loaded
+            const patientsLoaded = patientStore.patientsByWorkspace.has(workspace.id);
+            if (!patientsLoaded) {
+              loadPatientsPage();
+            }
+            
+            annotationTypeStore.fetchAnnotationTypes(
+              { limit: 100 },
+              { refresh: false, parentId: workspace.id }
+            );
+          } else {
+            // Fallback to first workspace
+            const firstWorkspace = newWorkspaces[0];
+            if (firstWorkspace) selectWorkspace(firstWorkspace);
+          }
         }
       }
     },

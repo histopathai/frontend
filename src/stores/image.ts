@@ -103,7 +103,6 @@ export const useImageStore = defineStore('image', () => {
   const handleError = (err: any, defaultMessage: string, showToast = true): void => {
     const errorMessage = err.response?.data?.message || err.message || defaultMessage;
     error.value = errorMessage;
-    console.error(defaultMessage, err);
     if (showToast) toast.error(errorMessage);
   };
 
@@ -304,7 +303,6 @@ export const useImageStore = defineStore('image', () => {
       toast.success(t('image.messages.upload_success'));
       return true;
     } catch (err: any) {
-      console.error('DEBUG: uploadImage error:', err);
       handleError(err, t('image.messages.upload_error'));
       return false;
     } finally {

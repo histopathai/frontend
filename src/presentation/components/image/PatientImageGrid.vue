@@ -384,7 +384,6 @@ async function confirmDelete() {
       }
     }
   } catch (error) {
-    console.error('Silme hatası:', error);
   } finally {
     isDeleting.value = false;
     if (success) {

@@ -1,12 +1,10 @@
 import { ref, onMounted, onUnmounted, shallowRef, watch, nextTick } from 'vue';
 import { useAnnotationStore } from '@/stores/annotation';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
-import { useWorkspaceStore } from '@/stores/workspace';
 import type { Image } from '@/core/entities/Image';
 import OpenSeadragon from 'openseadragon';
 import Annotorious from '@recogito/annotorious-openseadragon';
 import '@recogito/annotorious-openseadragon/dist/annotorious.min.css';
-import { Point } from '@/core/value-objects/Point';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
 
@@ -23,7 +21,6 @@ export function useOpenSeadragon(viewerId: string) {
   const currentImageId = ref<string | null>(null);
   const loading = ref(false);
 
-  // Events
   const onSelectionCreated = ref<((selection: any) => void) | null>(null);
   const onAnnotationSelected = ref<((annotation: any) => void) | null>(null);
   const onAnnotationCreated = ref<((annotation: any) => void) | null>(null);
@@ -31,379 +28,231 @@ export function useOpenSeadragon(viewerId: string) {
   const onDeleteAnnotationRequest = ref<((annotationId: string) => void) | null>(null);
 
   const labelOverlays = ref<Map<string, HTMLElement>>(new Map());
+  const activeContextId = ref<string | null>(null);
+  let setupTimeout: any = null;
 
   function clearLabelOverlays() {
     if (!viewer.value) return;
     labelOverlays.value.forEach((el) => {
-      try {
-        viewer.value?.removeOverlay(el);
-      } catch (e) {}
+      try { viewer.value?.removeOverlay(el); } catch (e) {}
     });
     labelOverlays.value.clear();
   }
 
+  let debounceTimeout: any = null;
   function updateLabelOverlays() {
+    if (debounceTimeout) clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(() => {
+      performUpdateLabelOverlays();
+    }, 50);
+  }
+
+  function performUpdateLabelOverlays() {
     if (!viewer.value || !currentImageId.value) return;
     clearLabelOverlays();
 
     const processed = new Set<string>();
+    const drawLabel = (id: string, polygon: any[], text: string, color: string, resource: string, creatorId: string, creatorName: string, isReviewFlag: boolean) => {
+      try {
+        if (!polygon || polygon.length === 0) return;
+        const polyKey = polygon.map((p) => Math.round(p.x || p.X || 0) + ',' + Math.round(p.y || p.Y || 0)).join('|');
+        if (processed.has(polyKey)) return;
+        processed.add(polyKey);
 
-    const drawLabel = (
-      id: string,
-      text: string,
-      color: string,
-      polygon: any[],
-      creatorId: string,
-      resource: string
-    ) => {
-      if (!polygon || polygon.length === 0) return;
-      const polyKey = polygon.map((p) => `${Math.round(p.x)},${Math.round(p.y)}`).join('|');
-      if (processed.has(polyKey)) return;
-      processed.add(polyKey);
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'a9s-label-overlay';
+        labelDiv.style.pointerEvents = 'none';
+        labelDiv.style.zIndex = '9999';
 
-      const minX = Math.min(...polygon.map((p) => p.x));
-      const maxX = Math.max(...polygon.map((p) => p.x));
-      const minY = Math.min(...polygon.map((p) => p.y));
-      const centerX = (minX + maxX) / 2;
+        const isManual = resource === 'manual';
+        const currentUserId = authStore.user?.userId || '';
+        const isReviewMode = isReviewFlag || resource === 'model' || resource === 'imported' || (isManual && creatorId && currentUserId && String(creatorId) !== String(currentUserId));
 
-      const labelDiv = document.createElement('div');
-      labelDiv.className = 'a9s-label-overlay';
-      labelDiv.style.pointerEvents = 'none';
-      labelDiv.style.zIndex = '9999';
 
-      const isManual = resource === 'manual';
-      const isReviewMode =
-        resource === 'model' ||
-        resource === 'imported' ||
-        (isManual &&
-          creatorId &&
-          authStore.user?.userId &&
-          String(creatorId) !== String(authStore.user?.userId));
+        const badgeSource = resource.toUpperCase();
+        const displayName = (creatorName && creatorName !== creatorId) ? creatorName : (creatorId || '');
+        const showBadge = (displayName && String(creatorId) !== String(currentUserId)) || (resource !== 'manual');
 
-      labelDiv.innerHTML = `
-        <div class="a9s-label-bubble" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; background: #0f172a; color: white; font-size: 10px; font-weight: bold; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; transform: translateY(-50%); pointer-events: auto;">
-          <span style="width: 6px; height: 6px; border-radius: 50%; background: ${color};"></span>
-          <span>${isReviewMode ? `<span style="color: #818cf8; font-weight: 900; margin-right: 4px;">[REVIEW]</span>` : ''}${text}</span>
-          
-          ${
-            isReviewMode
-              ? `
-          <!-- Review Mode Buttons -->
-          <button id="edit-pts-${id}" title="Düzenle" style="margin-left: 6px; background: none; border: none; color: #94a3b8; cursor: pointer; padding: 2px; display: flex; align-items: center; justify-content: center; transition: color 0.2s;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
-          
-          <button id="approve-${id}" title="Onayla" style="margin-left: 4px; background: none; border: none; color: #10b981; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(1); border-radius: 6px;" onmouseover="this.style.background='rgba(16, 185, 129, 0.1)'" onmouseout="this.style.background='none'">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>
-          </button>
+        const minY = Math.min(...polygon.map((p) => p.y || p.Y || 0));
+        const topPoints = polygon.filter(p => (p.y || p.Y || 0) === minY);
+        const anchorX = topPoints.reduce((sum, p) => sum + (p.x || p.X || 0), 0) / topPoints.length;
 
-          <button id="reject-${id}" title="Reddet" style="margin-left: 4px; background: none; border: none; color: #f43f5e; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(1); border-radius: 6px;" onmouseover="this.style.background='rgba(244, 63, 94, 0.1)'" onmouseout="this.style.background='none'">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-          </button>
-          `
-              : `
-          <!-- Normal Mode Buttons -->
-          <button id="edit-pts-${id}" title="Noktaları Düzenle" style="margin-left: 6px; background: none; border: none; color: #94a3b8; cursor: pointer; padding: 2px; display: flex; align-items: center; justify-content: center; transition: color 0.2s;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
+        const contentSize = (viewer.value as any).world.getItemAt(0)?.getContentSize();
+        const imgWidth = contentSize?.x || 0;
 
-          <button id="del-${id}" title="Sil" style="margin-left: 4px; background: none; border: none; color: #94a3b8; cursor: pointer; padding: 2px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; transform: scale(1);" onmousedown="this.style.transform='scale(0.85)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-          </button>
-          `
-          }
-        </div>
-      `;
+        const isNearTop = minY < 60;
+        const isNearLeft = anchorX < 100;
+        const isNearRight = anchorX > (imgWidth - 200);
 
-      const bubble = labelDiv.querySelector('.a9s-label-bubble') as HTMLElement;
-      if (bubble) {
-        // Stop propagation to prevent OSD zoom and pan
-        const stop = (e: Event) => {
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-        };
-        bubble.addEventListener('mousedown', stop);
-        bubble.addEventListener('pointerdown', stop);
-        bubble.addEventListener('click', stop);
-        bubble.addEventListener('dblclick', stop);
+        const translateX = isNearLeft ? '0%' : (isNearRight ? '-100%' : '-50%');
+        const translateY = isNearTop ? '10px' : '-130%';
 
-        // SURGICAL FIX: Disable OSD navigation while mouse is over the bubble
-        // This is the most reliable way to prevent image movement during button clicks.
-        bubble.addEventListener('mouseenter', () => {
-          if (viewer.value) {
-            (viewer.value as any).setMouseNavEnabled(false);
-          }
-        });
-        bubble.addEventListener('mouseleave', () => {
-          if (viewer.value) {
-            (viewer.value as any).setMouseNavEnabled(true);
-          }
-        });
-      }
+        const isDirty = annotationStore.dirtyAnnotations.has(id);
+        const isMe = String(creatorId) === String(currentUserId);
+        const effectiveReviewMode = isReviewFlag && !isMe;
 
-      const editPtsBtn = labelDiv.querySelector(`#edit-pts-${id}`) as HTMLElement;
-      if (editPtsBtn) {
-        new OpenSeadragon.MouseTracker({
-          element: editPtsBtn,
-          pressHandler: (e: any) => {
-            if (e.originalEvent) {
-              e.originalEvent.stopPropagation();
-              e.originalEvent.stopImmediatePropagation();
+        labelDiv.innerHTML = `
+          <div class="a9s-label-bubble" data-id="${id}" style="display: inline-flex; flex-direction: column; align-items: ${isNearLeft ? 'flex-start' : isNearRight ? 'flex-end' : 'center'}; gap: 2px; transform: translate(${translateX}, ${translateY}); pointer-events: auto; transition: all 0.2s ease;">
+            
+            <!-- Details Badge (Revealed on hover) -->
+            <div class="hover-only" style="opacity: 0; transition: opacity 0.2s ease; pointer-events: none;">
+              ${showBadge ? `
+                <div style="display: flex; align-items: center; gap: 4px; padding: 1px 6px; border-radius: 8px; background: rgba(15, 23, 42, 0.9); color: #94a3b8; font-size: 7px; font-weight: 800; border: 1px solid ${color}44; margin-bottom: -2px; z-index: 10;">
+                  <span style="color: ${resource === 'model' ? '#818cf8' : resource === 'imported' ? '#fbbf24' : '#94a3b8'};">${badgeSource}</span>
+                  ${displayName ? `<span style="width: 1px; height: 5px; background: rgba(255,255,255,0.2);"></span><span style="color: white;">${displayName}</span>` : ''}
+                </div>
+              ` : ''}
+            </div>
+
+            <div class="main-pill" style="display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; background: rgba(15, 23, 42, 0.2); color: white; font-size: 9px; font-weight: 700; border: 1.5px solid ${color}; white-space: nowrap; box-shadow: 0 4px 10px ${color}11; position: relative; transition: all 0.2s ease;">
+              <span>${text || 'Anotasyon'}</span>
+              
+              <div style="width: 1px; height: 10px; background: rgba(255,255,255,0.2); margin: 0 6px;"></div>
+              
+              <!-- Controls (Always visible, but transparent background) -->
+              <div style="display: flex; align-items: center; gap: 4px;">
+                ${effectiveReviewMode ? `
+                  <button id="edit-pts-${id}" style="background: none; border: none; color: #94a3b8; cursor: pointer; padding: 1px; display: flex; align-items: center; justify-content: center;">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button id="approve-${id}" title="${isDirty ? 'Önce kaydedin' : 'Onayla'}" ${isDirty ? 'disabled' : ''} style="background: none; border: none; color: #10b981; ${isDirty ? 'opacity: 0.3;' : 'cursor: pointer;'} padding: 1px; display: flex; align-items: center; justify-content: center;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+                  <button id="reject-${id}" title="${isDirty ? 'Önce kaydedin' : 'Reddet'}" ${isDirty ? 'disabled' : ''} style="background: none; border: none; color: #f43f5e; ${isDirty ? 'opacity: 0.3;' : 'cursor: pointer;'} padding: 1px; display: flex; align-items: center; justify-content: center;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  </button>
+                ` : `
+                  <button id="edit-pts-${id}" style="background: none; border: none; color: #94a3b8; cursor: pointer; padding: 1px;">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button id="del-${id}" style="background: none; border: none; color: #f43f5e; cursor: pointer; padding: 1px;">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                  </button>
+                `}
+              </div>
+              
+              <!-- Pin Line Indicator -->
+              <div class="pin-line" style="position: absolute; ${isNearTop ? 'top: -30px; height: 30px;' : 'bottom: -30px; height: 30px;'} left: 50%; transform: translateX(-50%); width: 1.2px; background: ${color}; opacity: 0.3; transition: all 0.2s ease;"></div>
+            </div>
+          </div>
+        `;
+
+        const bubble = labelDiv.querySelector('.a9s-label-bubble') as HTMLElement;
+        const mainPill = labelDiv.querySelector('.main-pill') as HTMLElement;
+        const hoverItems = labelDiv.querySelectorAll('.hover-only');
+
+        if (bubble) {
+          bubble.addEventListener('mouseenter', () => { 
+            if (viewer.value) (viewer.value as any).setMouseNavEnabled(false);
+            
+            bubble.style.transform = `translate(${translateX}, ${translateY}) scale(1.05)`;
+            bubble.style.zIndex = '10000';
+            if (mainPill) {
+              mainPill.style.background = 'rgba(15, 23, 42, 0.95)';
+              mainPill.style.padding = '4px 10px';
             }
-          },
-          clickHandler: (e: any) => {
-            if (e.originalEvent) {
-              e.originalEvent.stopPropagation();
-            }
+            hoverItems.forEach(el => (el as HTMLElement).style.opacity = '1');
 
-            if (anno.value && viewer.value) {
-              const current = anno.value.getSelected();
-              const isAlreadySelected =
-                current && (String(current.id) === String(id) || String(current.id) === `#${id}`);
-
-              if (isAlreadySelected) {
-                // Toggle OFF: Deselect and re-enable navigation
-                console.log('✏️ Toggle OFF: Deselecting annotation');
-                anno.value.cancelSelected();
+            document.querySelectorAll('.a9s-label-bubble').forEach(b => {
+              if (b !== bubble) (b as HTMLElement).style.opacity = '0.2';
+            });
+            document.querySelectorAll('.a9s-annotation').forEach(s => {
+              const sid = s.getAttribute('data-id');
+              if (sid !== id) {
+                (s as HTMLElement).style.opacity = '0.1';
               } else {
-                // Toggle ON: Select and disable navigation surgically
-                console.log('✏️ Toggle ON: Selecting for edit');
-                (window as any)._skipAnnotationModal = true;
-
-                // Disable panning and zooming surgically so click-away still works
-                if (viewer.value) {
-                  (viewer.value as any).panHorizontal = false;
-                  (viewer.value as any).panVertical = false;
-                  (viewer.value as any).gestureSettingsMouse.clickToZoom = false;
-                  (viewer.value as any).gestureSettingsMouse.dblClickToZoom = false;
-                }
-
-                anno.value.selectAnnotation(id);
+                (s as HTMLElement).style.strokeWidth = '8px';
+                (s as HTMLElement).style.filter = `drop-shadow(0 0 10px ${color})`;
               }
+            });
+          });
+
+          bubble.addEventListener('mouseleave', () => { 
+            if (viewer.value) (viewer.value as any).setMouseNavEnabled(true);
+            
+            bubble.style.transform = `translate(${translateX}, ${translateY}) scale(1)`;
+            bubble.style.opacity = '1';
+            bubble.style.zIndex = '';
+            if (mainPill) {
+              mainPill.style.background = 'rgba(15, 23, 42, 0.2)';
+              mainPill.style.padding = '2px 8px';
             }
-            return false;
-          },
-        });
+            hoverItems.forEach(el => (el as HTMLElement).style.opacity = '0');
+
+            document.querySelectorAll('.a9s-label-bubble').forEach(b => {
+              (b as HTMLElement).style.opacity = '1';
+            });
+            document.querySelectorAll('.a9s-annotation').forEach(s => {
+              (s as HTMLElement).style.opacity = '1';
+              (s as HTMLElement).style.strokeWidth = '';
+              (s as HTMLElement).style.filter = '';
+            });
+          });
+        }
+
+        const editBtn = labelDiv.querySelector(`#edit-pts-${id}`);
+        if (editBtn) editBtn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); if (anno.value) anno.value.selectAnnotation(id); });
+
+        const delBtn = labelDiv.querySelector(`#del-${id}`);
+        if (delBtn) delBtn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); if (onDeleteAnnotationRequest.value) onDeleteAnnotationRequest.value(id); });
+
+        const approveBtn = labelDiv.querySelector(`#approve-${id}`);
+        if (approveBtn) approveBtn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); annotationStore.approveAnnotation(id); });
+
+        const rejectBtn = labelDiv.querySelector(`#reject-${id}`);
+        if (rejectBtn) rejectBtn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); annotationStore.rejectAnnotation(id, currentImageId.value!); });
+
+        const imagePoint = new OpenSeadragon.Point(anchorX, minY);
+        const viewportPoint = viewer.value?.viewport.imageToViewportCoordinates(imagePoint);
+        
+        if (viewportPoint) {
+          viewer.value?.addOverlay({
+            element: labelDiv,
+            location: viewportPoint,
+            placement: OpenSeadragon.Placement.TOP_LEFT
+          });
+          labelOverlays.value.set(id, labelDiv);
+        }
+      } catch (err) {
+        console.error('drawLabel failed', err);
       }
-
-      const approveBtn = labelDiv.querySelector(`#approve-${id}`) as HTMLElement;
-      if (approveBtn) {
-        new OpenSeadragon.MouseTracker({
-          element: approveBtn,
-          pressHandler: (e: any) => {
-            if (e.originalEvent) {
-              e.originalEvent.stopPropagation();
-              e.originalEvent.stopImmediatePropagation();
-            }
-            approveBtn.style.transform = 'scale(0.85)';
-          },
-          clickHandler: async (e: any) => {
-            if (e.originalEvent) {
-              e.originalEvent.stopPropagation();
-              e.originalEvent.stopImmediatePropagation();
-              e.originalEvent.preventDefault();
-            }
-
-            // Visual feedback: Change color to green and scale up slightly
-            approveBtn.style.color = '#ffffff';
-            approveBtn.style.background = '#10b981';
-            approveBtn.style.borderRadius = '4px';
-            approveBtn.style.transform = 'scale(1.3)';
-            approveBtn.style.pointerEvents = 'none';
-
-            try {
-              const dirty = annotationStore.dirtyAnnotations.get(id);
-              if (dirty && dirty.polygon) {
-                if (confirm('Değişiklikleri kaydedip onaylamak istediğinize emin misiniz?')) {
-                  const success = await annotationStore.editAndApproveAnnotation(id, dirty.polygon);
-                  if (success) {
-                    toast.success('Düzenlendi ve Onaylandı.');
-                    if (anno.value) anno.value.cancelSelected();
-                    setTimeout(() => window.location.reload(), 500);
-                  }
-                }
-              } else {
-                const success = await annotationStore.approveAnnotation(id);
-                if (success) {
-                  toast.success('Onaylandı.');
-                  if (anno.value) anno.value.cancelSelected();
-                  setTimeout(() => window.location.reload(), 500);
-                }
-              }
-            } finally {
-              // Give user a moment to see the 'success' state before redrawing
-              setTimeout(() => {
-                updateLabelOverlays();
-              }, 300);
-            }
-            return false;
-          },
-        });
-      }
-
-      const rejectBtn = labelDiv.querySelector(`#reject-${id}`) as HTMLElement;
-      if (rejectBtn) {
-        new OpenSeadragon.MouseTracker({
-          element: rejectBtn,
-          pressHandler: (e: any) => {
-            if (e.originalEvent) {
-              e.originalEvent.stopPropagation();
-              e.originalEvent.stopImmediatePropagation();
-            }
-            rejectBtn.style.transform = 'scale(0.85)';
-            return false;
-          },
-          clickHandler: async (e: any) => {
-            if (e.originalEvent) {
-              e.originalEvent.stopPropagation();
-              e.originalEvent.stopImmediatePropagation();
-              e.originalEvent.preventDefault();
-            }
-
-            if (
-              window.confirm(
-                'Bu poligonun yanlış olduğunu işaretleyip reddetmek istediğinize emin misiniz?'
-              )
-            ) {
-              // Visual feedback: Change color to red and scale up
-              rejectBtn.style.color = '#ffffff';
-              rejectBtn.style.background = '#f43f5e';
-              rejectBtn.style.borderRadius = '4px';
-              rejectBtn.style.transform = 'scale(1.3)';
-              rejectBtn.style.pointerEvents = 'none';
-
-              try {
-                const success = await annotationStore.rejectAnnotation(id, currentImageId.value!);
-                if (success) {
-                  toast.error('Reddedildi ve gizlendi.');
-                  if (anno.value) {
-                    anno.value.removeAnnotation(id);
-                    anno.value.cancelSelected();
-                  }
-                  setTimeout(() => window.location.reload(), 500);
-                }
-              } finally {
-                setTimeout(() => {
-                  updateLabelOverlays();
-                }, 300);
-              }
-            }
-            return false;
-          },
-        });
-      }
-
-      const delBtn = labelDiv.querySelector(`#del-${id}`) as HTMLElement;
-      if (delBtn) {
-        new OpenSeadragon.MouseTracker({
-          element: delBtn,
-          clickHandler: (e: any) => {
-            if (e.originalEvent) {
-              e.originalEvent.stopPropagation();
-              e.originalEvent.stopImmediatePropagation();
-              e.originalEvent.preventDefault();
-            }
-            // Prevent the custom modal from opening
-            (window as any)._skipAnnotationModal = true;
-
-            // Native confirm yerine yeni yazdığımız Vue modalı triggerlanıyor
-            onDeleteAnnotationRequest.value?.(id);
-
-            return false;
-          },
-          dragHandler: () => false,
-          scrollHandler: () => false,
-          dblClickHandler: (e: any) => {
-            if (e.originalEvent) {
-              e.originalEvent.stopPropagation();
-              e.originalEvent.stopImmediatePropagation();
-            }
-            return false;
-          },
-        });
-      }
-
-      const viewportPoint = viewer.value!.viewport.imageToViewportCoordinates(
-        new OpenSeadragon.Point(centerX, minY - 10)
-      );
-      viewer.value!.addOverlay({
-        element: labelDiv,
-        location: viewportPoint,
-        placement: OpenSeadragon.Placement.TOP,
-      });
-      labelOverlays.value.set(id, labelDiv);
     };
 
-    // Current & Dirty
-    annotationStore.annotations.forEach((ann) => {
-      const dirty = annotationStore.dirtyAnnotations.get(String(ann.id));
-      const type = annotationTypeStore.annotationTypes.find((t) => t.id === ann.annotationTypeId);
+    const counts = new Map<string, number>();
+    annotationStore.getAnnotationsByImageId(currentImageId.value)
+      .forEach((ann) => {
+        const dirty = annotationStore.dirtyAnnotations.get(String(ann.id));
+        const type = annotationTypeStore.annotationTypes.find((t) => t.id === ann.annotationTypeId);
+        const baseText = String(dirty?.value || (ann as any).tag?.value || ann.value).trim();
+        
+        const count = (counts.get(baseText) || 0) + 1;
+        counts.set(baseText, count);
+        const textWithIndex = `${baseText} #${count}`;
 
-      // Determine text with robust fallback
-      let text = '';
-      if (dirty) {
-        const value = dirty.value !== undefined ? dirty.value : ann.value;
-        text = String(value);
-      } else {
-        text = (ann as any).tag ? String((ann as any).tag.value) : String(ann.value);
-      }
+        const color = annotationStore.getTagColor(ann.annotationTypeId, baseText);
+        const creatorName = annotationStore.userNames[ann.creatorId] || ann.creatorName || '';
+        drawLabel(String(ann.id), dirty?.polygon || ann.polygon, textWithIndex, color, ann.resource, ann.creatorId, creatorName, !!(ann as any).isReview);
+      });
 
-      const color = dirty?.color || ann.color || type?.color || '#ec4899';
-      const isReview = (ann as any).isReview || false;
-      drawLabel(
-        String(ann.id),
-        text,
-        color,
-        dirty?.polygon || ann.polygon,
-        ann.creatorId,
-        ann.resource
-      );
-    });
+    annotationStore.pendingAnnotations.filter(p => String(p.imageId) === String(currentImageId.value))
+      .forEach(p => {
+        const baseText = String(p.value).trim();
+        const count = (counts.get(baseText) || 0) + 1;
+        counts.set(baseText, count);
+        const textWithIndex = `${baseText} #${count}`;
 
-    // Pending
-    annotationStore.pendingAnnotations
-      .filter((p) => p.imageId === currentImageId.value)
-      .forEach((p) => {
-        drawLabel(
-          p.tempId,
-          String(p.value),
-          p.color || '#ec4899',
-          p.polygon || [],
-          authStore.user?.userId || '',
-          'manual'
-        );
+        const color = annotationStore.getTagColor(p.imageId, baseText); 
+        drawLabel(p.tempId, p.polygon || [], textWithIndex, color, 'manual', authStore.user?.userId || '', authStore.user?.displayName || '', false);
       });
   }
 
-  function startDrawing() {
-    if (anno.value && viewer.value) {
-      (viewer.value as any).setMouseNavEnabled(false);
-      (viewer.value as any).gestureSettingsMouse.clickToZoom = false;
-      (viewer.value as any).gestureSettingsMouse.dblClickToZoom = false;
-      anno.value.setDrawingTool('polygon');
-      anno.value.setDrawingEnabled(true);
-    }
-  }
-
-  function stopDrawing() {
-    if (anno.value && viewer.value) {
-      (viewer.value as any).setMouseNavEnabled(true);
-      (viewer.value as any).gestureSettingsMouse.clickToZoom = true;
-      (viewer.value as any).gestureSettingsMouse.dblClickToZoom = true;
-      anno.value.setDrawingEnabled(false);
-      anno.value.setDrawingTool(null);
-    }
-  }
+  function startDrawing() { if (anno.value && viewer.value) { (viewer.value as any).setMouseNavEnabled(false); anno.value.setDrawingTool('polygon'); anno.value.setDrawingEnabled(true); } }
+  function stopDrawing() { if (anno.value && viewer.value) { (viewer.value as any).setMouseNavEnabled(true); anno.value.setDrawingEnabled(false); anno.value.setDrawingTool(null); } }
 
   function initViewer() {
     if (viewer.value) viewer.value.destroy();
-
     const container = document.getElementById(viewerId);
-    if (!container) {
-      console.warn(`⚠️ Viewer container #${viewerId} bulunamadı, bekleniyor...`);
-      return;
-    }
-
+    if (!container) return;
     viewer.value = OpenSeadragon({
       id: viewerId,
       prefixUrl: 'https://cdn.jsdelivr.net/npm/openseadragon@4.1/build/openseadragon/images/',
@@ -418,231 +267,227 @@ export function useOpenSeadragon(viewerId: string) {
       loadTilesWithAjax: true,
       ajaxWithCredentials: true,
     });
-
-    const annotoriousInstance = new (Annotorious as any)(viewer.value, {
-      locale: 'auto',
-      allowEmpty: true,
-      disableEditor: true,
-      formatter: (annotation: any) => {
-        const colorBody = annotation.body?.find(
-          (b: any) => b.purpose === 'highlighting' && b.value
-        );
-        if (colorBody)
-          return {
-            style: `stroke: ${colorBody.value}; stroke-width: 2.5; fill: ${colorBody.value}; fill-opacity: 0.25;`,
-          };
-        return {};
-      },
-    });
-
-    anno.value = annotoriousInstance;
-
-    anno.value.on('createSelection', (selection: any) => {
-      onSelectionCreated.value?.(selection);
-    });
-    anno.value.on('selectAnnotation', (annotation: any) => {
-      onAnnotationSelected.value?.(annotation);
-    });
-    anno.value.on('cancelSelected', () => {
-      onAnnotationDeselected.value?.();
-    });
-
-    function parsePolygonPoints(svgValue: string): Array<{ x: number; y: number }> {
-      const pointsMatch = svgValue.match(/points=["']([^"']+)["']/);
-      if (!pointsMatch || !pointsMatch[1]) return [];
-      
-      const coords = pointsMatch[1].split(/[\s,]+/).filter(v => v !== '');
-      const points: Array<{ x: number; y: number }> = [];
-      
-      for (let i = 0; i < coords.length; i += 2) {
-        const xStr = coords[i];
-        const yStr = coords[i + 1];
-        if (xStr !== undefined && yStr !== undefined) {
-          const x = parseFloat(xStr);
-          const y = parseFloat(yStr);
-          if (!isNaN(x) && !isNaN(y)) points.push({ x, y });
-        }
-      }
-      return points;
-    }
-
-    const handleUpdate = (annotation: any) => {
-      // Robust ID detection: check event object first, then current selection
-      const rawId = annotation.id || anno.value?.getSelected()?.id;
-      if (!rawId) {
-        console.warn('⚠️ No ID found for changing annotation');
-        return;
-      }
-
-      console.log('🔄 Annotation change detected:', rawId);
-      const selected = anno.value ? anno.value.getSelected() : null;
-      const selector = (annotation as any).target?.selector?.value || 
-                       (annotation as any).selector?.value || 
-                       (selected as any)?.target?.selector?.value;
-      
-      if (!selector) return;
-
-      const newPoints = parsePolygonPoints(selector);
-      if (newPoints.length < 3) return;
-
-      const targetId = String(rawId).startsWith('#') ? String(rawId).slice(1) : String(rawId);
-      const polygonData = newPoints.map((p) => ({ x: p.x, y: p.y }));
-
-      // 1. Check if it is a persisted annotation
-      const existing = annotationStore.annotations.find((a: any) => String(a.id) === targetId);
-      if (existing) {
-        (existing as any).isPolygonDirty = true;
-        annotationStore.addDirtyAnnotation(targetId, { polygon: polygonData });
-      } else {
-        // 2. Check if it is a pending annotation
-        const pending = annotationStore.pendingAnnotations.find(
-          (p) => String(p.tempId) === targetId
-        );
-        if (pending) {
-          annotationStore.updatePendingAnnotation(targetId, { polygon: polygonData });
-        }
-      }
-
-      setTimeout(updateLabelOverlays, 50);
-    };
-
-    anno.value.on('updateAnnotation', handleUpdate);
-    anno.value.on('changeSelectionTarget', handleUpdate);
-
-    anno.value.on('createAnnotation', (annotation: any) => {
-      onAnnotationCreated.value?.(annotation);
-      setTimeout(updateLabelOverlays, 50);
-    });
-    anno.value.on('deleteAnnotation', (annotation: any) => {
-      if (currentImageId.value)
-        annotationStore.deleteAnnotation(annotation.id, currentImageId.value);
-      setTimeout(updateLabelOverlays, 50);
+    viewer.value.addHandler('open', () => {
+      setupAnnotorious();
     });
   }
+
+  const setupAnnotorious = () => {
+    if (!viewer.value) return;
+    document.querySelectorAll('.a9s-annotationlayer').forEach(el => el.remove());
+
+    if (setupTimeout) clearTimeout(setupTimeout);
+    setupTimeout = setTimeout(() => {
+      try {
+        if (anno.value) {
+          try { anno.value.destroy(); } catch (e) { /* ignore */ }
+        }
+
+        anno.value = new (Annotorious as any)(viewer.value, {
+          locale: 'en',
+          allowEmpty: true,
+          disableEditor: true,
+          keyboardShortcuts: false,
+          formatter: (annotation: any) => {
+            const id = String(annotation.id).replace('#', '');
+            const ann = annotationStore.annotations.find(a => String(a.id) === id) || 
+                        annotationStore.pendingAnnotations.find(p => p.tempId === id);
+            let color = '#ec4899';
+            if (ann) {
+              const text = String((ann as any).value || (ann as any).tag?.value || '').trim();
+              const indexColor = annotationStore.getTagColor((ann as any).annotationTypeId || (ann as any).imageId, text);
+              const statusColors = ['#10b981', '#3b82f6'];
+              color = (ann.color && statusColors.includes(ann.color)) ? ann.color : indexColor;
+            }
+            return { style: `stroke: ${color}; stroke-width: 2.5; fill: ${color}; fill-opacity: 0.25;` };
+          }
+        });
+
+        anno.value.setDrawingTool('polygon');
+        anno.value.setDrawingEnabled(false);
+        
+        anno.value.on('createSelection', (selection: any) => onSelectionCreated.value?.(selection));
+        anno.value.on('updateAnnotation', handleUpdate);
+        anno.value.on('deleteAnnotation', (ann: any) => { 
+          if (currentImageId.value) annotationStore.deleteAnnotation(ann.id, currentImageId.value); 
+          updateLabelOverlays(); 
+        });
+        anno.value.on('selectAnnotation', () => onAnnotationSelected.value?.(anno.value.getSelected()));
+        anno.value.on('cancelSelected', () => onAnnotationDeselected.value?.());
+        anno.value.on('createAnnotation', (annotation: any) => {
+          onAnnotationCreated.value?.(annotation);
+          setTimeout(() => { updateLabelOverlays(); attachSvgListeners(); }, 50);
+        });
+
+        attachSvgListeners();
+        
+        // Finalize load if image was already pending
+        if (currentImageId.value) loadAnnotations(currentImageId.value);
+      } catch (err) {
+        console.warn("Annotorious init failed safely", err);
+      }
+    }, 50);
+  };
+
+  const attachSvgListeners = () => {
+    const svgLayer = document.querySelector('.a9s-annotationlayer');
+    if (!svgLayer) return;
+
+    svgLayer.addEventListener('mouseover', (e) => {
+      const target = e.target as HTMLElement;
+      const shape = target.closest('.a9s-annotation');
+      if (shape) {
+        const id = shape.getAttribute('data-id')?.replace('#', '');
+        if (id) {
+          const bubble = document.querySelector(`.a9s-label-bubble[data-id="${id}"]`) as HTMLElement;
+          if (bubble) {
+            const transform = bubble.style.transform.split(' scale')[0];
+            bubble.style.transform = `${transform} scale(1.1)`;
+            bubble.style.zIndex = '10000';
+            bubble.style.opacity = '1';
+            const mainPill = bubble.querySelector('.main-pill') as HTMLElement;
+            if (mainPill) {
+              mainPill.style.background = 'rgba(15, 23, 42, 0.95)';
+              mainPill.style.padding = '4px 10px';
+              mainPill.style.boxShadow = `0 0 15px white, 0 4px 12px ${mainPill.style.borderColor}`;
+            }
+            bubble.querySelectorAll('.hover-only').forEach(el => (el as HTMLElement).style.opacity = '1');
+            document.querySelectorAll('.a9s-label-bubble').forEach(b => { if (b !== bubble) (b as HTMLElement).style.opacity = '0.2'; });
+            document.querySelectorAll('.a9s-annotation').forEach(s => {
+              const sid = s.getAttribute('data-id');
+              if (sid !== id) (s as HTMLElement).style.opacity = '0.1';
+              else { (s as HTMLElement).style.strokeWidth = '8px'; (s as HTMLElement).style.filter = `drop-shadow(0 0 12px white) drop-shadow(0 0 8px ${s.getAttribute('stroke') || 'white'})`; }
+            });
+          }
+        }
+      }
+    });
+
+    svgLayer.addEventListener('mouseout', (e) => {
+      const target = e.target as HTMLElement;
+      const shape = target.closest('.a9s-annotation');
+      if (shape) {
+        const id = shape.getAttribute('data-id')?.replace('#', '');
+        if (id) {
+          const bubble = document.querySelector(`.a9s-label-bubble[data-id="${id}"]`) as HTMLElement;
+          if (bubble) {
+            const transform = bubble.style.transform.split(' scale')[0];
+            bubble.style.transform = `${transform} scale(1)`;
+            bubble.style.opacity = '1';
+            bubble.style.zIndex = '';
+            const mainPill = bubble.querySelector('.main-pill') as HTMLElement;
+            if (mainPill) { mainPill.style.background = 'rgba(15, 23, 42, 0.2)'; mainPill.style.padding = '2px 8px'; mainPill.style.boxShadow = ''; }
+            bubble.querySelectorAll('.hover-only').forEach(el => (el as HTMLElement).style.opacity = '0');
+            document.querySelectorAll('.a9s-label-bubble').forEach(b => { (b as HTMLElement).style.opacity = '1'; });
+            document.querySelectorAll('.a9s-annotation').forEach(s => { (s as HTMLElement).style.opacity = '1'; (s as HTMLElement).style.strokeWidth = ''; (s as HTMLElement).style.filter = ''; });
+          }
+        }
+      }
+    });
+  };
+
+  const handleUpdate = (annotation: any) => {
+    const rawId = annotation.id || anno.value?.getSelected()?.id;
+    if (!rawId) return;
+    const selector = (annotation as any).target?.selector?.value || (annotation as any).selector?.value || '';
+    if (!selector) return;
+    let pointsStr = '';
+    if (selector.includes('points=')) {
+      const match = selector.match(/points=["']([^"']+)["']/);
+      if (match) pointsStr = match[1];
+    } else { pointsStr = selector; }
+    if (!pointsStr) return;
+    const coords = pointsStr.trim().split(/[\s,]+/).filter((v: string) => v !== '');
+    const polygonData = [];
+    for (let i = 0; i < coords.length; i += 2) { 
+      const xStr = coords[i];
+      const yStr = coords[i+1];
+      if (xStr !== undefined && yStr !== undefined) {
+        const x = parseFloat(xStr);
+        const y = parseFloat(yStr);
+        if (!isNaN(x) && !isNaN(y)) polygonData.push({ x, y }); 
+      }
+    }
+    if (polygonData.length === 0) return;
+    const targetId = String(rawId).replace('#', '');
+    const existing = annotationStore.annotations.find(a => String(a.id) === targetId);
+    if (existing) annotationStore.addDirtyAnnotation(targetId, { polygon: polygonData });
+    else annotationStore.updatePendingAnnotation(targetId, { polygon: polygonData });
+    updateLabelOverlays();
+  };
 
   async function loadAnnotations(imageId: string, skipFetch: boolean = false) {
-    if (!anno.value) return;
+    if (!anno.value || activeContextId.value !== imageId) return;
     anno.value.clearAnnotations();
+    clearLabelOverlays();
     try {
-      if (!skipFetch) {
-        await annotationStore.fetchAnnotationsByImage(
-          imageId,
-          { limit: 100 },
-          { showToast: false }
-        );
-      }
-      const w3cAnnotations = annotationStore.annotations
-        .map((ann) => {
+      if (!skipFetch) await annotationStore.fetchAnnotationsByImage(imageId, { limit: 100 }, { showToast: false });
+      if (activeContextId.value !== imageId) return;
+      const imageAnnotations = annotationStore.getAnnotationsByImageId(imageId);
+      const w3c = imageAnnotations.map((ann) => {
           if (!ann.polygon || ann.polygon.length === 0) return null;
-          const polygonStr = ann.polygon.map((p) => `${p.x},${p.y}`).join(' ');
-          const annType = annotationTypeStore.annotationTypes.find(
-            (t) => t.id === ann.annotationTypeId
-          );
+          const polygonStr = ann.polygon.map((p) => p.x + ',' + p.y).join(' ');
+          const annType = annotationTypeStore.annotationTypes.find(t => t.id === ann.annotationTypeId);
           const color = ann.color || annType?.color || '#ec4899';
+          const tagValue = (ann as any).tag ? (ann as any).tag.value : (annType?.name || 'Tag');
+          const tagIndex = annotationStore.getTagIndex(ann.annotationTypeId, tagValue);
+          
           return {
             '@context': 'http://www.w3.org/ns/anno.jsonld',
-            type: 'Annotation',
-            id: String(ann.id),
+            type: 'Annotation', id: String(ann.id),
             body: [
-              {
-                type: 'TextualBody',
-                value: (ann as any).tag
-                  ? `${(ann as any).tag.tag_name}: ${(ann as any).tag.value}`
-                  : `${annType?.name || 'Tag'}: ${ann.value}`,
-                purpose: 'tagging',
-              },
-              { type: 'TextualBody', value: color, purpose: 'highlighting' },
+              { type: 'TextualBody', value: tagValue, purpose: 'tagging' },
+              { type: 'TextualBody', value: ann.annotationTypeId, purpose: 'metadata' },
+              { type: 'TextualBody', value: String(tagIndex), purpose: 'index' },
             ],
-            target: {
-              selector: {
-                type: 'SvgSelector',
-                value: `<svg><polygon points="${polygonStr}" /></svg>`,
-              },
-            },
+            target: { selector: { type: 'SvgSelector', value: '<svg><polygon points="' + polygonStr + '" /></svg>' } },
           };
-        })
-        .filter(Boolean);
-      if (w3cAnnotations.length > 0) anno.value.setAnnotations(w3cAnnotations);
-
-      annotationStore.pendingAnnotations
-        .filter((p) => p.imageId === imageId)
-        .forEach((pending) => {
-          if (!pending.polygon) return;
-          const polygonStr = pending.polygon.map((p) => `${p.x},${p.y}`).join(' ');
-          anno.value.addAnnotation({
-            id: pending.tempId,
-            type: 'Annotation',
-            body: [
-              {
-                type: 'TextualBody',
-                value: `${pending.name}: ${pending.value}`,
-                purpose: 'tagging',
-              },
-              { type: 'TextualBody', value: pending.color || '#ec4899', purpose: 'highlighting' },
-            ],
-            target: {
-              selector: {
-                type: 'SvgSelector',
-                value: `<svg><polygon points="${polygonStr}"></polygon></svg>`,
-              },
-            },
-          });
-        });
+      }).filter(Boolean);
+      anno.value.setAnnotations(w3c);
       updateLabelOverlays();
-    } catch (e) {
-      console.warn('Hata:', e);
-    }
+    } catch (e) {}
   }
 
-  async function loadImage(image: Image) {
-    if (!viewer.value || !image.status.isProcessed()) return;
+  async function loadImage(image: Image | null) {
+    if (!viewer.value) return;
+    activeContextId.value = image?.id || null;
+    currentImageId.value = null;
+    if (anno.value) anno.value.clearAnnotations();
+    clearLabelOverlays();
+    loading.value = false;
+    viewer.value.removeAllHandlers('open');
+    viewer.value.close();
+    if (!image) return;
+    if (!image.status.isProcessed()) { toast.warning('İşlenmemiş görüntü.'); return; }
     loading.value = true;
-    currentImageId.value = image.id;
-    const tileSourceUrl = `${API_BASE_URL}/api/v1/proxy/${image.processedpath}/image.dzi`;
-    viewer.value.open(tileSourceUrl);
-
+    const loadId = image.id;
     const onOpen = async () => {
-      viewer.value?.removeAllHandlers('open');
+      if (activeContextId.value !== loadId) { loading.value = false; return; }
+      currentImageId.value = loadId;
       loading.value = false;
-      await loadAnnotations(image.id);
+      setupAnnotorious();
+      await loadAnnotations(loadId);
     };
     viewer.value.addHandler('open', onOpen);
+    viewer.value.open(API_BASE_URL + '/api/v1/proxy/' + image.processedpath + '/image.dzi');
   }
 
-  // İzleyici: Anotasyonlar değiştiğinde (Review verisi geldiğinde vs.) ekranı güncelle
-  watch(
-    () => annotationStore.annotations,
-    () => {
-      if (currentImageId.value) {
-        loadAnnotations(currentImageId.value, true); // skipFetch = true (sadece çizim)
-      }
-    },
-    { deep: true, immediate: false }
-  );
+  watch(() => annotationStore.annotations, () => {
+    if (viewer.value && anno.value && currentImageId.value) loadAnnotations(currentImageId.value, true);
+  }, { deep: true });
 
-  onMounted(() => {
-    nextTick(() => {
-      initViewer();
-    });
-  });
-  onUnmounted(() => {
-    if (viewer.value) viewer.value.destroy();
-    if (anno.value) anno.value.destroy();
+  onMounted(() => nextTick(initViewer));
+  watch(() => annotationStore.userNames, () => { performUpdateLabelOverlays(); }, { deep: true });
+
+  onUnmounted(() => { 
+    clearTimeout(setupTimeout);
+    if (anno.value) { try { anno.value.destroy(); } catch (e) {} }
+    if (viewer.value) { viewer.value.destroy(); viewer.value = null; anno.value = null; }
   });
 
   return {
-    loading,
-    loadImage,
-    loadAnnotations,
-    startDrawing,
-    stopDrawing,
-    anno,
-    viewer,
-    updateLabelOverlays,
-    onSelectionCreated,
-    onAnnotationSelected,
-    onAnnotationCreated,
-    onAnnotationDeselected,
-    onDeleteAnnotationRequest,
+    loading, loadImage, loadAnnotations, startDrawing, stopDrawing,
+    anno, viewer, updateLabelOverlays,
+    onSelectionCreated, onAnnotationSelected, onAnnotationCreated, onAnnotationDeselected, onDeleteAnnotationRequest
   };
 }

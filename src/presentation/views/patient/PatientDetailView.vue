@@ -179,7 +179,6 @@ onMounted(async () => {
       toast.error('Hasta bilgileri bulunamadı.');
     }
   } catch (e) {
-    console.error('Veri yükleme hatası', e);
     toast.error('Veriler yüklenirken bir hata oluştu.');
   } finally {
     pageLoading.value = false;

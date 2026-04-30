@@ -39,4 +39,5 @@ export interface IAuthRepository {
   revokeSession(sessionId: string): Promise<void>;
   changePassword(data: ChangePasswordRequest): Promise<void>;
   deleteAccount(): Promise<void>;
+  getPublicUser(uid: string): Promise<{ user_id: string; display_name: string }>;
 }

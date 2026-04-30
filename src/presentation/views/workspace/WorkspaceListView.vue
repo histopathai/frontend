@@ -80,6 +80,9 @@ const idsToDelete = ref<string[]>([]);
 const isSingleDelete = ref(true);
 const deleteWarningText = ref('');
 const limit = 10;
+const STORAGE_KEY_WS_PAGE = 'workspace_list_current_page';
+const currentPageNum = ref(Number(localStorage.getItem(STORAGE_KEY_WS_PAGE)) || 1);
+
 const currentPage = computed(() => {
   return Math.floor(store.pagination.offset / limit) + 1;
 });
@@ -100,7 +103,7 @@ const deleteModalMessage = computed(() => {
 });
 
 onMounted(() => {
-  loadData(1);
+  loadData(currentPageNum.value);
 });
 
 async function loadData(page: number) {
@@ -113,6 +116,8 @@ async function loadData(page: number) {
 
 function handlePageChange(newPage: number) {
   if (newPage < 1) return;
+  currentPageNum.value = newPage;
+  localStorage.setItem(STORAGE_KEY_WS_PAGE, newPage.toString());
   loadData(newPage);
 }
 
@@ -147,7 +152,6 @@ async function openDeleteModal(workspace: Workspace) {
     if (result.data.length > 0) {
     }
   } catch (error) {
-    console.error('Patient check failed', error);
   }
 
   isDeleteModalOpen.value = true;

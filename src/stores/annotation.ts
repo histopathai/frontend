@@ -7,7 +7,20 @@ import { useAuthStore } from '@/stores/auth';
 import { Annotation } from '@/core/entities/Annotation';
 import type { CreateNewAnnotationRequest } from '@/core/repositories/IAnnotation';
 import type { Pagination, PaginatedResult } from '@/core/types/common';
+import { useAnnotationTypeStore } from '@/stores/annotation_type';
 
+const SUBTYPE_COLORS = [
+  '#8b5cf6', // Mor
+  '#f59e0b', // Turuncu
+  '#ec4899', // Pembe
+  '#06b6d4', // Turkuaz
+  '#f43f5e', // Gül
+  '#6366f1', // Indigo
+  '#d946ef', // Fuşya
+  '#14b8a6', // Teal
+  '#eab308', // Hardal
+  '#0ea5e9'  // Sky
+];
 interface PendingAnnotation {
   tempId: string;
   imageId: string;
@@ -60,6 +73,9 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
   const pendingAnnotations = ref<PendingAnnotation[]>([]);
   const dirtyAnnotations = ref<Map<string, any>>(new Map());
+  const loadingReviews = new Set<string>(); // Cache for ongoing review fetches
+  const userNames = ref<Record<string, string>>({}); // ID -> Display Name cache
+  const tagIndexMap = ref<Record<string, Record<string, number>>>({}); // typeId -> { tagName -> index }
   const isLoading = computed(() => loading.value);
   const isActionLoading = computed(() => actionLoading.value);
   const hasError = computed(() => !!error.value);
@@ -85,7 +101,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const handleError = (err: any, defaultMessage: string, showToast = true): void => {
     const errorMessage = err.response?.data?.message || err.message || defaultMessage;
     error.value = errorMessage;
-    console.error(defaultMessage, err);
 
     if (showToast) {
       toast.error(errorMessage);
@@ -186,13 +201,9 @@ export const useAnnotationStore = defineStore('annotation', () => {
     try {
       for (const pending of pendingAnnotations.value) {
         try {
+          const { color: _, ...cleanPending } = pending as any;
           const createRequest: CreateNewAnnotationRequest = {
-            ws_id: pending.ws_id,
-            name: pending.name,
-            tag_type: pending.tag_type,
-            value: pending.value,
-            color: pending.color,
-            is_global: pending.is_global,
+            ...cleanPending,
             polygon: (pending.polygon || []).map(p => ({ x: Number(p.x), y: Number(p.y) })) as any,
             parent: {
               id: pending.imageId,
@@ -209,7 +220,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
           successCount++;
         } catch (err: any) {
           errorCount++;
-          console.error('❌ Annotation kaydetme hatası:', err);
           handleError(err, `${pending.name} kaydedilemedi`, false);
         }
       }
@@ -283,13 +293,9 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
       const entityAnnotations = rawData.map((item: any) => {
         const ann = item; // Already an instance
-        if (!(ann as any).annotationTypeId) {
-          console.warn(`⚠️ Annotation ${ann.id} has NO AnnotationType ID!`, item);
-        }
         return ann;
       });
 
-      console.groupEnd();
 
       const currentUserId = String(useAuthStore().user?.userId || '');
       const entityAnnotationsWithReviewFlag = entityAnnotations.map((ann: any) => {
@@ -300,19 +306,24 @@ export const useAnnotationStore = defineStore('annotation', () => {
       annotationsByImage.value.set(imageId, entityAnnotationsWithReviewFlag);
       annotations.value = entityAnnotationsWithReviewFlag;
 
+      // RESOLVE USER NAMES
+      const uids = entityAnnotationsWithReviewFlag.map(ann => ann.creatorId).filter(Boolean);
+      resolveCreatorNames(uids);
+
       // PARALEL REVIEW YÜKLEME (Gecikmesiz)
       const annotationsToCheck = entityAnnotationsWithReviewFlag.filter((ann: any) => (ann.isReview) || (ann.reviewIds && ann.reviewIds.length > 0));
-      console.log(`🔍 [MAIN FETCH] Checking ${annotationsToCheck.length} annotations for potential reviews...`);
 
       if (annotationsToCheck.length > 0) {
         // Tarayıcıyı kilitlememek için arka planda sırayla çekiyoruz
         setTimeout(async () => {
-          const chunkSize = 5;
+          const chunkSize = 3; // Reduced chunk size for better rate limiting
           for (let i = 0; i < annotationsToCheck.length; i += chunkSize) {
             const chunk = annotationsToCheck.slice(i, i + chunkSize);
             await Promise.all(chunk.map((ann: any) => fetchAndApplyReview(ann.id)));
+            // Small delay between chunks
+            await new Promise(r => setTimeout(r, 200));
           }
-        }, 100);
+        }, 300);
       }
 
       pagination.value = {
@@ -321,7 +332,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
         hasMore: result?.pagination?.hasMore ?? rawData.length === paginationParams.limit,
       };
     } catch (err: any) {
-      console.error('10. [Store] Fetch hatası:', err);
       if (err.response?.status === 404) {
         annotations.value = [];
         annotationsByImage.value.set(imageId, []);
@@ -364,11 +374,14 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
       annotations.value = annotationsWithMetadata;
 
+      // RESOLVE USER NAMES
+      const uids = annotationsWithMetadata.map(ann => ann.creatorId).filter(Boolean);
+      resolveCreatorNames(uids);
+
       // PARALEL REVIEW YÜKLEME (Daha Geniş Kapsamlı)
       // Sadece reviewIds olanlar değil, başkasına ait (isReview: true) olan her şeyi kontrol edelim
       const annotationsToCheck = annotationsWithMetadata.filter((ann: any) => (ann.isReview) || (ann.reviewIds && ann.reviewIds.length > 0));
       
-      console.log(`🔍 Checking ${annotationsToCheck.length} annotations for potential reviews...`);
 
       if (annotationsToCheck.length > 0) {
         const chunkSize = 5; // Hız için paket büyüklüğünü ayarlıyoruz
@@ -396,8 +409,9 @@ export const useAnnotationStore = defineStore('annotation', () => {
     resetError();
 
     try {
+      const { color: _, ...cleanData } = data as any;
       const createRequest: CreateNewAnnotationRequest = {
-        ...data,
+        ...cleanData,
         parent: {
           id: imageId,
           type: 'image',
@@ -443,7 +457,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
       // SAHİPLİK KONTROLÜ: Eğer yaratıcı biz değilsek Review oluştur!
       if (creatorId !== currentUserId || creatorId === '') {
-        console.log(`📡 [REDIRECT TO REVIEW] Global/Modal update for ${annotationId}. Routing to Review...`);
         
         // HER ZAMAN tam durumu gönderiyoruz
         const payload: any = {
@@ -451,10 +464,13 @@ export const useAnnotationStore = defineStore('annotation', () => {
           status: 'modified',
           comments: 'Modified via tagging modal or global tags.',
           modified_value: data.value !== undefined ? data.value : existingAnnotation.value,
-          modified_polygon: (data.polygon || existingAnnotation.polygon).map((p: any) => ({ 
-            X: Number(p.x !== undefined ? p.x : p.X), 
-            Y: Number(p.y !== undefined ? p.y : p.Y) 
-          }))
+          modified_polygon: (data.polygon || existingAnnotation.polygon || [])
+            .map((p: any) => {
+              const x = Number(p.x !== undefined ? p.x : p.X);
+              const y = Number(p.y !== undefined ? p.y : p.Y);
+              return { X: x, Y: y };
+            })
+            .filter((p: any) => !isNaN(p.X) && !isNaN(p.Y))
         };
 
         const success = await createReview(payload as any);
@@ -593,6 +609,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const clearAnnotations = (): void => {
     annotations.value = [];
     annotationsByImage.value.clear();
+    pendingAnnotations.value = [];
+    dirtyAnnotations.value = new Map();
     currentAnnotation.value = null;
     selectedAnnotations.value.clear();
     error.value = null;
@@ -625,7 +643,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
   };
 
   const saveAllDirtyAnnotations = async (): Promise<boolean> => {
-    console.log('[saveAllDirtyAnnotations] called, dirtyCount:', dirtyAnnotations.value.size);
     if (dirtyAnnotations.value.size === 0) return true;
 
     actionLoading.value = true;
@@ -635,36 +652,31 @@ export const useAnnotationStore = defineStore('annotation', () => {
     try {
       for (const [annotationId, data] of entries) {
         try {
-          console.log(`[saveAllDirtyAnnotations] Processing ID: ${annotationId}`, data);
           const existing = annotations.value.find((a) => String(a.id) === String(annotationId));
-          
           if (!existing) {
-            console.error(`[saveAllDirtyAnnotations] FAILED: Annotation ${annotationId} not found in state!`, annotations.value);
             continue;
           }
 
           const currentUserId = String(useAuthStore().user?.userId || '');
           const creatorId = String(existing.creatorId || '');
           
-          console.log(`🔍 [CHECK] ID: ${annotationId} | CurrentUser: "${currentUserId}" | Creator: "${creatorId}"`);
-
           if (creatorId !== currentUserId || creatorId === '') {
-            console.group(`🚀 [ROUTING TO REVIEW] Annotation: ${annotationId}`);
             
             const payload: any = {
               annotation_id: annotationId,
-              parent_id: annotationId,
               status: 'modified',
               comments: 'Expert modified geometry and/or value directly via UI.',
               // HER ZAMAN tam durumu gönderiyoruz (Orijinal anotasyon yapısı gibi)
-              modified_polygon: (data.polygon || existing.polygon).map((p: any) => ({ 
-                X: Number(p.x !== undefined ? p.x : p.X), 
-                Y: Number(p.y !== undefined ? p.y : p.Y) 
-              })),
+              modified_polygon: (data.polygon || existing.polygon || [])
+                .map((p: any) => {
+                  const x = Number(p.x !== undefined ? p.x : p.X);
+                  const y = Number(p.y !== undefined ? p.y : p.Y);
+                  return { X: x, Y: y };
+                })
+                .filter((p: any) => !isNaN(p.X) && !isNaN(p.Y)),
               modified_value: data.value !== undefined ? data.value : existing.value
             };
 
-            console.log('📤 [FINAL FULL-STATE PAYLOAD]:', JSON.stringify(payload, null, 2));
             await createReview(payload as any);
             
             // Bayrakları temizle
@@ -674,7 +686,6 @@ export const useAnnotationStore = defineStore('annotation', () => {
             // createReview zaten fetchAnnotationById yapıyor, ama biz review'ı da hemen uygulayalım
             await fetchAndApplyReview(annotationId);
             
-            console.groupEnd();
             continue; 
           }
 
@@ -689,26 +700,17 @@ export const useAnnotationStore = defineStore('annotation', () => {
           if (data.is_global !== undefined) updatePayload.is_global = data.is_global;
           if (data.polygon !== undefined) updatePayload.polygon = data.polygon;
 
-          console.log(`[FRONTEND] 1. Preparing PUT Request Payload for Annotation ID: ${annotationId}`);
-          console.log(`[FRONTEND] 2. Payload Polygon length: ${updatePayload.polygon?.length}`);
-          console.log(`[FRONTEND] 3. Payload JSON:`, JSON.stringify(updatePayload));
-          
           await repositories.annotation.update(annotationId, updatePayload);
-          console.log(`[FRONTEND] 4. PUT Request finished without errors. Backend accepted the request.`);
           
           // Wait a bit before fetching
           await new Promise(r => setTimeout(r, 1000));
           
-          console.log(`[FRONTEND] 5. Fetching the updated annotation from backend...`);
           const updated = await repositories.annotation.getById(annotationId);
-          console.log(`[FRONTEND] 6. Fetched Polygon from Backend:`, JSON.stringify(updated.polygon));
           
           if (updated) {
             updateAnnotationInState(updated);
-            console.log(`[FRONTEND] 7. State updated with backend's response.`);
           }
         } catch (err: any) {
-          console.error(`[saveAllDirtyAnnotations] Error updating ${annotationId}:`, err);
           allSuccess = false;
         }
       }
@@ -752,20 +754,17 @@ export const useAnnotationStore = defineStore('annotation', () => {
         String(r.reviewerId) === currentUserId
       );
 
-      if (data.annotation_id) {
-        (data as any).parent_id = data.annotation_id;
-      }
-
+      // annotation_id is enough for the backend to link to the parent annotation
       if (existingReview) {
-        console.log(`🔄 Updating existing review ${existingReview.id} for annotation ${data.annotation_id}`);
         await repositories.annotationReview.update(existingReview.id, data);
       } else {
-        console.log(`🆕 Creating new review for annotation ${data.annotation_id}`);
         await repositories.annotationReview.create(data);
       }
 
       // Refresh the annotation to get updated review_ids
       await fetchAnnotationById(data.annotation_id, { showToast: false });
+      // Apply the review results (colors, modifications) to the local state
+      await fetchAndApplyReview(data.annotation_id);
       return true;
     } catch (err: any) {
       handleError(err, t('annotation.messages.review_error'));
@@ -780,23 +779,15 @@ export const useAnnotationStore = defineStore('annotation', () => {
     
     const success = await createReview({
       annotation_id: annotationId,
-      parent_id: annotationId,
       status: 'approved',
-      comments: 'Expert approved.',
-      modified_value: existing?.value,
-      modified_polygon: existing?.polygon.map((p: any) => ({ 
-        X: Number(p.x !== undefined ? p.x : p.X), 
-        Y: Number(p.y !== undefined ? p.y : p.Y) 
-      }))
+      comments: 'Expert approved.'
     } as any);
     
     if (success) {
-      if (existing) {
-        existing.color = '#10b981'; // Expert Approved Green
-        annotations.value = [...annotations.value];
-      }
+      // fetchAndApplyReview already called inside createReview, so the color is already green
+      return true;
     }
-    return success;
+    return false;
   };
 
   const rejectAnnotation = async (annotationId: string, imageId: string): Promise<boolean> => {
@@ -806,14 +797,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
     await createReview({
       annotation_id: annotationId,
-      parent_id: annotationId,
       status: 'rejected',
-      comments: 'Expert rejected and hidden.',
-      modified_value: existing?.value,
-      modified_polygon: existing?.polygon.map((p: any) => ({ 
-        X: Number(p.x !== undefined ? p.x : p.X), 
-        Y: Number(p.y !== undefined ? p.y : p.Y) 
-      }))
+      comments: 'Expert rejected and hidden.'
     } as any);
 
     // According to user requirement: "arkaplanda db de silinmesin sadece gizlensin"
@@ -838,13 +823,15 @@ export const useAnnotationStore = defineStore('annotation', () => {
     // 2. Prepare the review payload (ALWAYS full state)
     const payload: any = {
       annotation_id: annotationId,
-      parent_id: annotationId,
       status: 'modified',
       comments: 'Expert modified and approved.',
-      modified_polygon: finalPolygon.map((p: any) => ({ 
-        X: Number(p.x !== undefined ? p.x : p.X), 
-        Y: Number(p.y !== undefined ? p.y : p.Y) 
-      })),
+      modified_polygon: (finalPolygon || [])
+        .map((p: any) => {
+          const x = Number(p.x !== undefined ? p.x : p.X);
+          const y = Number(p.y !== undefined ? p.y : p.Y);
+          return { X: x, Y: y };
+        })
+        .filter((p: any) => !isNaN(p.X) && !isNaN(p.Y)),
       modified_value: finalValue
     };
 
@@ -886,47 +873,64 @@ export const useAnnotationStore = defineStore('annotation', () => {
   };
 
   const fetchAndApplyReview = async (annotationId: string) => {
+    if (loadingReviews.has(annotationId)) return false;
+    loadingReviews.add(annotationId);
+
     try {
-      console.log(`📡 Fetching reviews for: ${annotationId}`);
       const reviews = await repositories.annotationReview.getByAnnotationId(annotationId);
+      const currentUserId = String(useAuthStore().user?.userId || '');
       
+      const index = annotations.value.findIndex(a => a.id === annotationId);
+      if (index === -1) return false;
+      const ann = annotations.value[index]!;
+
+      // Reset to base state before checking reviews
+      (ann as any).isReview = String(ann.creatorId) !== currentUserId;
+      const baseColor = getTagColor(ann.annotationTypeId, ann.value);
+
       if (!reviews || reviews.length === 0) {
-        console.log(`⚪ No reviews found for: ${annotationId}`);
+        ann.color = baseColor;
         return false;
       }
 
-      console.log(`📥 Received ${reviews.length} reviews for: ${annotationId}`);
+      const getSafeTime = (d: any) => {
+        if (!d) return 0;
+        const t = new Date(d).getTime();
+        return isNaN(t) ? 0 : t;
+      };
 
       const latestReview = reviews
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+        .sort((a, b) => {
+          const timeA = Math.max(getSafeTime(a.updatedAt), getSafeTime(a.createdAt));
+          const timeB = Math.max(getSafeTime(b.updatedAt), getSafeTime(b.createdAt));
+          return timeB - timeA;
+        })[0];
+
+      const annUpdateTime = Math.max(getSafeTime(ann.updatedAt), getSafeTime(ann.createdAt));
 
       if (latestReview && latestReview.status === 'rejected') {
-        console.log(`🚫 Annotation ${annotationId} is REJECTED. Hiding from state.`);
-        removeAnnotationFromState(annotationId);
-        return true;
-      }
-
-      const index = annotations.value.findIndex(a => a.id === annotationId);
-      if (latestReview && latestReview.status === 'approved' && index !== -1) {
-        console.log(`✅ Annotation ${annotationId} is APPROVED. Turning green.`);
-        const ann = annotations.value[index];
-        if (ann) {
-          ann.color = '#10b981';
-          annotations.value = [...annotations.value];
+        // Eğer reject varsa ve en son yapılan işlem (update dahil) annotation'dan yeniyse veya aynıysa gizle
+        const latestReviewTime = Math.max(getSafeTime(latestReview.updatedAt), getSafeTime(latestReview.createdAt));
+        if (latestReviewTime >= annUpdateTime) {
+          removeAnnotationFromState(annotationId);
+          return true;
         }
       }
 
       const latestModified = reviews
         .filter(r => r.status === 'modified' || r.status === 'approved')
         .filter(r => r.modifiedPolygon || r.modifiedValue)
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+        .sort((a, b) => {
+          const timeA = Math.max(getSafeTime(a.updatedAt), getSafeTime(a.createdAt));
+          const timeB = Math.max(getSafeTime(b.updatedAt), getSafeTime(b.createdAt));
+          return timeB - timeA;
+        })[0];
 
       if (latestModified) {
-        console.log(`✨ Applying LATEST modified review for: ${annotationId}`, latestModified);
-        const index = annotations.value.findIndex(a => a.id === annotationId);
-        if (index !== -1) {
-          const ann = annotations.value[index]!;
-          
+        const reviewTime = Math.max(getSafeTime(latestModified.updatedAt), getSafeTime(latestModified.createdAt));
+
+        // KRİTİK KONTROL: En son hangisi yapıldıysa (veya aynı andaysa) onu göster!
+        if (reviewTime >= annUpdateTime) {
           if (latestModified.modifiedPolygon) {
             const pts = (latestModified.modifiedPolygon as any[]).map((p: any) => {
               const x = p.x !== undefined ? p.x : p.X;
@@ -935,9 +939,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
             }).filter((p: any) => !isNaN(p.x) && !isNaN(p.y));
 
             if (pts.length >= 3) {
-              // Reaktiviteyi bozmadan poligonu güncelle
               ann.polygon = pts as any;
-              console.log(`✅ Polygon updated for: ${annotationId}`, pts);
             }
           }
           
@@ -946,16 +948,85 @@ export const useAnnotationStore = defineStore('annotation', () => {
           }
           
           (ann as any).isReview = true;
+          // Status'e göre renk ata: approved -> Yeşil, modified -> Mavi
+          ann.color = latestModified.status === 'approved' ? '#10b981' : '#3b82f6';
           
-          // Tüm diziyi yenileyerek watcher'ı tetikle
           annotations.value = [...annotations.value];
           return true;
+        } else {
+          // Orijinal daha yeni, ama bir inceleme var. 
+          // Orijinal renk ve flag'i koruyoruz (zaten yukarıda resetledik)
+          ann.color = baseColor;
+          annotations.value = [...annotations.value];
         }
+      } else if (latestReview && latestReview.status === 'approved') {
+        // Modifikasyon yok ama onay var ve onay daha yeni veya aynı anda
+        const latestReviewTime = Math.max(getSafeTime(latestReview.updatedAt), getSafeTime(latestReview.createdAt));
+        if (latestReviewTime >= annUpdateTime) {
+          ann.color = '#10b981'; // Yeşil
+          annotations.value = [...annotations.value];
+        } else {
+          ann.color = baseColor;
+          annotations.value = [...annotations.value];
+        }
+      } else {
+        // Hiçbir geçerli review yok veya hepsi eski
+        ann.color = baseColor;
+        annotations.value = [...annotations.value];
       }
     } catch (e) {
-      console.warn(`❌ Review fetch error for ${annotationId}:`, e);
+      console.error('fetchAndApplyReview failed', e);
+    } finally {
+      loadingReviews.delete(annotationId);
     }
     return false;
+  };
+
+  const resolveCreatorNames = async (uids: string[]): Promise<void> => {
+    const uniqueUids = [...new Set(uids)].filter(uid => uid && !userNames.value[uid]);
+    if (uniqueUids.length === 0) return;
+
+    await Promise.all(uniqueUids.map(async (uid) => {
+      try {
+        const data = await repositories.auth.getPublicUser(uid);
+        const name = data?.display_name || (data as any)?.displayName || (data as any)?.user?.display_name || (data as any)?.user?.displayName;
+        
+        if (name && name !== uid) {
+          userNames.value = { 
+            ...userNames.value, 
+            [uid]: name 
+          };
+        }
+      } catch (err) {
+        // Silently fail for public lookup
+      }
+    }));
+  };
+
+  const getTagIndex = (annotationTypeId: string, tagValue: string): number => {
+    const typeStore = useAnnotationTypeStore();
+    const type = typeStore.annotationTypes.find(t => t.id === annotationTypeId);
+    if (!type || !type.options) return -1;
+    
+    const normalizedTag = String(tagValue || '').trim().toLowerCase();
+    return type.options.findIndex(opt => String(opt).trim().toLowerCase() === normalizedTag);
+  };
+
+  const getTagColor = (annotationTypeId: string, tagValue: string): string => {
+    const index = getTagIndex(annotationTypeId, tagValue);
+    
+    if (index === -1) {
+      // Fallback hash for tags not in formal options
+      const normalizedTag = String(tagValue || '').trim().toLowerCase();
+      if (!normalizedTag) return '#ec4899';
+      let hash = 0;
+      for (let i = 0; i < normalizedTag.length; i++) {
+        hash = normalizedTag.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return SUBTYPE_COLORS[Math.abs(hash) % SUBTYPE_COLORS.length] || '#ec4899';
+    }
+    
+    return SUBTYPE_COLORS[index % SUBTYPE_COLORS.length] || '#ec4899';
   };
 
   return {
@@ -1037,5 +1108,9 @@ export const useAnnotationStore = defineStore('annotation', () => {
     fetchAndApplyReview,
     deleteReview,
     fetchAnnotationsByImageId,
+    userNames,
+    resolveCreatorNames,
+    getTagColor,
+    getTagIndex,
   };
 })

@@ -60,7 +60,6 @@ export function useImageList(patientId: string, emit: any) {
 
       offset.value += limit;
     } catch (e) {
-      console.error(e);
     } finally {
       loading.value = false;
     }
