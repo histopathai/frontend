@@ -64,10 +64,12 @@ export class Annotation {
       workspaceId: workspaceId,
       value: data.value,
       type: tagType as TagType,
-      polygon: (data.polygon || []).map((p: any) => ({
-        x: p.x !== undefined ? p.x : p.X,
-        y: p.y !== undefined ? p.y : p.Y,
-      })),
+      polygon: (data.polygon || [])
+        .map((p: any) => ({
+          x: Number(p.x !== undefined ? p.x : p.X),
+          y: Number(p.y !== undefined ? p.y : p.Y),
+        }))
+        .filter((p: any) => !isNaN(p.x) && !isNaN(p.y)),
       isGlobal: data.is_global || data.isGlobal,
       color: data.color,
       resource: data.resource || 'manual',

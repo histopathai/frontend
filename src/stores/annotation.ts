@@ -464,10 +464,13 @@ export const useAnnotationStore = defineStore('annotation', () => {
           status: 'modified',
           comments: 'Modified via tagging modal or global tags.',
           modified_value: data.value !== undefined ? data.value : existingAnnotation.value,
-          modified_polygon: (data.polygon || existingAnnotation.polygon).map((p: any) => ({ 
-            X: Number(p.x !== undefined ? p.x : p.X), 
-            Y: Number(p.y !== undefined ? p.y : p.Y) 
-          }))
+          modified_polygon: (data.polygon || existingAnnotation.polygon || [])
+            .map((p: any) => {
+              const x = Number(p.x !== undefined ? p.x : p.X);
+              const y = Number(p.y !== undefined ? p.y : p.Y);
+              return { X: x, Y: y };
+            })
+            .filter((p: any) => !isNaN(p.X) && !isNaN(p.Y))
         };
 
         const success = await createReview(payload as any);
@@ -661,14 +664,16 @@ export const useAnnotationStore = defineStore('annotation', () => {
             
             const payload: any = {
               annotation_id: annotationId,
-              parent_id: annotationId,
               status: 'modified',
               comments: 'Expert modified geometry and/or value directly via UI.',
               // HER ZAMAN tam durumu gönderiyoruz (Orijinal anotasyon yapısı gibi)
-              modified_polygon: (data.polygon || existing.polygon).map((p: any) => ({ 
-                X: Number(p.x !== undefined ? p.x : p.X), 
-                Y: Number(p.y !== undefined ? p.y : p.Y) 
-              })),
+              modified_polygon: (data.polygon || existing.polygon || [])
+                .map((p: any) => {
+                  const x = Number(p.x !== undefined ? p.x : p.X);
+                  const y = Number(p.y !== undefined ? p.y : p.Y);
+                  return { X: x, Y: y };
+                })
+                .filter((p: any) => !isNaN(p.X) && !isNaN(p.Y)),
               modified_value: data.value !== undefined ? data.value : existing.value
             };
 
@@ -749,10 +754,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
         String(r.reviewerId) === currentUserId
       );
 
-      if (data.annotation_id) {
-        (data as any).parent_id = data.annotation_id;
-      }
-
+      // annotation_id is enough for the backend to link to the parent annotation
       if (existingReview) {
         await repositories.annotationReview.update(existingReview.id, data);
       } else {
@@ -777,14 +779,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
     
     const success = await createReview({
       annotation_id: annotationId,
-      parent_id: annotationId,
       status: 'approved',
-      comments: 'Expert approved.',
-      modified_value: existing?.value,
-      modified_polygon: existing?.polygon.map((p: any) => ({ 
-        X: Number(p.x !== undefined ? p.x : p.X), 
-        Y: Number(p.y !== undefined ? p.y : p.Y) 
-      }))
+      comments: 'Expert approved.'
     } as any);
     
     if (success) {
@@ -801,14 +797,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
     await createReview({
       annotation_id: annotationId,
-      parent_id: annotationId,
       status: 'rejected',
-      comments: 'Expert rejected and hidden.',
-      modified_value: existing?.value,
-      modified_polygon: existing?.polygon.map((p: any) => ({ 
-        X: Number(p.x !== undefined ? p.x : p.X), 
-        Y: Number(p.y !== undefined ? p.y : p.Y) 
-      }))
+      comments: 'Expert rejected and hidden.'
     } as any);
 
     // According to user requirement: "arkaplanda db de silinmesin sadece gizlensin"
@@ -833,13 +823,15 @@ export const useAnnotationStore = defineStore('annotation', () => {
     // 2. Prepare the review payload (ALWAYS full state)
     const payload: any = {
       annotation_id: annotationId,
-      parent_id: annotationId,
       status: 'modified',
       comments: 'Expert modified and approved.',
-      modified_polygon: finalPolygon.map((p: any) => ({ 
-        X: Number(p.x !== undefined ? p.x : p.X), 
-        Y: Number(p.y !== undefined ? p.y : p.Y) 
-      })),
+      modified_polygon: (finalPolygon || [])
+        .map((p: any) => {
+          const x = Number(p.x !== undefined ? p.x : p.X);
+          const y = Number(p.y !== undefined ? p.y : p.Y);
+          return { X: x, Y: y };
+        })
+        .filter((p: any) => !isNaN(p.X) && !isNaN(p.Y)),
       modified_value: finalValue
     };
 
