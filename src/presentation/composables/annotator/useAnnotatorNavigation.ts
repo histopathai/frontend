@@ -86,6 +86,7 @@ export function useAnnotatorNavigation() {
     localStorage.setItem(STORAGE_KEY_WS, workspace.id);
     
     workspaceStore.setCurrentWorkspace(workspace);
+    workspaceStore.fetchWorkspaceById(workspace.id, { showToast: false });
 
     annotationTypeStore.fetchAnnotationTypes(
       { limit: 100 },
@@ -288,10 +289,13 @@ export function useAnnotatorNavigation() {
     { immediate: true }
   );
 
+  let isWorkspacesInitialized = false;
   watch(
     workspaces,
     (newWorkspaces) => {
+      if (isWorkspacesInitialized) return;
       if (newWorkspaces && newWorkspaces.length > 0) {
+        isWorkspacesInitialized = true;
         if (!selectedWorkspaceId.value) {
           const firstWorkspace = newWorkspaces[0];
           if (firstWorkspace) {
@@ -303,6 +307,7 @@ export function useAnnotatorNavigation() {
           if (workspace) {
             // Restore side effects
             workspaceStore.setCurrentWorkspace(workspace);
+            workspaceStore.fetchWorkspaceById(workspace.id, { showToast: false });
             
             // Check if patients for this workspace are already loaded
             const patientsLoaded = patientStore.patientsByWorkspace.has(workspace.id);

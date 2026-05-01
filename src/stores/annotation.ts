@@ -76,6 +76,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const loadingReviews = new Set<string>(); // Cache for ongoing review fetches
   const userNames = ref<Record<string, string>>({}); // ID -> Display Name cache
   const tagIndexMap = ref<Record<string, Record<string, number>>>({}); // typeId -> { tagName -> index }
+  const imageMetadata = ref<Map<string, any>>(new Map()); // imageId -> metadata object
   const isLoading = computed(() => loading.value);
   const isActionLoading = computed(() => actionLoading.value);
   const hasError = computed(() => !!error.value);
@@ -97,6 +98,10 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const getAnnotationsByImageId = computed(() => {
     return (imageId: string) => annotationsByImage.value.get(imageId) || [];
   });
+
+  const setPendingMetadata = (imageId: string, metadata: any) => {
+    imageMetadata.value.set(imageId, metadata);
+  };
 
   const handleError = (err: any, defaultMessage: string, showToast = true): void => {
     const errorMessage = err.response?.data?.message || err.message || defaultMessage;
@@ -1093,6 +1098,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
     removePendingAnnotation,
     clearPendingAnnotations,
     saveAllPendingAnnotations,
+    setPendingMetadata,
+    imageMetadata,
 
     dirtyAnnotations,
     dirtyCount,

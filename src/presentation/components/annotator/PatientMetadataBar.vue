@@ -21,7 +21,7 @@
         </svg>
       </div>
 
-      <div v-if="patient" class="flex flex-col min-w-0 max-w-[160px]">
+      <div v-if="patient" class="flex flex-col min-w-0 max-w-[220px]">
         <div class="flex items-center gap-1">
           <h2
             class="text-[12px] font-bold text-gray-900 truncate leading-tight"
@@ -45,11 +45,13 @@
             </svg>
           </button>
         </div>
-        <div class="flex items-center gap-1.5 text-[9px] text-gray-400 truncate">
-          <span v-if="age || gender" class="font-medium"
+        <div class="flex items-center gap-1.5 text-[9px] text-gray-500 font-medium truncate">
+          <span v-if="age || gender"
             >{{ age ? `${age}Y` : '' }} {{ gender ? (gender === 'Male' ? 'E' : 'K') : '' }}</span
           >
-          <span v-else class="italic">Veri yok</span>
+          <span v-if="image" :title="image.name" class="text-indigo-600 font-semibold truncate flex-1 select-none">
+            {{ image.name }}
+          </span>
         </div>
       </div>
       <div v-else class="text-[10px] text-gray-400 italic">Seçilmedi</div>
@@ -159,7 +161,7 @@
       <div class="w-px h-6 bg-gray-200 flex-shrink-0"></div>
 
       <button
-        @click="togglePopover('global_tags')"
+        @click.stop="togglePopover('global_tags')"
         :disabled="dynamicFields.length === 0"
         class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all relative"
         :class="[
@@ -234,16 +236,71 @@
         </button>
       </div>
     </div>
+
+    <div
+      v-if="activePopover === 'global_tags'"
+      @click.stop
+      class="absolute top-14 right-4 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 p-4 z-50 animate-fade-in origin-top-right"
+    >
+      <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
+        Global Etiketler (Dataset)
+      </h3>
+      <div v-if="dynamicFields.length > 0" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+        <div v-for="field in dynamicFields" :key="field.id" class="space-y-1.5">
+          <label class="text-[9px] font-bold text-gray-500 uppercase flex items-center gap-1">
+            {{ field.name }}
+            <span v-if="field.required" class="text-red-500">*</span>
+          </label>
+          
+          <select 
+            v-if="field.type === 'select'" 
+            v-model="localMetadata[field.id]" 
+            class="form-select-compact"
+            @change="handleMetadataChange"
+          >
+            <option :value="undefined">Seçiniz</option>
+            <option v-for="opt in field.options" :key="opt" :value="opt">{{ opt }}</option>
+          </select>
+          
+          <input 
+            v-else-if="field.type === 'text'" 
+            type="text" 
+            v-model="localMetadata[field.id]" 
+            class="form-input-compact"
+            @input="handleMetadataChange"
+          />
+          
+          <textarea
+            v-else-if="field.type === 'textarea'"
+            v-model="localMetadata[field.id]"
+            class="form-input-compact h-20 resize-none"
+            @input="handleMetadataChange"
+          ></textarea>
+        </div>
+      </div>
+      <div v-else class="py-6 text-center">
+        <p class="text-xs text-gray-400 italic">Bu çalışma alanında tanımlı global etiket bulunmuyor.</p>
+      </div>
+      <div class="mt-4 flex justify-end">
+        <button
+          @click="activePopover = null"
+          class="text-[10px] bg-gray-900 text-white px-4 py-1.5 rounded-lg hover:bg-black transition-colors"
+        >
+          Kapat
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, watchEffect, onBeforeUnmount } from 'vue';
 import { useAnnotationStore } from '@/stores/annotation';
 import { useWorkspaceStore } from '@/stores/workspace';
 import type { Image } from '@/core/entities/Image';
 import type { Patient } from '@/core/entities/Patient';
 import { useToast } from 'vue-toastification';
+import { useAnnotationTypeStore } from '@/stores/annotation_type';
 
 const props = defineProps<{
   image: Image | null;
@@ -257,6 +314,7 @@ const emit = defineEmits(['prev', 'next', 'startDrawing', 'stopDrawing', 'refres
 
 const annotationStore = useAnnotationStore();
 const workspaceStore = useWorkspaceStore();
+const annotationTypeStore = useAnnotationTypeStore();
 const toast = useToast();
 
 const activePopover = ref<string | null>(null);
@@ -268,11 +326,90 @@ const history = ref<string | undefined>(props.patient?.history ?? undefined);
 const localMetadata = ref<Record<string, any>>({});
 const initialMetadata = ref<Record<string, any>>({});
 
+const imageAnnotations = computed(() => {
+  if (!props.image) return [];
+  // Use annotationStore.annotations directly for perfect Vue reactivity
+  return annotationStore.annotations.filter(
+    (ann: any) => ann.parentId === props.image?.id || ann.parent?.id === props.image?.id
+  );
+});
+
+watch(
+  [() => props.image, imageAnnotations],
+  ([newImage, newAnns]) => {
+    if (newImage) {
+      const meta = (newImage as any).metadata || {};
+      
+      // Pull global annotations for this image with thorough property checking
+      const globalAnns = (newAnns || []).filter((ann: any) => {
+        return (
+          ann.isGlobal === true ||
+          ann.is_global === true ||
+          ann.global === true ||
+          (ann.props && (ann.props.isGlobal === true || ann.props.is_global === true))
+        );
+      });
+      
+      globalAnns.forEach((ann: any) => {
+        const typeId =
+          ann.annotationTypeId ||
+          ann.annotation_type_id ||
+          (ann.props && (ann.props.annotationTypeId || ann.props.annotation_type_id));
+        
+        if (typeId) {
+          meta[typeId] = ann.value;
+        }
+      });
+      
+      localMetadata.value = { ...meta };
+      initialMetadata.value = { ...meta };
+    } else {
+      localMetadata.value = {};
+      initialMetadata.value = {};
+    }
+  },
+  { immediate: true, deep: true }
+);
+
+function handleMetadataChange() {
+  if (!props.image) return;
+  // Store the pending metadata update in the annotation store
+  annotationStore.setPendingMetadata(props.image.id, { ...localMetadata.value });
+}
+
 const isDrawingMode = computed(() => props.isDrawingMode);
 
 const dynamicFields = computed(() => {
   const ws = workspaceStore.currentWorkspace;
-  return (ws as any)?.metadata_config?.fields || [];
+  const config = ws?.metadata_config;
+  let fields: any[] = [];
+  if (Array.isArray(config)) {
+    fields = [...config];
+  } else if (config?.fields) {
+    fields = [...config.fields];
+  }
+
+  // ALL annotation types for the current workspace where global is true, or the specific user-mentioned ID
+  const wsAnnotationTypeIds = ws?.annotationTypeIds || [];
+  const wsTypes = annotationTypeStore.annotationTypes.filter(
+    (at: any) =>
+      wsAnnotationTypeIds.includes(at.id) &&
+      (at.global === true || at.is_global === true || at.id === 'z5CeGqSHP7hWLplqlIe1')
+  );
+
+  wsTypes.forEach((at: any) => {
+    if (!fields.some((f) => f.id === at.id)) {
+      fields.push({
+        id: at.id,
+        name: at.name,
+        type: at.type === 'select' ? 'select' : (at.type === 'textarea' ? 'textarea' : 'text'),
+        required: at.required || false,
+        options: at.options || [],
+      });
+    }
+  });
+
+  return fields;
 });
 
 const missingRequired = computed(() => {
@@ -281,6 +418,18 @@ const missingRequired = computed(() => {
 
 const hasFilledMetadata = computed(() => {
   return Object.values(localMetadata.value).some((v) => v !== null && v !== undefined && v !== '');
+});
+
+function closePopovers() {
+  activePopover.value = null;
+}
+
+onMounted(() => {
+  window.addEventListener('click', closePopovers);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('click', closePopovers);
 });
 
 function togglePopover(popover: string) {
@@ -296,7 +445,44 @@ async function handleSaveAll() {
     const dirtySuccess = await annotationStore.saveAllDirtyAnnotations();
     const pendingSuccess = await annotationStore.saveAllPendingAnnotations();
     
-    if (dirtySuccess && pendingSuccess) {
+    let globalSaveSuccess = true;
+    if (props.image && workspaceStore.currentWorkspace) {
+      const ws = workspaceStore.currentWorkspace;
+      
+      for (const field of dynamicFields.value) {
+        const currentVal = localMetadata.value[field.id];
+        const initialVal = initialMetadata.value[field.id];
+        
+        if (currentVal !== initialVal) {
+          const existingAnn = imageAnnotations.value.find(
+            (ann: any) =>
+              (ann.global === true || ann.is_global === true) &&
+              ann.annotationTypeId === field.id
+          );
+          
+          if (existingAnn) {
+            const success = await annotationStore.updateAnnotation(existingAnn.id, {
+              value: currentVal,
+            });
+            if (!success) globalSaveSuccess = false;
+          } else {
+            const newAnn = await annotationStore.createAnnotation(props.image.id, {
+              annotation_type_id: field.id,
+              is_global: true,
+              name: field.name,
+              tag_type: field.type || 'select',
+              value: currentVal,
+              ws_id: ws.id,
+              color: '#4F46E5',
+              polygon: [],
+            } as any);
+            if (!newAnn) globalSaveSuccess = false;
+          }
+        }
+      }
+    }
+
+    if (dirtySuccess && pendingSuccess && globalSaveSuccess) {
       toast.success('Tüm değişiklikler başarıyla kaydedildi');
       emit('refreshViewer');
     } else {

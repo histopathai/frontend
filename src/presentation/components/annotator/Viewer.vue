@@ -133,10 +133,13 @@ defineExpose({ startDrawing, stopDrawing, loadAnnotations });
 // --- WATCHERS ---
 
 watch(
-  () => props.selectedImage,
-  async (newImg) => {
-    await loadImage(newImg);
-  }
+  [() => props.selectedImage, viewer],
+  async ([newImg, newViewer]) => {
+    if (newImg && newViewer) {
+      await loadImage(newImg);
+    }
+  },
+  { immediate: true }
 );
 
 watch(
