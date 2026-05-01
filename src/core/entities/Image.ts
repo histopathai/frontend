@@ -25,6 +25,7 @@ export interface ImageProps {
   status: ImageStatus;
   createdAt: Date;
   updatedAt: Date;
+  metadata?: any;
 }
 
 export class Image {
@@ -60,6 +61,7 @@ export class Image {
       status: ImageStatus.fromString(data.status || 'PROCESSING'),
       createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,
       updatedAt: typeof data.updated_at === 'string' ? new Date(data.updated_at) : data.updated_at,
+      metadata: data.metadata || data.meta || undefined,
     });
   }
 
@@ -121,6 +123,10 @@ export class Image {
 
   get updatedAt(): Date {
     return this.props.updatedAt;
+  }
+  
+  get metadata(): any {
+    return this.props.metadata;
   }
 
   isProcessed(): boolean {

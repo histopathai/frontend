@@ -70,34 +70,6 @@
             </svg>
           </button>
         </div>
-
-        <div v-if="searchQuery && hasMoreData && !isLoadingAll" class="mt-2">
-          <button
-            @click="loadAllData"
-            class="w-full text-[10px] bg-indigo-50 text-indigo-700 py-1.5 rounded border border-indigo-100 hover:bg-indigo-100 transition flex items-center justify-center gap-1 group"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-3 w-3 group-hover:animate-bounce"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fill-rule="evenodd"
-                d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                clip-rule="evenodd"
-              />
-            </svg>
-            Aradığınız kişi yüklenmemiş olabilir. <strong>Hepsini Yükle</strong>
-          </button>
-        </div>
-
-        <div
-          v-if="isLoadingAll"
-          class="mt-2 text-[10px] text-indigo-600 flex items-center justify-center bg-indigo-50 py-1.5 rounded animate-pulse border border-indigo-100"
-        >
-          <span>Verisetinin tamamı taranıyor...</span>
-        </div>
       </div>
     </div>
 
@@ -171,7 +143,7 @@
                   />
                 </svg>
               </div>
-              <div class="flex flex-col min-w-0">
+              <div class="flex flex-col min-w-0" :title="patient.name">
                 <span
                   class="text-xs font-medium text-gray-700 truncate"
                   :class="{ 'text-indigo-700': isSelected(patient.id) }"
@@ -211,12 +183,12 @@
           >
             <div v-if="isSelected(patient.id)" class="overflow-hidden bg-gray-50/50 shadow-inner">
               <ul class="py-2 pl-4 pr-2 space-y-1">
-                <li v-if="images.length === 0" class="py-2 pl-9 text-xs text-gray-400 italic">
+                <li v-if="filteredImages.length === 0" class="py-2 pl-9 text-xs text-gray-400 italic">
                   Görüntü bulunamadı
                 </li>
 
                 <li
-                  v-for="image in images"
+                  v-for="image in filteredImages"
                   :key="image.id"
                   @click="$emit('image-selected', image)"
                   class="relative group flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all border"
@@ -239,40 +211,54 @@
                     </div>
                   </div>
 
-                  <div class="min-w-0 flex-1">
-                    <p
-                      class="text-[11px] font-medium truncate"
-                      :class="image.id === selectedImageId ? 'text-indigo-700' : 'text-gray-700'"
-                    >
-                      {{ image.name }}
-                    </p>
-                    <span class="text-[9px] text-gray-400 block" v-if="image.width"
-                      >{{ image.width }}x{{ image.height }}</span
-                    >
+                  <div class="min-w-0 flex-1 select-none" :title="image.name">
+                    <div class="flex items-center justify-between">
+                      <p
+                        class="text-[11px] font-semibold truncate flex-1 pr-1"
+                        :class="image.id === selectedImageId ? 'text-indigo-800' : 'text-gray-700'"
+                      >
+                        {{ image.name }}
+                      </p>
+                      
+                      <!-- Status Badge -->
+                      <span
+                        v-if="imageStatusMap[image.id]?.status === 'completed'"
+                        class="text-[8px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-full"
+                      >
+                        Tamamlandı
+                      </span>
+                      <span
+                        v-else-if="imageStatusMap[image.id]?.status === 'incomplete'"
+                        class="text-[8px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded-full"
+                      >
+                        Eksik
+                      </span>
+                      <span
+                        v-else
+                        class="text-[8px] bg-gray-100 text-gray-500 font-bold px-1.5 py-0.5 rounded-full"
+                      >
+                        Bekliyor
+                      </span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between mt-1">
+                      <span class="text-[9px] text-gray-400 block" v-if="image.width">
+                        {{ image.width }}x{{ image.height }}
+                      </span>
+                      
+                      <!-- Annotation Counts -->
+                      <span class="text-[8px] text-gray-400 flex items-center gap-1.5">
+                        <span v-if="imageStatusMap[image.id]?.polygons" class="flex items-center gap-0.5">
+                          <svg class="w-2 h-2 text-indigo-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/></svg>
+                          {{ imageStatusMap[image.id]?.polygons }} lokal
+                        </span>
+                        <span v-if="imageStatusMap[image.id]?.globals" class="flex items-center gap-0.5">
+                          <svg class="w-2 h-2 text-indigo-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/></svg>
+                          {{ imageStatusMap[image.id]?.globals }} global
+                        </span>
+                      </span>
+                    </div>
                   </div>
-
-                  <div
-                    v-if="image.id !== selectedImageId && annotatedImageSet.has(image.id)"
-                    class="absolute right-2 flex items-center justify-center w-4 h-4 bg-emerald-100 rounded-full shadow-sm"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="h-2.5 w-2.5 text-emerald-600"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fill-rule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clip-rule="evenodd"
-                      />
-                    </svg>
-                  </div>
-
-                  <div
-                    v-if="image.id === selectedImageId"
-                    class="absolute right-2 w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-sm"
-                  ></div>
                 </li>
               </ul>
             </div>
@@ -345,6 +331,8 @@ import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
 import { ApiClient } from '@/infrastructure/api/ApiClient';
 import { usePatientStore } from '@/stores/patient';
+import { useAnnotationTypeStore } from '@/stores/annotation_type';
+import { AnnotationRepository } from '@/infrastructure/repositories/AnnotationRepository';
 
 const props = defineProps({
   workspaces: { type: Array as PropType<Workspace[]>, required: true },
@@ -371,13 +359,18 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const annotationStore = useAnnotationStore();
 const authStore = useAuthStore();
 const patientStore = usePatientStore();
+const annotationTypeStore = useAnnotationTypeStore();
 const toast = useToast();
 const apiClient = new ApiClient(API_BASE_URL);
+const annotationRepo = new AnnotationRepository(apiClient);
 
 const searchQuery = ref('');
 const isLoadingAll = ref(false);
-
 const annotatedImageSet = ref(new Set<string>());
+
+const filteredImages = computed(() => {
+  return props.images;
+});
 
 const filteredPatients = computed(() => {
   if (!searchQuery.value) return props.patients;
@@ -385,10 +378,9 @@ const filteredPatients = computed(() => {
   return props.patients.filter((p) => p.name?.toLocaleLowerCase('tr').includes(lowerQuery));
 });
 
-// Restore stats when patients list changes (e.g. pagination)
 // Restore stats when patients list changes (e.g. pagination) and fetch missing stats
 watch(
-  filteredPatients,
+  () => props.patients,
   async (newPatients) => {
     // 1. Restore existing stats
     const missingStatsPatients: Patient[] = [];
@@ -489,42 +481,104 @@ async function loadAllData() {
   }
 }
 
+const imageStatusMap = ref<Record<string, {
+  status: 'completed' | 'incomplete' | 'untouched';
+  polygons: number;
+  globals: number;
+}>>({});
+
+const requiredGlobalFields = computed(() => {
+  const ws = props.workspaces.find((w) => w.id === props.selectedWorkspaceId);
+  if (!ws) return [];
+  const config = ws.metadata_config;
+  let fields: any[] = [];
+  if (Array.isArray(config)) {
+    fields = [...config];
+  } else if (config?.fields) {
+    fields = [...config.fields];
+  }
+
+  const wsAnnotationTypeIds = ws.annotationTypeIds || [];
+  const wsTypes = annotationTypeStore.annotationTypes.filter(
+    (at: any) =>
+      wsAnnotationTypeIds.includes(at.id) &&
+      (at.global === true || at.is_global === true || at.id === 'z5CeGqSHP7hWLplqlIe1')
+  );
+
+  wsTypes.forEach((at: any) => {
+    if (!fields.some((f) => f.id === at.id)) {
+      fields.push({
+        id: at.id,
+        name: at.name,
+        type: at.type,
+        required: at.required || false,
+      });
+    }
+  });
+
+  return fields.filter((f) => f.required);
+});
+
 watch(
-  [() => props.images, () => authStore.token],
-  async ([newImages, token]) => {
+  [() => props.images, () => props.selectedWorkspaceId, () => authStore.token, requiredGlobalFields, () => annotationTypeStore.annotationTypes.length],
+  async ([newImages, wsId, token]) => {
     if (!newImages || newImages.length === 0) {
       annotatedImageSet.value = new Set();
       return;
     }
 
-    // ApiClient relies on authStore.token. If it's not ready, we wait.
     if (!token) return;
 
     const tempSet = new Set<string>();
-    if (props.selectedImageId && annotationStore.annotations.length > 0) {
-      tempSet.add(props.selectedImageId);
-    }
+    const newMap: Record<string, any> = { ...imageStatusMap.value };
 
     const promises = newImages.map(async (img) => {
-      if (tempSet.has(img.id)) return img.id;
       try {
-        const result = await apiClient.get<{ data: any[] }>(
-          `/api/v1/proxy/annotations/image/${img.id}?limit=1`
+        const result = await annotationRepo.listByImage(img.id);
+        const annotations = result.data || [];
+
+        const ws = props.workspaces.find((w) => w.id === props.selectedWorkspaceId);
+        const wsAnnotationTypeIds = ws ? (ws.annotationTypeIds || []) : [];
+
+        const polygons = annotations.filter(
+          (a: any) => a.polygon && a.polygon.length > 0
+        ).length;
+        
+        const globals = annotations.filter(
+          (a: any) => (!a.polygon || a.polygon.length === 0) && wsAnnotationTypeIds.includes(a.annotationTypeId)
         );
-        if (result && result.data && Array.isArray(result.data) && result.data.length > 0) {
-          return img.id;
+
+        const uniqueGlobals = new Set(globals.map((a: any) => a.annotationTypeId)).size;
+
+        const missingFields = requiredGlobalFields.value.filter(
+          (field) => !globals.some((a) => a.annotationTypeId === field.id && a.value)
+        );
+
+        let status: 'completed' | 'incomplete' | 'untouched' = 'untouched';
+
+        if (annotations.length === 0) {
+          status = 'untouched';
+        } else if (missingFields.length > 0) {
+          status = 'incomplete';
+        } else {
+          status = 'completed';
+          tempSet.add(img.id);
         }
-      } catch (e) {}
-      return null;
+
+        newMap[img.id] = {
+          status,
+          polygons,
+          globals: uniqueGlobals,
+        };
+      } catch (e) {
+        newMap[img.id] = { status: 'untouched', polygons: 0, globals: 0 };
+      }
     });
 
-    const results = await Promise.all(promises);
-    results.forEach((id) => {
-      if (id) tempSet.add(id);
-    });
+    await Promise.all(promises);
+    imageStatusMap.value = newMap;
     annotatedImageSet.value = tempSet;
 
-    // Update the patient's stats dynamically
     if (props.selectedPatientId) {
       const patient = props.patients.find((p) => p.id === props.selectedPatientId);
       if (patient) {
@@ -533,19 +587,57 @@ watch(
       }
     }
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 );
 
 watch(
   () => annotationStore.annotations,
   (newAnnotations) => {
     if (!props.selectedImageId) return;
+    
+    const annotations = newAnnotations.filter(
+      (a: any) => a.parentId === props.selectedImageId || a.parent?.id === props.selectedImageId
+    );
+    const ws = props.workspaces.find((w) => w.id === props.selectedWorkspaceId);
+    const wsAnnotationTypeIds = ws ? (ws.annotationTypeIds || []) : [];
+
+    const polygons = annotations.filter(
+      (a: any) => a.polygon && a.polygon.length > 0
+    ).length;
+    const globals = annotations.filter(
+      (a: any) => (!a.polygon || a.polygon.length === 0) && wsAnnotationTypeIds.includes(a.annotationTypeId)
+    );
+
+    const uniqueGlobals = new Set(globals.map((a: any) => a.annotationTypeId)).size;
+
+    const missingFields = requiredGlobalFields.value.filter(
+      (field) => !globals.some((a) => a.annotationTypeId === field.id && a.value)
+    );
+
+    let status: 'completed' | 'incomplete' | 'untouched' = 'untouched';
     const newSet = new Set(annotatedImageSet.value);
-    if (newAnnotations.length > 0) newSet.add(props.selectedImageId);
-    else newSet.delete(props.selectedImageId);
+    if (annotations.length === 0) {
+      status = 'untouched';
+      newSet.delete(props.selectedImageId);
+    } else if (missingFields.length > 0) {
+      status = 'incomplete';
+      newSet.delete(props.selectedImageId);
+    } else {
+      status = 'completed';
+      newSet.add(props.selectedImageId);
+    }
+
     annotatedImageSet.value = newSet;
 
-    // Update stats on annotation change
+    imageStatusMap.value = {
+      ...imageStatusMap.value,
+      [props.selectedImageId]: {
+        status,
+        polygons,
+        globals: uniqueGlobals,
+      },
+    };
+
     if (props.selectedPatientId) {
       const patient = props.patients.find((p) => p.id === props.selectedPatientId);
       if (patient) {
@@ -582,9 +674,16 @@ function getPatientProgressStyle(patient: Patient) {
 
 function getImageClasses(image: any) {
   if (image.id === props.selectedImageId)
-    return 'bg-white border-indigo-500 shadow-md ring-1 ring-indigo-200 z-10';
-  if (annotatedImageSet.value.has(String(image.id)))
-    return 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100';
+    return 'bg-indigo-50/60 border-indigo-400 shadow-sm ring-1 ring-indigo-100 z-10';
+  const stats = imageStatusMap.value[image.id];
+  if (stats) {
+    if (stats.status === 'completed') {
+      return 'bg-emerald-50/40 border-emerald-100 text-emerald-800 hover:bg-emerald-50';
+    }
+    if (stats.status === 'incomplete') {
+      return 'bg-amber-50/40 border-amber-100 text-amber-800 hover:bg-amber-50';
+    }
+  }
   return 'border-transparent hover:bg-white hover:border-gray-300 hover:shadow-sm text-gray-600';
 }
 

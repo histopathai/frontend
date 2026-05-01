@@ -15,6 +15,7 @@ export interface WorkspaceProps {
   releaseYear: number | null;
   createdAt: Date;
   updatedAt: Date;
+  metadata_config?: any;
 }
 
 export class Workspace {
@@ -46,6 +47,7 @@ export class Workspace {
       releaseYear: data.release_year ?? null,
       createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,
       updatedAt: typeof data.updated_at === 'string' ? new Date(data.updated_at) : data.updated_at,
+      metadata_config: data.metadata_config || data.metadataConfig || data.metadata || data.config?.metadata_config || data.config?.metadata || data.properties?.metadata_config || data.workspace_config?.metadata_config || undefined,
     });
   }
 
@@ -95,6 +97,10 @@ export class Workspace {
 
   get updatedAt(): Date {
     return this.props.updatedAt;
+  }
+  
+  get metadata_config(): any {
+    return this.props.metadata_config;
   }
 
   hasAnnotationType(): boolean {
