@@ -77,6 +77,16 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const userNames = ref<Record<string, string>>({}); // ID -> Display Name cache
   const tagIndexMap = ref<Record<string, Record<string, number>>>({}); // typeId -> { tagName -> index }
   const imageMetadata = ref<Map<string, any>>(new Map()); // imageId -> metadata object
+
+  // --- Original vs Reviewed comparison ---
+  // 'all' = show reviewed (current) state, 'original' = show pre-review originals
+  const viewFilter = ref<'all' | 'original'>('all');
+  // Full deep copy of ALL annotations as they were BEFORE reviews ran (includes rejected ones)
+  const preReviewAnnotations = ref<any[]>([]);
+  // Full deep copy of annotations AFTER reviews ran (to restore when switching back)
+  const postReviewAnnotations = ref<any[]>([]);
+  // Track which image was last loaded (for re-triggering reviews on toggle)
+  const lastLoadedImageId = ref<string | null>(null);
   const isLoading = computed(() => loading.value);
   const isActionLoading = computed(() => actionLoading.value);
   const hasError = computed(() => !!error.value);
@@ -305,30 +315,40 @@ export const useAnnotationStore = defineStore('annotation', () => {
       const currentUserId = String(useAuthStore().user?.userId || '');
       const entityAnnotationsWithReviewFlag = entityAnnotations.map((ann: any) => {
         ann.isReview = String(ann.creatorId) !== currentUserId;
+        ann.color = '#ef4444'; // Default: ALL polygons are RED
         return ann;
       });
 
       annotationsByImage.value.set(imageId, entityAnnotationsWithReviewFlag);
-      annotations.value = entityAnnotationsWithReviewFlag;
+
+      // Save a DEEP COPY of all original annotations BEFORE reviews (preserve isReview)
+      preReviewAnnotations.value = JSON.parse(JSON.stringify(
+        entityAnnotationsWithReviewFlag.map((ann: any) => {
+          const json = typeof ann.toJSON === 'function' ? ann.toJSON() : { ...ann };
+          json.isReview = !!(ann as any).isReview;
+          return json;
+        })
+      ));
+      postReviewAnnotations.value = [];
+      lastLoadedImageId.value = imageId;
 
       // RESOLVE USER NAMES
       const uids = entityAnnotationsWithReviewFlag.map(ann => ann.creatorId).filter(Boolean);
       resolveCreatorNames(uids);
 
-      // PARALEL REVIEW YÜKLEME (Gecikmesiz)
-      const annotationsToCheck = entityAnnotationsWithReviewFlag.filter((ann: any) => (ann.isReview) || (ann.reviewIds && ann.reviewIds.length > 0));
-
-      if (annotationsToCheck.length > 0) {
-        // Tarayıcıyı kilitlememek için arka planda sırayla çekiyoruz
-        setTimeout(async () => {
-          const chunkSize = 3; // Reduced chunk size for better rate limiting
-          for (let i = 0; i < annotationsToCheck.length; i += chunkSize) {
-            const chunk = annotationsToCheck.slice(i, i + chunkSize);
-            await Promise.all(chunk.map((ann: any) => fetchAndApplyReview(ann.id)));
-            // Small delay between chunks
-            await new Promise(r => setTimeout(r, 200));
-          }
-        }, 300);
+      // --- Branch based on current viewFilter ---
+      if (viewFilter.value === 'original') {
+        // ORIGINAL MODE: Show only annotations that have been reviewed (they are the originals)
+        // If no reviews exist, this is empty (user drew from scratch)
+        const originals = entityAnnotationsWithReviewFlag
+          .filter((a: any) => a.reviewIds && a.reviewIds.length > 0);
+        annotations.value = originals;
+        annotationsByImage.value.set(imageId, originals);
+        // DON'T load reviews — show the raw pre-review state
+      } else {
+        // İNCELEME MODE (default): Apply reviews
+        annotations.value = entityAnnotationsWithReviewFlag;
+        loadReviewsForAnnotations(entityAnnotationsWithReviewFlag);
       }
 
       pagination.value = {
@@ -891,10 +911,9 @@ export const useAnnotationStore = defineStore('annotation', () => {
 
       // Reset to base state before checking reviews
       (ann as any).isReview = String(ann.creatorId) !== currentUserId;
-      const baseColor = getTagColor(ann.annotationTypeId, ann.value);
 
       if (!reviews || reviews.length === 0) {
-        ann.color = baseColor;
+        ann.color = '#ef4444'; // No review = RED
         return false;
       }
 
@@ -953,15 +972,15 @@ export const useAnnotationStore = defineStore('annotation', () => {
           }
           
           (ann as any).isReview = true;
-          // Status'e göre renk ata: approved -> Yeşil, modified -> Mavi
-          ann.color = latestModified.status === 'approved' ? '#10b981' : '#3b82f6';
+          // Status color: approved → GREEN, modified → AMBER
+          ann.color = latestModified.status === 'approved' ? '#10b981' : '#f59e0b';
           
           annotations.value = [...annotations.value];
           return true;
         } else {
           // Orijinal daha yeni, ama bir inceleme var. 
           // Orijinal renk ve flag'i koruyoruz (zaten yukarıda resetledik)
-          ann.color = baseColor;
+          ann.color = '#ef4444'; // RED (original is newer)
           annotations.value = [...annotations.value];
         }
       } else if (latestReview && latestReview.status === 'approved') {
@@ -971,12 +990,12 @@ export const useAnnotationStore = defineStore('annotation', () => {
           ann.color = '#10b981'; // Yeşil
           annotations.value = [...annotations.value];
         } else {
-          ann.color = baseColor;
+          ann.color = '#ef4444'; // RED (no modification in review)
           annotations.value = [...annotations.value];
         }
       } else {
         // Hiçbir geçerli review yok veya hepsi eski
-        ann.color = baseColor;
+        ann.color = '#ef4444'; // RED (no valid review)
         annotations.value = [...annotations.value];
       }
     } catch (e) {
@@ -1032,6 +1051,72 @@ export const useAnnotationStore = defineStore('annotation', () => {
     }
     
     return SUBTYPE_COLORS[index % SUBTYPE_COLORS.length] || '#ec4899';
+  };
+
+  // --- Original vs Reviewed toggle ---
+  const setViewFilter = (filter: 'all' | 'original') => {
+    if (filter === viewFilter.value) return;
+    const currentUserId = String(useAuthStore().user?.userId || '');
+    const imageId = lastLoadedImageId.value;
+
+    if (filter === 'original') {
+      // Switching TO original: save current reviewed state (preserve isReview in serialization)
+      const toSave = annotations.value.map((ann: any) => {
+        const json = typeof ann.toJSON === 'function' ? ann.toJSON() : { ...ann };
+        json.isReview = !!(ann as any).isReview;
+        return json;
+      });
+      postReviewAnnotations.value = JSON.parse(JSON.stringify(toSave));
+
+      // Show only annotations that have been reviewed (they are the "originals" being reviewed)
+      // If no reviews exist (user drew from scratch), this will be empty
+      const originals = JSON.parse(JSON.stringify(preReviewAnnotations.value))
+        .filter((a: any) => a.reviewIds && a.reviewIds.length > 0);
+
+      annotations.value = originals;
+      // CRITICAL: Sync annotationsByImage so viewer reads the filtered set
+      if (imageId) annotationsByImage.value.set(imageId, originals);
+    } else {
+      // Switching TO İnceleme:
+      if (postReviewAnnotations.value.length > 0) {
+        // We have a saved reviewed state — restore it
+        const reviewed = JSON.parse(JSON.stringify(postReviewAnnotations.value));
+        // Re-compute isReview flag (lost during JSON serialization)
+        reviewed.forEach((ann: any) => {
+          ann.isReview = String(ann.creatorId) !== currentUserId;
+        });
+        annotations.value = reviewed;
+        if (imageId) annotationsByImage.value.set(imageId, reviewed);
+      } else {
+        // No reviewed state yet — apply reviews from originals now
+        const originals = JSON.parse(JSON.stringify(preReviewAnnotations.value));
+        originals.forEach((ann: any) => {
+          ann.isReview = String(ann.creatorId) !== currentUserId;
+          ann.color = '#ef4444';
+        });
+        annotations.value = originals;
+        if (imageId) annotationsByImage.value.set(imageId, originals);
+        loadReviewsForAnnotations(originals);
+      }
+    }
+    viewFilter.value = filter;
+  };
+
+  // --- Helper: Load reviews for a set of annotations ---
+  const loadReviewsForAnnotations = (anns: any[]) => {
+    const annotationsToCheck = anns.filter((ann: any) => 
+      (ann.isReview) || (ann.reviewIds && ann.reviewIds.length > 0)
+    );
+    if (annotationsToCheck.length > 0) {
+      setTimeout(async () => {
+        const chunkSize = 3;
+        for (let i = 0; i < annotationsToCheck.length; i += chunkSize) {
+          const chunk = annotationsToCheck.slice(i, i + chunkSize);
+          await Promise.all(chunk.map((ann: any) => fetchAndApplyReview(ann.id)));
+          await new Promise(r => setTimeout(r, 200));
+        }
+      }, 300);
+    }
   };
 
   return {
@@ -1119,5 +1204,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
     resolveCreatorNames,
     getTagColor,
     getTagIndex,
+    viewFilter,
+    setViewFilter,
   };
 })

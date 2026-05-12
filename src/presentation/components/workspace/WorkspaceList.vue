@@ -57,6 +57,12 @@
             >
               {{ t('workspace.form.release_year') }}
             </th>
+            <th
+              scope="col"
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              İlerleme
+            </th>
             <th scope="col" class="relative px-6 py-3">
               <span class="sr-only">İşlemler</span>
             </th>
@@ -127,6 +133,19 @@
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
               {{ ws.releaseYear || '-' }}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex flex-col">
+                <div class="text-xs font-medium text-gray-900">
+                  {{ ws.completedImageCount }} / {{ ws.imageCount }}
+                </div>
+                <div class="w-16 bg-gray-200 rounded-full h-1 mt-1 overflow-hidden">
+                  <div 
+                    class="bg-green-500 h-1 rounded-full transition-all duration-500" 
+                    :style="{ width: ws.imageCount > 0 ? (ws.completedImageCount / ws.imageCount * 100) + '%' : '0%' }"
+                  ></div>
+                </div>
+              </div>
             </td>
 
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" @click.stop>

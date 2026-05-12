@@ -3,6 +3,7 @@ import type {
   CreateNewImageRequest,
   UploadImageParams,
   IImageRepository,
+  UpdateImageRequest,
 } from '@/core/repositories/IImageRepository';
 import type { PaginatedResult, QueryOptions, Pagination } from '@/core/types/common';
 
@@ -58,11 +59,12 @@ export class ImageRepository implements IImageRepository {
   }
 
   async getById(imageId: string): Promise<Image> {
-    const response = await this.apiClient.get<BackendImageResponse>(
+    const response = await this.apiClient.get<any>(
       `/api/v1/proxy/images/${imageId}`
     );
 
-    return Image.create(response.data);
+    const imageData = response?.data && !response.id ? response.data : response;
+    return Image.create(imageData);
   }
 
   async delete(imageId: string): Promise<void> {
@@ -219,6 +221,24 @@ export class ImageRepository implements IImageRepository {
       data: items.map(Image.create),
       pagination: pagination as any,
     };
+  }
+
+  async update(imageId: string, data: UpdateImageRequest): Promise<Image> {
+    const response = await this.apiClient.put<any>(
+      `/api/v1/proxy/images/${imageId}`,
+      data
+    );
+    
+    // Handle both wrapped { data: { ... } } and direct { ... } responses
+    const imageData = response?.data && !response.id ? response.data : response;
+    
+    // If the response is partial (missing core fields like 'parent'), 
+    // fetch the full object to ensure entity integrity.
+    if (!imageData.parent) {
+      return this.getById(imageId);
+    }
+    
+    return Image.create(imageData);
   }
 
   async transfer(imageId: string, newPatientId: string): Promise<void> {

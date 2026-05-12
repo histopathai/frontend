@@ -1,15 +1,15 @@
 <template>
   <header class="bg-white shadow-sm border-b border-gray-200 relative z-40">
     <nav class="px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between h-16">
+      <div class="flex justify-between h-10">
         <div class="flex h-full">
           <RouterLink
             :to="{ name: 'Home' }"
             class="flex-shrink-0 flex items-center transition-opacity hover:opacity-80"
           >
-            <h1 class="text-xl font-bold text-indigo-600">HistopathAI</h1>
+            <h1 class="text-lg font-black text-indigo-600 tracking-tighter">HistopathAI</h1>
           </RouterLink>
-          <div class="hidden sm:ml-10 sm:flex sm:space-x-8 h-full">
+          <div class="hidden sm:ml-6 sm:flex sm:space-x-4 h-full">
             <RouterLink
               v-for="item in navigation"
               :key="item.name"
@@ -22,8 +22,8 @@
                 :class="[
                   isExactActive
                     ? 'border-indigo-500 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-                  'inline-flex items-center h-full px-3 border-b-2 text-sm font-medium transition-colors',
+                    : 'border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300',
+                  'inline-flex items-center h-full px-2 border-b-2 text-[11px] font-bold uppercase tracking-tight transition-colors',
                 ]"
               >
                 {{ item.name }}
@@ -60,22 +60,22 @@
             <div>
               <button
                 @click="toggleDropdown"
-                class="flex items-center max-w-xs text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all hover:bg-gray-100 pr-2 pl-1 py-1"
+                class="flex items-center max-w-xs text-xs rounded-full focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-indigo-500 transition-all hover:bg-gray-100 pr-1.5 pl-0.5 py-0.5"
                 id="user-menu-button"
                 aria-expanded="false"
                 aria-haspopup="true"
               >
                 <span class="sr-only">Kullanıcı menüsünü aç</span>
                 <div
-                  class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold border border-indigo-200"
+                  class="h-6 w-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-[10px] font-black border border-indigo-200"
                 >
                   {{ userInitials }}
                 </div>
-                <span class="ml-2 font-medium text-gray-700 hidden md:block truncate max-w-[150px]">
+                <span class="ml-1.5 font-bold text-gray-600 hidden md:block truncate max-w-[100px] text-[10px]">
                   {{ user?.displayName || user?.email }}
                 </span>
                 <svg
-                  class="w-4 h-4 ml-1 text-gray-400"
+                  class="w-3 h-3 ml-0.5 text-gray-400"
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 20 20"
                   fill="currentColor"
@@ -166,8 +166,10 @@
 import { computed, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { useImageStore } from '@/stores/image';
 
 const authStore = useAuthStore();
+const imageStore = useImageStore();
 const router = useRouter();
 
 const user = computed(() => authStore.user);

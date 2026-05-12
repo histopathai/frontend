@@ -29,6 +29,16 @@ export interface CreateNewImageRequest {
   height?: number;
   magnification?: MagnificationRequest;
 }
+export interface UpdateImageRequest {
+  creator_id: string;
+  name?: string;
+  width?: number;
+  height?: number;
+  magnification?: MagnificationRequest;
+  marked_as_completed?: boolean;
+  metadata?: any;
+}
+
 export type OnUploadProgress = (percentage: number) => void;
 
 export interface UploadImageParams {
@@ -47,6 +57,7 @@ export interface IImageRepository {
   listByPatient(patientId: string, options?: QueryOptions): Promise<PaginatedResult<Image>>;
   listByParent(parentId: string, options?: QueryOptions): Promise<PaginatedResult<Image>>;
   listByWorkspace(workspaceId: string, options?: QueryOptions): Promise<PaginatedResult<Image>>;
+  update(imageId: string, data: UpdateImageRequest): Promise<Image>;
   transfer(imageId: string, newPatientId: string): Promise<void>;
   transfer(imageId: string, newPatientId: string): Promise<void>;
   transferMany(data: BatchTransfer): Promise<void>;

@@ -176,14 +176,12 @@ export function useAnnotatorNavigation() {
     patientStore.setCurrentPatient(patient);
 
     // Load images for the new patient
-    imageStore.fetchImagesByPatient(patient.id, { limit: 100 }, { refresh: true }).then(() => {
-      // Auto-select first image if none selected
-      const images = imageStore.getImagesByPatientId(patient.id);
-      const firstImage = images[0];
-      if (firstImage && !selectedImageId.value) {
-        selectImage(firstImage as any);
-      }
-    });
+    imageStore.fetchImagesByPatient(patient.id, { limit: 100 }, { refresh: true });
+  }
+
+  function clearImageSelection() {
+    selectedImageId.value = undefined;
+    localStorage.removeItem(STORAGE_KEY_IMG);
   }
 
   function selectImage(image: Image) {
@@ -204,6 +202,15 @@ export function useAnnotatorNavigation() {
       if (nextPatient) {
         selectPatient(nextPatient);
       }
+    } else if (hasMore.value) {
+      // We are at the end of the current list but more patients exist in next pages
+      loadMorePatients().then(() => {
+        // After loading more, the list should have grown
+        const nextPatient = currentPatients.value[selectedPatientIndex.value + 1];
+        if (nextPatient) {
+          selectPatient(nextPatient);
+        }
+      });
     }
   }
 
@@ -351,6 +358,7 @@ export function useAnnotatorNavigation() {
     selectWorkspace,
     selectPatient,
     selectImage,
+    clearImageSelection,
     selectAnnotationType,
     nextImage,
     prevImage,

@@ -57,6 +57,8 @@
     "batch_delete_error": "Images could not be deleted",
     "batch_transfer_success": "Images transferred successfully",
     "batch_transfer_error": "Images could not be transferred",
+    "mark_as_completed_success": "Image marked as completed",
+    "mark_as_completed_error": "Error marking image as completed",
     "processing_info": "Image is being processed, please wait...",
     "failed_retry": "The operation failed, would you like to try again?"
   },

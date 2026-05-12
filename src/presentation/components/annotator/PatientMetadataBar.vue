@@ -1,204 +1,163 @@
 <template>
   <div
-    class="bg-white border-b border-gray-200 px-4 h-16 shadow-[0_2px_4px_rgba(0,0,0,0.02)] z-30 relative flex items-center justify-between gap-2"
+    class="bg-white border-b border-gray-200 px-3 h-12 shadow-[0_2px_4px_rgba(0,0,0,0.02)] z-30 relative flex items-center justify-between gap-1.5"
   >
-    <!-- SOL BÖLÜM: Hasta Bilgileri -->
-    <div class="flex items-center gap-2 min-w-0 flex-[1_1_0%] overflow-hidden">
-      <div
-        class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-100 flex-shrink-0 text-indigo-600 shadow-sm"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-4 w-4"
-          viewBox="0 0 20 20"
-          fill="currentColor"
+    <!-- SOL BÖLÜM: Hasta Bilgileri + Navigasyon + Legend -->
+    <div class="flex items-center gap-3 min-w-0 flex-[1.5_1_0%] overflow-hidden">
+      <!-- Hasta Künyesi -->
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <div
+          class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-100 text-indigo-600 shadow-sm"
         >
-          <path
-            fill-rule="evenodd"
-            d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-            clip-rule="evenodd"
-          />
-        </svg>
-      </div>
-
-      <div v-if="patient" class="flex flex-col min-w-0 max-w-[220px]">
-        <div class="flex items-center gap-1">
-          <h2
-            class="text-[12px] font-bold text-gray-900 truncate leading-tight"
-            :title="patient.name"
-          >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div v-if="patient" class="flex flex-col min-w-0 max-w-[120px]">
+          <h2 class="text-[11px] font-bold text-gray-900 truncate leading-tight">
             {{ patient.name || 'İsimsiz' }}
           </h2>
-          <button
-            @click="togglePopover('demographics')"
-            class="p-0.5 text-gray-400 hover:text-indigo-600 transition-all flex-shrink-0"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-3 w-3"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"
-              />
-            </svg>
-          </button>
-        </div>
-        <div class="flex items-center gap-1.5 text-[9px] text-gray-500 font-medium truncate">
-          <span v-if="age || gender"
-            >{{ age ? `${age}Y` : '' }} {{ gender ? (gender === 'Male' ? 'E' : 'K') : '' }}</span
-          >
-          <span v-if="image" :title="image.name" class="text-indigo-600 font-semibold truncate flex-1 select-none">
-            {{ image.name }}
-          </span>
+          <div class="text-[8px] text-gray-400 font-bold uppercase tracking-tighter truncate">
+            {{ image ? image.name : 'Seçilmedi' }}
+          </div>
         </div>
       </div>
-      <div v-else class="text-[10px] text-gray-400 italic">Seçilmedi</div>
+
+      <!-- Navigasyon -->
+      <div class="flex items-center bg-gray-50 rounded-lg p-0.5 border border-gray-200 shadow-sm flex-shrink-0 ml-1">
+        <button
+          @click="$emit('prev')"
+          class="w-6 h-6 flex items-center justify-center rounded-md hover:bg-white hover:text-indigo-600 text-gray-400 transition-all"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+          </svg>
+        </button>
+        <div class="px-1.5 flex items-baseline gap-0.5 min-w-[40px] justify-center">
+          <span class="text-[10px] font-black text-gray-700 tracking-tighter">{{ formatIndex(currentIndex) }}</span>
+          <span class="text-[8px] text-gray-300">/</span>
+          <span class="text-[8px] text-gray-400">{{ totalCount }}</span>
+        </div>
+        <button
+          @click="$emit('next')"
+          class="w-6 h-6 flex items-center justify-center rounded-md hover:bg-white hover:text-indigo-600 text-gray-400 transition-all"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      </div>
+
     </div>
 
-    <!-- ORTA BÖLÜM: Görüntü Navigasyonu -->
-    <div
-      class="flex items-center bg-gray-50 rounded-full p-0.5 border border-gray-100 shadow-sm flex-shrink-0"
-    >
+    <!-- ORTA BÖLÜM: Bitir Butonu -->
+    <div class="flex items-center justify-center flex-shrink-0 px-1">
       <button
-        @click="$emit('prev')"
-        class="w-6.5 h-6.5 flex items-center justify-center rounded-full hover:bg-white hover:text-indigo-600 text-gray-400 transition-all"
-        title="Önceki"
+        v-if="image"
+        @click="handleMarkAsCompleted"
+        :disabled="image.markedAsCompleted"
+        class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg transition-all text-[10px] font-bold uppercase tracking-tight border shadow-sm"
+        :class="
+          image.markedAsCompleted
+            ? 'text-gray-400 bg-gray-50 border-gray-100 cursor-not-allowed'
+            : 'text-indigo-600 bg-white border-indigo-100 hover:bg-indigo-50 active:scale-95'
+        "
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-3.5 w-3.5"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path
-            fill-rule="evenodd"
-            d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-            clip-rule="evenodd"
-          />
+        <svg v-if="image.markedAsCompleted" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
         </svg>
-      </button>
-
-      <div class="px-2.5 flex flex-col items-center justify-center min-w-[60px]">
-        <span class="text-[11px] font-black text-gray-700 font-mono leading-none tracking-tight">
-          {{ formatIndex(currentIndex) }}<span class="text-gray-300 mx-0.5 font-normal">/</span
-          >{{ totalCount }}
-        </span>
-        <span
-          class="text-[7px] text-gray-400 font-black uppercase tracking-tighter opacity-80 mt-0.5"
-          >IMAGE</span
-        >
-      </div>
-
-      <button
-        @click="$emit('next')"
-        class="w-6.5 h-6.5 flex items-center justify-center rounded-full hover:bg-white hover:text-indigo-600 text-gray-400 transition-all"
-        title="Sonraki"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-3.5 w-3.5"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path
-            fill-rule="evenodd"
-            d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-            clip-rule="evenodd"
-          />
+        <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-3.5 h-3.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
         </svg>
+        <span>{{ image.markedAsCompleted ? 'TAMAMLANDI' : 'BİTİR' }}</span>
       </button>
     </div>
 
-    <!-- SAĞ BÖLÜM: Legend + Modlar + Kaydet -->
-    <div class="flex items-center gap-2.5 flex-[1_1_0%] justify-end min-w-0">
-      <!-- RENK AÇIKLAMALARI (LEGEND) -->
-      <div class="hidden xl:flex items-center gap-3 mr-2">
-        <div class="flex items-center gap-1.5">
-          <div class="w-2 h-2 rounded-full bg-[#10b981] shadow-sm"></div>
-          <span class="text-[10px] font-bold text-gray-500">Onaylandı</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <div class="w-2 h-2 rounded-full bg-[#3b82f6] shadow-sm"></div>
-          <span class="text-[10px] font-bold text-gray-500">Düzenlendi</span>
-        </div>
+    <!-- ORTA-SAĞ: Orijinal / İnceleme Karşılaştırma -->
+    <div v-if="image" class="flex items-center flex-shrink-0 px-1">
+      <div class="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 shadow-sm">
+        <button
+          @click="annotationStore.setViewFilter('all')"
+          class="flex items-center gap-1 px-2.5 py-1 rounded-md transition-all text-[9px] font-black uppercase tracking-tight"
+          :class="annotationStore.viewFilter === 'all' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-200' : 'text-gray-400 hover:text-gray-600'"
+        >
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          İnceleme
+        </button>
+        <button
+          @click="annotationStore.setViewFilter('original')"
+          class="flex items-center gap-1 px-2.5 py-1 rounded-md transition-all text-[9px] font-black uppercase tracking-tight"
+          :class="annotationStore.viewFilter === 'original' ? 'bg-white text-amber-600 shadow-sm ring-1 ring-amber-200' : 'text-gray-400 hover:text-gray-600'"
+        >
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Orijinal
+        </button>
       </div>
+    </div>
 
-      <div
-        class="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 flex-shrink-0"
-      >
+    <!-- SAĞ BÖLÜM: Modlar + Kaydet -->
+    <div class="flex items-center gap-2 flex-[1_1_0%] justify-end min-w-0">
+      <!-- Drawing Modes -->
+      <div class="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 flex-shrink-0">
         <button
           @click="$emit('stopDrawing')"
-          class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md transition-all text-[9px] font-black uppercase tracking-tight"
-          :class="
-            !isDrawingMode
-              ? 'bg-white text-indigo-600 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          "
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all text-[9px] font-black uppercase tracking-tight"
+          :class="!isDrawingMode ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-          </svg>
           GEZİN
         </button>
         <button
           @click="$emit('startDrawing')"
-          class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md transition-all text-[9px] font-black uppercase tracking-tight"
-          :class="
-            isDrawingMode
-              ? 'bg-white text-indigo-600 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          "
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all text-[9px] font-black uppercase tracking-tight"
+          :class="isDrawingMode ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-          </svg>
           ÇİZ
         </button>
       </div>
 
       <div class="w-px h-6 bg-gray-200 flex-shrink-0"></div>
 
-      <button
-        @click.stop="togglePopover('global_tags')"
-        :disabled="dynamicFields.length === 0"
-        class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all relative"
-        :class="[
-          dynamicFields.length === 0
-            ? 'opacity-50 cursor-not-allowed border-gray-100 text-gray-400 bg-gray-50'
-            : missingRequired
-              ? 'animate-pulse text-red-600 border-red-400 bg-red-50'
+      <div class="flex items-center gap-2">
+        <button
+          @click.stop="togglePopover('global_tags')"
+          :disabled="dynamicFields.length === 0"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-bold transition-all relative"
+          :class="[
+            dynamicFields.length === 0
+              ? 'opacity-50 cursor-not-allowed border-gray-100 text-gray-400 bg-gray-50'
               : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-indigo-600',
-        ]"
-      >
-        <span>Etiketler</span>
-        <span v-if="hasFilledMetadata" class="absolute -top-1 -right-1 flex h-2 w-2">
-          <span
-            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"
-          ></span>
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-        </span>
-      </button>
-
-      <button
-        @click="handleSaveAll"
-        :disabled="annotationStore.pendingCount === 0 && annotationStore.dirtyCount === 0"
-        class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all shadow-sm flex-shrink-0"
-        :class="[
-          annotationStore.pendingCount === 0 && annotationStore.dirtyCount === 0
-            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            : 'bg-gray-900 text-white hover:bg-black active:scale-95 shadow-indigo-100',
-        ]"
-      >
-        <span>Kaydet</span>
-        <span
-          v-if="annotationStore.pendingCount + annotationStore.dirtyCount > 0"
-          class="bg-indigo-500 text-white text-[9px] px-1.5 rounded-full min-w-[16px]"
+          ]"
         >
-          {{ annotationStore.pendingCount + annotationStore.dirtyCount }}
-        </span>
-      </button>
+          <span>Etiketler</span>
+          <span v-if="hasFilledMetadata" class="absolute -top-1 -right-1 flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+          </span>
+        </button>
+
+        <button
+          @click="handleSaveAll"
+          :disabled="annotationStore.pendingCount === 0 && annotationStore.dirtyCount === 0"
+          class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all shadow-sm flex-shrink-0"
+          :class="[
+            annotationStore.pendingCount === 0 && annotationStore.dirtyCount === 0
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'bg-gray-900 text-white hover:bg-black active:scale-95 shadow-indigo-100',
+          ]"
+        >
+          <span>Kaydet</span>
+          <span
+            v-if="annotationStore.pendingCount + annotationStore.dirtyCount > 0"
+            class="bg-indigo-500 text-white text-[9px] px-1.5 rounded-full min-w-[16px]"
+          >
+            {{ annotationStore.pendingCount + annotationStore.dirtyCount }}
+          </span>
+        </button>
+      </div>
     </div>
 
     <!-- POPOVERS -->
@@ -301,6 +260,8 @@ import type { Image } from '@/core/entities/Image';
 import type { Patient } from '@/core/entities/Patient';
 import { useToast } from 'vue-toastification';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
+import { useImageStore } from '@/stores/image';
+import { useAuthStore } from '@/stores/auth';
 
 const props = defineProps<{
   image: Image | null;
@@ -315,7 +276,17 @@ const emit = defineEmits(['prev', 'next', 'startDrawing', 'stopDrawing', 'refres
 const annotationStore = useAnnotationStore();
 const workspaceStore = useWorkspaceStore();
 const annotationTypeStore = useAnnotationTypeStore();
+const imageStore = useImageStore();
 const toast = useToast();
+
+// Check if we are in review mode (any annotation belongs to someone else)
+const isReviewMode = computed(() => {
+  if (!props.image) return false;
+  const currentUserId = String(useAuthStore().user?.userId || '');
+  return annotationStore.annotations.some(
+    (a: any) => String(a.creatorId || '') !== currentUserId
+  );
+});
 
 const activePopover = ref<string | null>(null);
 const age = ref<number | undefined>(props.patient?.age ?? undefined);
@@ -438,6 +409,14 @@ function togglePopover(popover: string) {
 
 function formatIndex(index: number) {
   return index + 1;
+}
+
+async function handleMarkAsCompleted() {
+  if (!props.image) return;
+  const success = await imageStore.markAsCompleted(props.image.id);
+  if (success) {
+    emit('next');
+  }
 }
 
 async function handleSaveAll() {

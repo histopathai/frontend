@@ -23,6 +23,7 @@ export interface ImageProps {
   magnification: OpticalMagnification | null;
 
   status: ImageStatus;
+  markedAsCompleted: boolean;
   createdAt: Date;
   updatedAt: Date;
   metadata?: any;
@@ -59,6 +60,7 @@ export class Image {
       height: data.height ?? null,
       magnification: magnification,
       status: ImageStatus.fromString(data.status || 'PROCESSING'),
+      markedAsCompleted: !!data.marked_as_completed,
       createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,
       updatedAt: typeof data.updated_at === 'string' ? new Date(data.updated_at) : data.updated_at,
       metadata: data.metadata || data.meta || undefined,
@@ -111,6 +113,10 @@ export class Image {
 
   get status(): ImageStatus {
     return this.props.status;
+  }
+
+  get markedAsCompleted(): boolean {
+    return this.props.markedAsCompleted;
   }
 
   get magnification(): OpticalMagnification | null {

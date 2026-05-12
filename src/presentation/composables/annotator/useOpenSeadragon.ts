@@ -218,32 +218,81 @@ export function useOpenSeadragon(viewerId: string) {
       }
     };
 
-    const counts = new Map<string, number>();
+    // --- Phase 1: Group annotations by polygon geometry ---
+    interface PolyGroup {
+      id: string; // primary annotation ID (first one found)
+      polygon: any[];
+      labels: Array<{ text: string; color: string }>;
+      resource: string;
+      creatorId: string;
+      creatorName: string;
+      isReview: boolean;
+    }
+
+    const polyGroups = new Map<string, PolyGroup>();
+
+    const getPolyKey = (polygon: any[]) =>
+      polygon.map((p) => Math.round(p.x || p.X || 0) + ',' + Math.round(p.y || p.Y || 0)).join('|');
+
+    // Persisted annotations
     annotationStore.getAnnotationsByImageId(currentImageId.value)
       .forEach((ann) => {
+        if (!ann.polygon || ann.polygon.length === 0) return;
         const dirty = annotationStore.dirtyAnnotations.get(String(ann.id));
-        const type = annotationTypeStore.annotationTypes.find((t) => t.id === ann.annotationTypeId);
+        const poly = dirty?.polygon || ann.polygon;
+        const polyKey = getPolyKey(poly);
         const baseText = String(dirty?.value || (ann as any).tag?.value || ann.value).trim();
-        
-        const count = (counts.get(baseText) || 0) + 1;
-        counts.set(baseText, count);
-        const textWithIndex = `${baseText} #${count}`;
-
-        const color = annotationStore.getTagColor(ann.annotationTypeId, baseText);
+        const color = ann.color || '#ef4444';
         const creatorName = annotationStore.userNames[ann.creatorId] || ann.creatorName || '';
-        drawLabel(String(ann.id), dirty?.polygon || ann.polygon, textWithIndex, color, ann.resource, ann.creatorId, creatorName, !!(ann as any).isReview);
+
+        if (polyGroups.has(polyKey)) {
+          const group = polyGroups.get(polyKey)!;
+          group.labels.push({ text: baseText, color });
+        } else {
+          polyGroups.set(polyKey, {
+            id: String(ann.id),
+            polygon: poly,
+            labels: [{ text: baseText, color }],
+            resource: ann.resource,
+            creatorId: ann.creatorId,
+            creatorName,
+            isReview: !!(ann as any).isReview,
+          });
+        }
       });
 
+    // Pending annotations
     annotationStore.pendingAnnotations.filter(p => String(p.imageId) === String(currentImageId.value))
       .forEach(p => {
+        if (!p.polygon || p.polygon.length === 0) return;
+        const polyKey = getPolyKey(p.polygon);
         const baseText = String(p.value).trim();
-        const count = (counts.get(baseText) || 0) + 1;
-        counts.set(baseText, count);
-        const textWithIndex = `${baseText} #${count}`;
+        const color = '#ef4444'; // Pending = RED
 
-        const color = annotationStore.getTagColor(p.imageId, baseText); 
-        drawLabel(p.tempId, p.polygon || [], textWithIndex, color, 'manual', authStore.user?.userId || '', authStore.user?.displayName || '', false);
+        if (polyGroups.has(polyKey)) {
+          const group = polyGroups.get(polyKey)!;
+          group.labels.push({ text: baseText, color });
+        } else {
+          polyGroups.set(polyKey, {
+            id: p.tempId,
+            polygon: p.polygon,
+            labels: [{ text: baseText, color }],
+            resource: 'manual',
+            creatorId: authStore.user?.userId || '',
+            creatorName: authStore.user?.displayName || '',
+            isReview: false,
+          });
+        }
       });
+
+    // --- Phase 2: Draw one label per polygon group ---
+    polyGroups.forEach((group) => {
+      // Build combined text: "Malign · G3"
+      const combinedText = group.labels.map(l => l.text).join(' · ');
+      const primaryColor = group.labels[0]?.color || '#ec4899';
+
+      drawLabel(group.id, group.polygon, combinedText, primaryColor, group.resource, group.creatorId, group.creatorName, group.isReview);
+    });
   }
 
   function startDrawing() { if (anno.value && viewer.value) { (viewer.value as any).setMouseNavEnabled(false); anno.value.setDrawingTool('polygon'); anno.value.setDrawingEnabled(true); } }
@@ -292,13 +341,7 @@ export function useOpenSeadragon(viewerId: string) {
             const id = String(annotation.id).replace('#', '');
             const ann = annotationStore.annotations.find(a => String(a.id) === id) || 
                         annotationStore.pendingAnnotations.find(p => p.tempId === id);
-            let color = '#ec4899';
-            if (ann) {
-              const text = String((ann as any).value || (ann as any).tag?.value || '').trim();
-              const indexColor = annotationStore.getTagColor((ann as any).annotationTypeId || (ann as any).imageId, text);
-              const statusColors = ['#10b981', '#3b82f6'];
-              color = (ann.color && statusColors.includes(ann.color)) ? ann.color : indexColor;
-            }
+            const color = (ann as any)?.color || '#ef4444';
             return { style: `stroke: ${color}; stroke-width: 2.5; fill: ${color}; fill-opacity: 0.25;` };
           }
         });
@@ -445,6 +488,8 @@ export function useOpenSeadragon(viewerId: string) {
       }).filter(Boolean);
       anno.value.setAnnotations(w3c);
       updateLabelOverlays();
+      // Re-attach SVG hover listeners since the SVG DOM was recreated
+      setTimeout(() => attachSvgListeners(), 100);
     } catch (e) {}
   }
 
@@ -485,9 +530,68 @@ export function useOpenSeadragon(viewerId: string) {
     if (viewer.value) { viewer.value.destroy(); viewer.value = null; anno.value = null; }
   });
 
+  function highlightAnnotation(annotationId: string) {
+    if (!viewer.value || !currentImageId.value) return;
+
+    // 1. Find the annotation to get its polygon
+    const ann = annotationStore.annotations.find(a => String(a.id) === String(annotationId));
+    if (!ann || !ann.polygon || ann.polygon.length === 0) return;
+
+    // 2. Compute bounding box in image coordinates
+    const xs = ann.polygon.map(p => p.x);
+    const ys = ann.polygon.map(p => p.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const pad = Math.max(maxX - minX, maxY - minY) * 0.3;
+
+    // 3. Convert to viewport coordinates and pan/zoom
+    const topLeft = viewer.value.viewport.imageToViewportCoordinates(minX - pad, minY - pad);
+    const bottomRight = viewer.value.viewport.imageToViewportCoordinates(maxX + pad, maxY + pad);
+    const bounds = new OpenSeadragon.Rect(
+      topLeft.x,
+      topLeft.y,
+      bottomRight.x - topLeft.x,
+      bottomRight.y - topLeft.y
+    );
+    viewer.value.viewport.fitBounds(bounds, false);
+
+    // 4. Flash the SVG polygon with a pulse animation
+    setTimeout(() => {
+      const shapes = document.querySelectorAll('.a9s-annotation');
+      shapes.forEach(s => {
+        const sid = s.getAttribute('data-id')?.replace('#', '');
+        if (sid === annotationId) {
+          const el = s as HTMLElement;
+          // Dim all others
+          shapes.forEach(other => {
+            if (other !== s) (other as HTMLElement).style.opacity = '0.15';
+          });
+          document.querySelectorAll('.a9s-label-bubble').forEach(b => {
+            if ((b as HTMLElement).dataset.id !== annotationId) (b as HTMLElement).style.opacity = '0.15';
+          });
+
+          // Pulse the target
+          el.style.transition = 'all 0.3s ease';
+          el.style.strokeWidth = '10px';
+          el.style.filter = 'drop-shadow(0 0 20px white) drop-shadow(0 0 12px currentColor)';
+
+          // Reset after 2 seconds
+          setTimeout(() => {
+            el.style.strokeWidth = '';
+            el.style.filter = '';
+            shapes.forEach(other => (other as HTMLElement).style.opacity = '1');
+            document.querySelectorAll('.a9s-label-bubble').forEach(b => (b as HTMLElement).style.opacity = '1');
+          }, 2000);
+        }
+      });
+    }, 400);
+  }
+
   return {
     loading, loadImage, loadAnnotations, startDrawing, stopDrawing,
-    anno, viewer, updateLabelOverlays,
+    anno, viewer, updateLabelOverlays, highlightAnnotation,
     onSelectionCreated, onAnnotationSelected, onAnnotationCreated, onAnnotationDeselected, onDeleteAnnotationRequest
   };
 }

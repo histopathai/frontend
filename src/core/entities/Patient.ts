@@ -66,7 +66,8 @@ export class Patient {
 
       // Parse from metadata or root properties (adjust based on actual API response)
       imageCount: data.image_count ?? rest.image_count ?? 0,
-      annotatedImageCount: data.annotated_image_count ?? rest.annotated_image_count ?? 0,
+      // Initialize to 0. We will calculate the true 'Bitti' count from marked_as_completed field in the frontend.
+      annotatedImageCount: 0,
 
       createdAt: typeof created_at === 'string' ? new Date(created_at) : created_at,
       updatedAt: typeof updated_at === 'string' ? new Date(updated_at) : updated_at,

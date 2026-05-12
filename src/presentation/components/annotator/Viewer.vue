@@ -71,6 +71,7 @@ const {
   startDrawing,
   stopDrawing,
   updateLabelOverlays,
+  highlightAnnotation,
   anno,
   viewer,
   onSelectionCreated,
@@ -128,7 +129,7 @@ function convertAnnotoriousToPoints(selection: any): Array<{ x: number; y: numbe
     }, []);
 }
 
-defineExpose({ startDrawing, stopDrawing, loadAnnotations });
+defineExpose({ startDrawing, stopDrawing, loadAnnotations, highlightAnnotation });
 
 // --- WATCHERS ---
 
