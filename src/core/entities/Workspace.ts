@@ -15,6 +15,8 @@ export interface WorkspaceProps {
   releaseYear: number | null;
   createdAt: Date;
   updatedAt: Date;
+  imageCount: number;
+  completedImageCount: number;
   metadata_config?: any;
 }
 
@@ -27,26 +29,29 @@ export class Workspace {
       type: ParentType.None,
     };
 
+    const organType = data.organ_type || data.organType;
     //check organ type
-    if (!OrganTypeUtils.isValid(data.organ_type)) {
-      throw new Error('Invalid organ type');
+    if (!OrganTypeUtils.isValid(organType)) {
+      throw new Error('Invalid organ type: ' + organType);
     }
 
     return new Workspace({
       id: data.id,
-      creatorId: data.creator_id,
+      creatorId: data.creator_id || data.creatorId,
       parent: parentRef,
       annotationTypeIds:
         data.annotationTypeIds || data.annotation_type_ids || data.annotation_types || [],
       name: data.name,
-      organType: data.organ_type,
+      organType: organType,
       organization: data.organization,
       description: data.description,
       license: data.license,
-      resourceURL: data.resource_url ?? null,
-      releaseYear: data.release_year ?? null,
-      createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,
-      updatedAt: typeof data.updated_at === 'string' ? new Date(data.updated_at) : data.updated_at,
+      resourceURL: data.resource_url ?? data.resourceURL ?? null,
+      releaseYear: data.release_year ?? data.releaseYear ?? null,
+      createdAt: typeof (data.created_at || data.createdAt) === 'string' ? new Date(data.created_at || data.createdAt) : (data.created_at || data.createdAt),
+      updatedAt: typeof (data.updated_at || data.updatedAt) === 'string' ? new Date(data.updated_at || data.updatedAt) : (data.updated_at || data.updatedAt),
+      imageCount: data.image_count || data.imageCount || data.total_images || data.stats?.total || data.statistics?.total || 0,
+      completedImageCount: data.completed_image_count || data.completedImageCount || data.completed_images || data.stats?.completed || data.statistics?.completed || 0,
       metadata_config: data.metadata_config || data.metadataConfig || data.metadata || data.config?.metadata_config || data.config?.metadata || data.properties?.metadata_config || data.workspace_config?.metadata_config || undefined,
     });
   }
@@ -97,6 +102,18 @@ export class Workspace {
 
   get updatedAt(): Date {
     return this.props.updatedAt;
+  }
+
+  get imageCount(): number {
+    return this.props.imageCount;
+  }
+
+  get completedImageCount(): number {
+    return this.props.completedImageCount;
+  }
+
+  get isCompleted(): boolean {
+    return this.imageCount > 0 && this.imageCount === this.completedImageCount;
   }
   
   get metadata_config(): any {

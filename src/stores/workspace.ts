@@ -4,6 +4,7 @@ import { repositories } from '@/services';
 import { useToast } from 'vue-toastification';
 import { useI18n } from 'vue-i18n';
 import type { Workspace } from '@/core/entities/Workspace';
+import { useImageStore } from './image';
 import type {
   CreateNewWorkspaceRequest,
   UpdateWorkspaceRequest,
@@ -68,6 +69,13 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const hasMore = computed(() => pagination.value.hasMore ?? false);
   const getWorkspaceById = computed(() => {
     return (id: string) => workspaces.value.find((w) => w.id === id);
+  });
+
+  const visibleWorkspaces = computed(() => {
+    const imageStore = useImageStore();
+    if (!imageStore.hideCompleted) return workspaces.value;
+
+    return workspaces.value.filter((w) => !w.isCompleted);
   });
 
   // ===========================
@@ -135,6 +143,10 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         pagination: paginationParams,
         sort: [{ field: sort.value.by, direction: sort.value.dir }],
       });
+      console.log('Workspaces Fetch Result:', result.data);
+      if (result.data.length > 0) {
+        console.log('Sample Workspace Raw Props:', (result.data[0] as any).props);
+      }
       workspaces.value = result.data;
       pagination.value = {
         ...paginationParams,
@@ -330,6 +342,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     totalWorkspaces,
     hasMore,
     getWorkspaceById,
+    visibleWorkspaces,
 
     // Actions - Fetch
     fetchWorkspaces,
@@ -353,5 +366,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     refreshWorkspace,
     getWorkspaceCount,
     resetError,
+    updateWorkspaceInState,
   };
 });

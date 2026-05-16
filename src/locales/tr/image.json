@@ -57,6 +57,8 @@
     "batch_delete_error": "Görüntüler silinemedi",
     "batch_transfer_success": "Görüntüler başarıyla transfer edildi",
     "batch_transfer_error": "Görüntüler transfer edilemedi",
+    "mark_as_completed_success": "Görüntü tamamlandı olarak işaretlendi",
+    "mark_as_completed_error": "Görüntü tamamlandı olarak işaretlenirken hata oluştu",
     "processing_info": "Görüntü işleniyor, lütfen bekleyin...",
     "failed_retry": "İşlem başarısız oldu, tekrar denemek ister misiniz?"
   },

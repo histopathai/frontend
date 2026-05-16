@@ -10,9 +10,6 @@
       :is-review-mode="isReviewMode"
       @save="handleModalSave"
       @cancel="handleModalCancel"
-      @approve="handleApprove"
-      @reject="handleReject"
-      @edit-and-approve="handleEditAndApprove"
     />
 
     <ConfirmModal
@@ -22,13 +19,20 @@
       @confirm="executeDelete"
       @cancel="cancelDelete"
     />
+
+    <ConfirmModal
+      :is-open="isRejectConfirmOpen"
+      title="Poligonu Reddet"
+      message="Bu poligonu reddetmek istediğinize emin misiniz? Poligon gizlenecektir."
+      @confirm="executeReject"
+      @cancel="cancelReject"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, type PropType, watch, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, type PropType, watch, computed, onMounted, nextTick } from 'vue';
 import type { Image } from '@/core/entities/Image';
-import type { Annotation } from '@/core/entities/Annotation';
 import { useOpenSeadragon } from '@/presentation/composables/annotator/useOpenSeadragon';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { useAnnotationStore } from '@/stores/annotation';
@@ -39,24 +43,9 @@ import { useWorkspaceStore } from '@/stores/workspace';
 import { useAuthStore } from '@/stores/auth';
 
 const authStore = useAuthStore();
-const workspaceStore = useWorkspaceStore();
 const annotationTypeStore = useAnnotationTypeStore();
 const annotationStore = useAnnotationStore();
 const toast = useToast();
-
-const isReviewModeActive = computed(() => {
-  const currentUserId = String(authStore.user?.userId || '');
-  
-  // 1. Eğer bir poligon seçiliyse ve bizim değilse
-  const selected = annotationStore.currentAnnotation;
-  if (selected && String(selected.creatorId || '') !== currentUserId) {
-    return true;
-  }
-  
-  // 2. Eğer görüntüdeki HERHANGİ BİR anotasyon (global veya poligon) başkasına aitse
-  const list = (annotationStore.annotations as any[]) || [];
-  return list.some((a: any) => String(a.creatorId || '') !== currentUserId);
-});
 
 const props = defineProps({
   selectedImage: { type: Object as PropType<Image | null>, default: null },
@@ -71,6 +60,7 @@ const {
   startDrawing,
   stopDrawing,
   updateLabelOverlays,
+  highlightAnnotation,
   anno,
   viewer,
   onSelectionCreated,
@@ -78,11 +68,15 @@ const {
   onAnnotationCreated,
   onAnnotationDeselected,
   onDeleteAnnotationRequest,
+  onEditAnnotationRequest,
+  onRejectAnnotationRequest,
 } = useOpenSeadragon(viewerId);
 
 const isModalOpen = ref(false);
 const isConfirmModalOpen = ref(false);
 const itemToDelete = ref<string | null>(null);
+const isRejectConfirmOpen = ref(false);
+const itemsToReject = ref<{ ids: string[]; imageId: string } | null>(null);
 const isProcessingModal = ref(false);
 const currentDrawingData = ref<any>(null);
 const selectedAnnotationData = ref<any>(null);
@@ -92,10 +86,10 @@ const isReviewMode = computed(() => {
   if (!selectedAnnotationData.value) return false;
   const currentUserId = authStore.user?.userId;
   const creatorId = selectedAnnotationData.value.creatorId;
-  // If no creatorId found, assume it is ours (pending)
   if (!creatorId) return false;
   return String(creatorId) !== String(currentUserId);
 });
+
 
 // --- UTILS ---
 
@@ -128,7 +122,7 @@ function convertAnnotoriousToPoints(selection: any): Array<{ x: number; y: numbe
     }, []);
 }
 
-defineExpose({ startDrawing, stopDrawing, loadAnnotations });
+defineExpose({ startDrawing, stopDrawing, loadAnnotations, highlightAnnotation });
 
 // --- WATCHERS ---
 
@@ -143,10 +137,10 @@ watch(
 );
 
 watch(
-  () => props.isDrawingMode,
-  (val) => {
-    if (!viewer.value || !anno.value) return;
-    if (val) startDrawing();
+  [() => props.isDrawingMode, anno],
+  ([isDrawing, currentAnno]) => {
+    if (!viewer.value || !currentAnno) return;
+    if (isDrawing) startDrawing();
     else stopDrawing();
   },
   { immediate: true }
@@ -168,6 +162,16 @@ watch(
     if (oldCount > 0 && newCount === 0 && props.selectedImage) {
       selectedAnnotationData.value = null;
       updateLabelOverlays();
+    }
+  }
+);
+
+watch(
+  () => annotationStore.needsRefresh,
+  async (val) => {
+    if (val > 0 && props.selectedImage) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await loadAnnotations(props.selectedImage.id, true);
     }
   }
 );
@@ -267,7 +271,6 @@ onMounted(() => {
   };
 
   onAnnotationDeselected.value = () => {
-    // Re-enable navigation if it was disabled for point editing
     if (viewer.value) {
       (viewer.value as any).setMouseNavEnabled(true);
       (viewer.value as any).panHorizontal = true;
@@ -279,9 +282,22 @@ onMounted(() => {
   };
 
   onDeleteAnnotationRequest.value = async (id: string) => {
-    // Sadece modalı aç ve silinecek ID'yi kaydet
     itemToDelete.value = id;
     isConfirmModalOpen.value = true;
+  };
+
+  // Edit Points butonuna basıldığında: modal'ı kapat, Annotorious edit moduna al
+  onEditAnnotationRequest.value = (id: string) => {
+    isModalOpen.value = false;
+    currentDrawingData.value = null;
+    (window as any)._skipAnnotationModal = true;
+    if (anno.value) anno.value.selectAnnotation(id);
+  };
+
+  // Reject butonuna basıldığında: confirmation modal'ı aç
+  onRejectAnnotationRequest.value = (ids: string[], imageId: string) => {
+    itemsToReject.value = { ids, imageId };
+    isRejectConfirmOpen.value = true;
   };
 });
 
@@ -330,6 +346,26 @@ function cancelDelete() {
   isConfirmModalOpen.value = false;
   itemToDelete.value = null;
   if (anno.value) anno.value.cancelSelected();
+}
+
+async function executeReject() {
+  if (!itemsToReject.value) return;
+  isRejectConfirmOpen.value = false;
+  const { ids, imageId } = itemsToReject.value;
+  itemsToReject.value = null;
+
+  for (const id of ids) {
+    const success = await annotationStore.rejectAnnotation(id, imageId);
+    if (success && anno.value) anno.value.removeAnnotation(id);
+  }
+  if (anno.value) anno.value.cancelSelected();
+  updateLabelOverlays();
+  toast.success('Reddedildi.');
+}
+
+function cancelReject() {
+  isRejectConfirmOpen.value = false;
+  itemsToReject.value = null;
 }
 
 // --- SAVE / CANCEL ---
@@ -420,71 +456,6 @@ async function handleModalSave(results: Array<{ type: any; value: any }>) {
     isProcessingModal.value = false;
     currentDrawingData.value = null;
     selectedAnnotationData.value = null;
-  }
-}
-
-async function handleApprove() {
-  if (!selectedAnnotationData.value) return;
-  const id = String(selectedAnnotationData.value.id);
-  const success = await annotationStore.approveAnnotation(id);
-  if (success) {
-    toast.success('Onaylandı.');
-    isModalOpen.value = false;
-    if (anno.value) {
-      anno.value.cancelSelected();
-    }
-    updateLabelOverlays();
-  }
-}
-
-async function handleReject() {
-  if (!selectedAnnotationData.value || !props.selectedImage) return;
-  if (confirm('Bu poligonu silmek ve reddetmek istediğinize emin misiniz?')) {
-    const id = String(selectedAnnotationData.value.id);
-    const success = await annotationStore.rejectAnnotation(
-      id,
-      props.selectedImage.id
-    );
-    if (success) {
-      if (anno.value) {
-        anno.value.removeAnnotation(id);
-        anno.value.cancelSelected();
-      }
-      updateLabelOverlays();
-      toast.error('Reddedildi ve silindi.');
-      isModalOpen.value = false;
-    }
-  }
-}
-
-async function handleEditAndApprove(results: any[]) {
-  if (!selectedAnnotationData.value) return;
-
-  // First update values in store (mark as dirty)
-  const poly = (selectedAnnotationData.value as any).polygon;
-  for (const res of results) {
-    const existing = annotationStore.annotations.find(
-      (a) => a.annotationTypeId === res.type.id && isSamePolygon(a.polygon, poly)
-    );
-    if (existing) {
-      annotationStore.addDirtyAnnotation(existing.id, {
-        value: res.value,
-        name: res.type.name,
-        tag_type: res.type.type,
-        color: res.type.color,
-      });
-    }
-  }
-
-  // Then run the special edit & approve logic
-  const success = await annotationStore.editAndApproveAnnotation(
-    String(selectedAnnotationData.value.id),
-    poly
-  );
-
-  if (success) {
-    toast.success('Düzenlendi ve Onaylandı.');
-    isModalOpen.value = false;
   }
 }
 

@@ -31,7 +31,7 @@
 
     <WorkspaceList
       v-else
-      :workspaces="store.workspaces"
+      :workspaces="store.visibleWorkspaces"
       :current-page="currentPage"
       :has-more="store.hasMore"
       @page-change="handlePageChange"

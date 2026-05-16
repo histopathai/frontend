@@ -1,4 +1,4 @@
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useImageStore } from '@/stores/image';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -101,6 +101,13 @@ export function useImageList(patientId: string, emit: any) {
   function transferSingle(image: any) {
     emit('transfer', image);
   }
+
+  watch(
+    () => imageStore.hideCompleted,
+    () => {
+      loadImages(true);
+    }
+  );
 
   onMounted(() => {
     if (images.value.length === 0) {

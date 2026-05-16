@@ -99,6 +99,7 @@ export const usePatientStore = defineStore('patient', () => {
         const newWorkspacePatients = [...workspacePatients];
         newWorkspacePatients[wsIndex] = updatedPatient;
         patientsByWorkspace.value.set(updatedPatient.workspaceId, newWorkspacePatients);
+        patientsByWorkspace.value = new Map(patientsByWorkspace.value);
       }
     }
     if (currentPatient.value?.id === updatedPatient.id) {
@@ -188,6 +189,7 @@ export const usePatientStore = defineStore('patient', () => {
       const newList = [...currentList, ...mappedPatients] as Patient[];
 
       patientsByWorkspace.value.set(workspaceId, newList);
+      patientsByWorkspace.value = new Map(patientsByWorkspace.value);
       patients.value = newList;
 
       pagination.value = {
@@ -225,6 +227,7 @@ export const usePatientStore = defineStore('patient', () => {
 
       const workspacePatients = patientsByWorkspace.value.get(workspaceId) || [];
       patientsByWorkspace.value.set(workspaceId, [newPatient, ...workspacePatients]);
+      patientsByWorkspace.value = new Map(patientsByWorkspace.value);
 
       toast.success(t('patient.messages.create_success'));
       return newPatient;

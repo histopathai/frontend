@@ -206,7 +206,7 @@ const props = defineProps<{
   isReviewMode?: boolean;
 }>();
 
-const emit = defineEmits(['save', 'cancel', 'approve', 'reject', 'editAndApprove']);
+const emit = defineEmits(['save', 'cancel']);
 
 const formValues = ref<Record<string, any>>({});
 
@@ -306,17 +306,6 @@ function handleSave() {
   });
 
   emit('save', results);
-}
-
-function handleEditAndApprove() {
-  const results: any[] = [];
-  Object.entries(formValues.value).forEach(([id, value]) => {
-    const typeInfo = localTypes.value.find((t) => t.id === id);
-    if (typeInfo && value !== undefined) {
-      results.push({ type: typeInfo, value });
-    }
-  });
-  emit('editAndApprove', results);
 }
 
 function handleCancel() {
