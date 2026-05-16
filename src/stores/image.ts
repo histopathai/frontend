@@ -4,6 +4,7 @@ import { repositories } from '@/services';
 import { useToast } from 'vue-toastification';
 import { useI18n } from 'vue-i18n';
 import type { Image } from '@/core/entities/Image';
+import { Workspace } from '@/core/entities/Workspace';
 import { useWorkspaceStore } from './workspace';
 import { useAuthStore } from './auth';
 import { usePatientStore } from './patient';
@@ -298,7 +299,7 @@ export const useImageStore = defineStore('image', () => {
       const result: PaginatedResult<Image> = await imageRepo.listByPatient(patientId, {
         pagination: paginationParams,
         sort: [{ field: sort.value.by, direction: sort.value.dir }],
-        query: hideCompleted.value ? { marked_as_completed: false } : undefined,
+        filters: hideCompleted.value ? [{ field: 'marked_as_completed', operator: 'eq', value: false }] : undefined,
       });
       const currentList = imagesByPatient.value.get(patientId) || [];
       const newList = append ? [...currentList, ...result.data] : result.data;
@@ -453,7 +454,7 @@ export const useImageStore = defineStore('image', () => {
       // Update workspace stats in store
       const workspaceStore = useWorkspaceStore();
       const ws = workspaceStore.getWorkspaceById(
-        updatedImage.workspaceId || workspaceStore.currentWorkspace?.id || ''
+        updatedImage.wsId || workspaceStore.currentWorkspace?.id || ''
       );
       if (ws && updatedImage.markedAsCompleted) {
         const rawData = (ws as any).toJSON();

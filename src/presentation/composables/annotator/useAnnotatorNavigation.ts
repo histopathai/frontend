@@ -203,14 +203,7 @@ export function useAnnotatorNavigation() {
         selectPatient(nextPatient);
       }
     } else if (hasMore.value) {
-      // We are at the end of the current list but more patients exist in next pages
-      loadMorePatients().then(() => {
-        // After loading more, the list should have grown
-        const nextPatient = currentPatients.value[selectedPatientIndex.value + 1];
-        if (nextPatient) {
-          selectPatient(nextPatient);
-        }
-      });
+      loadMorePatients();
     }
   }
 

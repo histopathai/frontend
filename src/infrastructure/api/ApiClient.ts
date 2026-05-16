@@ -77,9 +77,10 @@ export class ApiClient {
 
         if (error.response?.status === 422) {
           return Promise.reject({
-            message: error.response.data?.message || t('errors.422'),
+            message: error.response.data?.details?.error || error.response.data?.message || t('errors.422'),
             status: 422,
             errors: error.response.data?.errors,
+            details: error.response.data?.details,
             originalError: error,
           });
         }

@@ -366,5 +366,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     refreshWorkspace,
     getWorkspaceCount,
     resetError,
+    updateWorkspaceInState,
   };
 });

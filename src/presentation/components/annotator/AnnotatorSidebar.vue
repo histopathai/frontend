@@ -251,12 +251,24 @@
 
                   <div class="min-w-0 flex-1 select-none" :title="image.name">
                     <div class="flex items-center justify-between">
-                      <p
-                        class="text-[11px] font-semibold truncate flex-1 pr-1"
-                        :class="image.id === selectedImageId ? 'text-indigo-800' : 'text-gray-700'"
-                      >
-                        {{ image.name }}
-                      </p>
+                      <div class="flex items-center gap-1.5 truncate flex-1 pr-1">
+                        <p
+                          class="text-[11px] font-semibold truncate"
+                          :class="image.id === selectedImageId ? 'text-indigo-800' : 'text-gray-700'"
+                        >
+                          {{ image.name }}
+                        </p>
+                        <svg
+                          v-if="image.markedAsCompleted"
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          class="w-3.5 h-3.5 text-indigo-500 flex-shrink-0"
+                          title="İşaretleme Tamamlandı"
+                        >
+                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                        </svg>
+                      </div>
                     </div>
                     
                     <div class="flex items-center justify-between mt-1">

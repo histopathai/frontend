@@ -26,10 +26,16 @@ export function useOpenSeadragon(viewerId: string) {
   const onAnnotationCreated = ref<((annotation: any) => void) | null>(null);
   const onAnnotationDeselected = ref<(() => void) | null>(null);
   const onDeleteAnnotationRequest = ref<((annotationId: string) => void) | null>(null);
+  const onEditAnnotationRequest = ref<((annotationId: string) => void) | null>(null);
+  const onRejectAnnotationRequest = ref<((ids: string[], imageId: string) => void) | null>(null);
 
   const labelOverlays = ref<Map<string, HTMLElement>>(new Map());
   const activeContextId = ref<string | null>(null);
   let setupTimeout: any = null;
+
+  // Composable seviyesinde tutulur — performUpdateLabelOverlays her render'da günceller,
+  // handleUpdate da en güncel grup bilgisini okur.
+  let polyGroups = new Map<string, any>();
 
   function clearLabelOverlays() {
     if (!viewer.value) return;
@@ -93,7 +99,7 @@ export function useOpenSeadragon(viewerId: string) {
 
         labelDiv.innerHTML = `
           <div class="a9s-label-bubble" data-id="${id}" style="display: inline-flex; flex-direction: column; align-items: ${isNearLeft ? 'flex-start' : isNearRight ? 'flex-end' : 'center'}; gap: 2px; transform: translate(${translateX}, ${translateY}); pointer-events: auto; transition: all 0.2s ease;">
-            
+
             <!-- Details Badge (Revealed on hover) -->
             <div class="hover-only" style="opacity: 0; transition: opacity 0.2s ease; pointer-events: none;">
               ${showBadge ? `
@@ -106,10 +112,9 @@ export function useOpenSeadragon(viewerId: string) {
 
             <div class="main-pill" style="display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; background: rgba(15, 23, 42, 0.2); color: white; font-size: 9px; font-weight: 700; border: 1.5px solid ${color}; white-space: nowrap; box-shadow: 0 4px 10px ${color}11; position: relative; transition: all 0.2s ease;">
               <span>${text || 'Anotasyon'}</span>
-              
+
               <div style="width: 1px; height: 10px; background: rgba(255,255,255,0.2); margin: 0 6px;"></div>
-              
-              <!-- Controls (Always visible, but transparent background) -->
+
               <div style="display: flex; align-items: center; gap: 4px;">
                 ${effectiveReviewMode ? `
                   <button id="edit-pts-${id}" style="background: none; border: none; color: #94a3b8; cursor: pointer; padding: 1px; display: flex; align-items: center; justify-content: center;">
@@ -142,9 +147,8 @@ export function useOpenSeadragon(viewerId: string) {
         const hoverItems = labelDiv.querySelectorAll('.hover-only');
 
         if (bubble) {
-          bubble.addEventListener('mouseenter', () => { 
+          bubble.addEventListener('mouseenter', () => {
             if (viewer.value) (viewer.value as any).setMouseNavEnabled(false);
-            
             bubble.style.transform = `translate(${translateX}, ${translateY}) scale(1.05)`;
             bubble.style.zIndex = '10000';
             if (mainPill) {
@@ -152,24 +156,18 @@ export function useOpenSeadragon(viewerId: string) {
               mainPill.style.padding = '4px 10px';
             }
             hoverItems.forEach(el => (el as HTMLElement).style.opacity = '1');
-
             document.querySelectorAll('.a9s-label-bubble').forEach(b => {
               if (b !== bubble) (b as HTMLElement).style.opacity = '0.2';
             });
             document.querySelectorAll('.a9s-annotation').forEach(s => {
               const sid = s.getAttribute('data-id');
-              if (sid !== id) {
-                (s as HTMLElement).style.opacity = '0.1';
-              } else {
-                (s as HTMLElement).style.strokeWidth = '8px';
-                (s as HTMLElement).style.filter = `drop-shadow(0 0 10px ${color})`;
-              }
+              if (sid !== id) (s as HTMLElement).style.opacity = '0.1';
+              else { (s as HTMLElement).style.strokeWidth = '8px'; (s as HTMLElement).style.filter = `drop-shadow(0 0 10px ${color})`; }
             });
           });
 
-          bubble.addEventListener('mouseleave', () => { 
+          bubble.addEventListener('mouseleave', () => {
             if (viewer.value) (viewer.value as any).setMouseNavEnabled(true);
-            
             bubble.style.transform = `translate(${translateX}, ${translateY}) scale(1)`;
             bubble.style.opacity = '1';
             bubble.style.zIndex = '';
@@ -178,7 +176,6 @@ export function useOpenSeadragon(viewerId: string) {
               mainPill.style.padding = '2px 8px';
             }
             hoverItems.forEach(el => (el as HTMLElement).style.opacity = '0');
-
             document.querySelectorAll('.a9s-label-bubble').forEach(b => {
               (b as HTMLElement).style.opacity = '1';
             });
@@ -191,16 +188,40 @@ export function useOpenSeadragon(viewerId: string) {
         }
 
         const editBtn = labelDiv.querySelector(`#edit-pts-${id}`);
-        if (editBtn) editBtn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); if (anno.value) anno.value.selectAnnotation(id); });
+        if (editBtn) editBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          if (onEditAnnotationRequest.value) {
+            onEditAnnotationRequest.value(id);
+          } else if (anno.value) {
+            (window as any)._skipAnnotationModal = true;
+            anno.value.selectAnnotation(id);
+          }
+        });
 
         const delBtn = labelDiv.querySelector(`#del-${id}`);
         if (delBtn) delBtn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); if (onDeleteAnnotationRequest.value) onDeleteAnnotationRequest.value(id); });
 
         const approveBtn = labelDiv.querySelector(`#approve-${id}`);
-        if (approveBtn) approveBtn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); annotationStore.approveAnnotation(id); });
+        if (approveBtn) approveBtn.addEventListener('click', (e) => { 
+          e.stopPropagation(); e.preventDefault(); 
+          const group = Array.from(polyGroups.values()).find(g => g.ids.includes(id));
+          if (group) {
+            group.ids.forEach((gid: string) => annotationStore.approveAnnotation(gid));
+          } else {
+            annotationStore.approveAnnotation(id); 
+          }
+        });
 
         const rejectBtn = labelDiv.querySelector(`#reject-${id}`);
-        if (rejectBtn) rejectBtn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); annotationStore.rejectAnnotation(id, currentImageId.value!); });
+        if (rejectBtn) rejectBtn.addEventListener('click', (e) => {
+          e.stopPropagation(); e.preventDefault();
+          const group = Array.from(polyGroups.values()).find(g => g.ids.includes(id));
+          const idsToReject = group ? group.ids : [id];
+          if (onRejectAnnotationRequest.value) {
+            onRejectAnnotationRequest.value(idsToReject, currentImageId.value || '');
+          }
+        });
 
         const imagePoint = new OpenSeadragon.Point(anchorX, minY);
         const viewportPoint = viewer.value?.viewport.imageToViewportCoordinates(imagePoint);
@@ -220,7 +241,7 @@ export function useOpenSeadragon(viewerId: string) {
 
     // --- Phase 1: Group annotations by polygon geometry ---
     interface PolyGroup {
-      id: string; // primary annotation ID (first one found)
+      ids: string[]; // ALL annotation IDs in this group
       polygon: any[];
       labels: Array<{ text: string; color: string }>;
       resource: string;
@@ -229,7 +250,7 @@ export function useOpenSeadragon(viewerId: string) {
       isReview: boolean;
     }
 
-    const polyGroups = new Map<string, PolyGroup>();
+    polyGroups = new Map<string, any>();
 
     const getPolyKey = (polygon: any[]) =>
       polygon.map((p) => Math.round(p.x || p.X || 0) + ',' + Math.round(p.y || p.Y || 0)).join('|');
@@ -247,10 +268,11 @@ export function useOpenSeadragon(viewerId: string) {
 
         if (polyGroups.has(polyKey)) {
           const group = polyGroups.get(polyKey)!;
+          group.ids.push(String(ann.id));
           group.labels.push({ text: baseText, color });
         } else {
           polyGroups.set(polyKey, {
-            id: String(ann.id),
+            ids: [String(ann.id)],
             polygon: poly,
             labels: [{ text: baseText, color }],
             resource: ann.resource,
@@ -274,7 +296,7 @@ export function useOpenSeadragon(viewerId: string) {
           group.labels.push({ text: baseText, color });
         } else {
           polyGroups.set(polyKey, {
-            id: p.tempId,
+            ids: [p.tempId],
             polygon: p.polygon,
             labels: [{ text: baseText, color }],
             resource: 'manual',
@@ -287,11 +309,11 @@ export function useOpenSeadragon(viewerId: string) {
 
     // --- Phase 2: Draw one label per polygon group ---
     polyGroups.forEach((group) => {
-      // Build combined text: "Malign · G3"
-      const combinedText = group.labels.map(l => l.text).join(' · ');
-      const primaryColor = group.labels[0]?.color || '#ec4899';
+      const combinedText = group.labels.map((l: {text: string; color: string}) => l.text).join(' · ');
+      const primaryColor = group.labels[0]?.color || '#ef4444';
+      const primaryId = group.ids?.[0] ?? '';
 
-      drawLabel(group.id, group.polygon, combinedText, primaryColor, group.resource, group.creatorId, group.creatorName, group.isReview);
+      drawLabel(primaryId, group.polygon, combinedText, primaryColor, group.resource, group.creatorId, group.creatorName, group.isReview);
     });
   }
 
@@ -329,7 +351,10 @@ export function useOpenSeadragon(viewerId: string) {
     setupTimeout = setTimeout(() => {
       try {
         if (anno.value) {
-          try { anno.value.destroy(); } catch (e) { /* ignore */ }
+          try { 
+            anno.value.destroy(); 
+            anno.value = null;
+          } catch (e) { /* ignore */ }
         }
 
         anno.value = new (Annotorious as any)(viewer.value, {
@@ -341,7 +366,8 @@ export function useOpenSeadragon(viewerId: string) {
             const id = String(annotation.id).replace('#', '');
             const ann = annotationStore.annotations.find(a => String(a.id) === id) || 
                         annotationStore.pendingAnnotations.find(p => p.tempId === id);
-            const color = (ann as any)?.color || '#ef4444';
+            
+            const color = ann?.color || '#ef4444';
             return { style: `stroke: ${color}; stroke-width: 2.5; fill: ${color}; fill-opacity: 0.25;` };
           }
         });
@@ -430,34 +456,47 @@ export function useOpenSeadragon(viewerId: string) {
   };
 
   const handleUpdate = (annotation: any) => {
-    const rawId = annotation.id || anno.value?.getSelected()?.id;
-    if (!rawId) return;
-    const selector = (annotation as any).target?.selector?.value || (annotation as any).selector?.value || '';
-    if (!selector) return;
-    let pointsStr = '';
-    if (selector.includes('points=')) {
-      const match = selector.match(/points=["']([^"']+)["']/);
-      if (match) pointsStr = match[1];
-    } else { pointsStr = selector; }
-    if (!pointsStr) return;
-    const coords = pointsStr.trim().split(/[\s,]+/).filter((v: string) => v !== '');
-    const polygonData = [];
-    for (let i = 0; i < coords.length; i += 2) { 
-      const xStr = coords[i];
-      const yStr = coords[i+1];
-      if (xStr !== undefined && yStr !== undefined) {
-        const x = parseFloat(xStr);
-        const y = parseFloat(yStr);
-        if (!isNaN(x) && !isNaN(y)) polygonData.push({ x, y }); 
+      const rawId = annotation.id || anno.value?.getSelected()?.id;
+      if (!rawId) return;
+      
+      const selector = (annotation as any).target?.selector?.value || (annotation as any).selector?.value || '';
+      if (!selector) return;
+      let pointsStr = '';
+      if (selector.includes('points=')) {
+        const match = selector.match(/points=["']([^"']+)["']/);
+        if (match) pointsStr = match[1];
+      } else { pointsStr = selector; }
+      if (!pointsStr) return;
+      const coords = pointsStr.trim().split(/[\s,]+/).filter((v: string) => v !== '');
+      const polygonData: {x: number; y: number}[] = [];
+      for (let i = 0; i < coords.length; i += 2) {
+        const x = parseFloat(coords[i] ?? '');
+        const y = parseFloat(coords[i + 1] ?? '');
+        if (!isNaN(x) && !isNaN(y)) polygonData.push({ x, y });
       }
-    }
-    if (polygonData.length === 0) return;
-    const targetId = String(rawId).replace('#', '');
-    const existing = annotationStore.annotations.find(a => String(a.id) === targetId);
-    if (existing) annotationStore.addDirtyAnnotation(targetId, { polygon: polygonData });
-    else annotationStore.updatePendingAnnotation(targetId, { polygon: polygonData });
-    updateLabelOverlays();
-  };
+      if (polygonData.length < 3) return;
+
+      // Find the primary annotation to check for group
+      const targetId = String(rawId).replace('#', '');
+      const group = Array.from(polyGroups.values()).find(g => g.ids.includes(targetId));
+      const idsToUpdate: string[] = group ? group.ids : [targetId];
+
+      idsToUpdate.forEach((id: string) => {
+        const ann = annotationStore.annotations.find(a => String(a.id) === id);
+        if (ann) {
+          // Polygon'u direkt mutate et — updateAnnotationInState ÇAĞIRMA.
+          // Çağırırsan needsRefresh++ → loadAnnotations → clearAnnotations → editing iptal + ghost polygon.
+          ann.polygon = polygonData as any;
+
+          // Her durumda dirty işaretle → navbar "Kaydet" aktif olur.
+          // Kaydetme sırasında creatorId kontrolü yapılır: kendi anotasyonu ise PUT, değilse review olarak gönderilir.
+          annotationStore.addDirtyAnnotation(id, {});
+        } else {
+          annotationStore.updatePendingAnnotation(id, { polygon: polygonData });
+        }
+      });
+      updateLabelOverlays();
+    };
 
   async function loadAnnotations(imageId: string, skipFetch: boolean = false) {
     if (!anno.value || activeContextId.value !== imageId) return;
@@ -467,19 +506,29 @@ export function useOpenSeadragon(viewerId: string) {
       if (!skipFetch) await annotationStore.fetchAnnotationsByImage(imageId, { limit: 100 }, { showToast: false });
       if (activeContextId.value !== imageId) return;
       const imageAnnotations = annotationStore.getAnnotationsByImageId(imageId);
+
+      // Aynı polygon koordinatlarına sahip birden fazla anotasyon (birden fazla lokal etiket)
+      // tek bir OSD poligonu olarak eklenmeli; sadece grubun birincil (primary) ID'si OSD'ye gönderilir.
+      const getPolyKey = (poly: any[]) =>
+        poly.map((p) => Math.round(p.x || p.X || 0) + ',' + Math.round(p.y || p.Y || 0)).join('|');
+
+      const seenPolyKeys = new Set<string>();
       const w3c = imageAnnotations.map((ann) => {
           if (!ann.polygon || ann.polygon.length === 0) return null;
+          const polyKey = getPolyKey(ann.polygon);
+          if (seenPolyKeys.has(polyKey)) return null; // Bu polygon zaten eklendi
+          seenPolyKeys.add(polyKey);
+
           const polygonStr = ann.polygon.map((p) => p.x + ',' + p.y).join(' ');
           const annType = annotationTypeStore.annotationTypes.find(t => t.id === ann.annotationTypeId);
-          const color = ann.color || annType?.color || '#ec4899';
-          const tagValue = (ann as any).tag ? (ann as any).tag.value : (annType?.name || 'Tag');
+          const tagValue = ann.value || annType?.name || 'Tag';
           const tagIndex = annotationStore.getTagIndex(ann.annotationTypeId, tagValue);
-          
+
           return {
             '@context': 'http://www.w3.org/ns/anno.jsonld',
             type: 'Annotation', id: String(ann.id),
             body: [
-              { type: 'TextualBody', value: tagValue, purpose: 'tagging' },
+              { type: 'TextualBody', value: String(tagValue), purpose: 'tagging' },
               { type: 'TextualBody', value: ann.annotationTypeId, purpose: 'metadata' },
               { type: 'TextualBody', value: String(tagIndex), purpose: 'index' },
             ],
@@ -517,9 +566,6 @@ export function useOpenSeadragon(viewerId: string) {
     viewer.value.open(API_BASE_URL + '/api/v1/proxy/' + image.processedpath + '/image.dzi');
   }
 
-  watch(() => annotationStore.annotations, () => {
-    if (viewer.value && anno.value && currentImageId.value) loadAnnotations(currentImageId.value, true);
-  }, { deep: true });
 
   onMounted(() => nextTick(initViewer));
   watch(() => annotationStore.userNames, () => { performUpdateLabelOverlays(); }, { deep: true });
@@ -592,6 +638,6 @@ export function useOpenSeadragon(viewerId: string) {
   return {
     loading, loadImage, loadAnnotations, startDrawing, stopDrawing,
     anno, viewer, updateLabelOverlays, highlightAnnotation,
-    onSelectionCreated, onAnnotationSelected, onAnnotationCreated, onAnnotationDeselected, onDeleteAnnotationRequest
+    onSelectionCreated, onAnnotationSelected, onAnnotationCreated, onAnnotationDeselected, onDeleteAnnotationRequest, onEditAnnotationRequest, onRejectAnnotationRequest
   };
 }

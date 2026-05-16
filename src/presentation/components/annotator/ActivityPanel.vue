@@ -150,21 +150,11 @@ async function buildActivities(imageId: string) {
   const items: ActivityItem[] = [];
 
   try {
-    // Use the FULL annotation set (not the filtered toggle view) for activity history
-    // Merge preReviewAnnotations (originals) + current annotations (may include reviewer's new ones)
     const allAnnotationsMap = new Map<string, any>();
-    
-    // First add preReview (originals)
-    for (const ann of annotationStore.preReviewAnnotations) {
-      allAnnotationsMap.set(ann.id, ann);
-    }
-    // Then add current (overrides/adds reviewer's new ones)
     for (const ann of annotationStore.annotations) {
-      if (!allAnnotationsMap.has(String(ann.id))) {
-        allAnnotationsMap.set(String(ann.id), ann);
-      }
+      allAnnotationsMap.set(String(ann.id), ann);
     }
-    
+
     const annotations = Array.from(allAnnotationsMap.values()).filter(
       (a: any) => (a.parentId || a.parent?.id) === imageId
     );
@@ -397,16 +387,9 @@ watch(
   { immediate: true }
 );
 
-// Also rebuild when annotations change (e.g. after save, NOT toggle swaps)
-let lastKnownFilter = annotationStore.viewFilter;
 watch(
-  () => annotationStore.annotations.length,
+  () => annotationStore.annotations,
   () => {
-    // Skip rebuild if only viewFilter changed (toggle swap)
-    if (annotationStore.viewFilter !== lastKnownFilter) {
-      lastKnownFilter = annotationStore.viewFilter;
-      return;
-    }
     if (props.selectedImageId && props.isOpen) {
       buildActivities(props.selectedImageId);
     }

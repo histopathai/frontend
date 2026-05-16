@@ -3,7 +3,7 @@
     class="bg-white border-b border-gray-200 px-3 h-12 shadow-[0_2px_4px_rgba(0,0,0,0.02)] z-30 relative flex items-center justify-between gap-1.5"
   >
     <!-- SOL BÖLÜM: Hasta Bilgileri + Navigasyon + Legend -->
-    <div class="flex items-center gap-3 min-w-0 flex-[1.5_1_0%] overflow-hidden">
+    <div class="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
       <!-- Hasta Künyesi -->
       <div class="flex items-center gap-2 flex-shrink-0">
         <div
@@ -50,57 +50,10 @@
 
     </div>
 
-    <!-- ORTA BÖLÜM: Bitir Butonu -->
-    <div class="flex items-center justify-center flex-shrink-0 px-1">
-      <button
-        v-if="image"
-        @click="handleMarkAsCompleted"
-        :disabled="image.markedAsCompleted"
-        class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg transition-all text-[10px] font-bold uppercase tracking-tight border shadow-sm"
-        :class="
-          image.markedAsCompleted
-            ? 'text-gray-400 bg-gray-50 border-gray-100 cursor-not-allowed'
-            : 'text-indigo-600 bg-white border-indigo-100 hover:bg-indigo-50 active:scale-95'
-        "
-      >
-        <svg v-if="image.markedAsCompleted" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
-        </svg>
-        <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-3.5 h-3.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-        </svg>
-        <span>{{ image.markedAsCompleted ? 'TAMAMLANDI' : 'BİTİR' }}</span>
-      </button>
-    </div>
 
-    <!-- ORTA-SAĞ: Orijinal / İnceleme Karşılaştırma -->
-    <div v-if="image" class="flex items-center flex-shrink-0 px-1">
-      <div class="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 shadow-sm">
-        <button
-          @click="annotationStore.setViewFilter('all')"
-          class="flex items-center gap-1 px-2.5 py-1 rounded-md transition-all text-[9px] font-black uppercase tracking-tight"
-          :class="annotationStore.viewFilter === 'all' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-200' : 'text-gray-400 hover:text-gray-600'"
-        >
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-          İnceleme
-        </button>
-        <button
-          @click="annotationStore.setViewFilter('original')"
-          class="flex items-center gap-1 px-2.5 py-1 rounded-md transition-all text-[9px] font-black uppercase tracking-tight"
-          :class="annotationStore.viewFilter === 'original' ? 'bg-white text-amber-600 shadow-sm ring-1 ring-amber-200' : 'text-gray-400 hover:text-gray-600'"
-        >
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          Orijinal
-        </button>
-      </div>
-    </div>
 
     <!-- SAĞ BÖLÜM: Modlar + Kaydet -->
-    <div class="flex items-center gap-2 flex-[1_1_0%] justify-end min-w-0">
+    <div class="flex items-center gap-2 flex-shrink-0 justify-end">
       <!-- Drawing Modes -->
       <div class="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 flex-shrink-0">
         <button
@@ -141,21 +94,41 @@
 
         <button
           @click="handleSaveAll"
-          :disabled="annotationStore.pendingCount === 0 && annotationStore.dirtyCount === 0"
+          :disabled="annotationStore.pendingCount === 0 && annotationStore.dirtyCount === 0 && !isMetadataDirty"
           class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all shadow-sm flex-shrink-0"
           :class="[
-            annotationStore.pendingCount === 0 && annotationStore.dirtyCount === 0
+            annotationStore.pendingCount === 0 && annotationStore.dirtyCount === 0 && !isMetadataDirty
               ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
               : 'bg-gray-900 text-white hover:bg-black active:scale-95 shadow-indigo-100',
           ]"
         >
           <span>Kaydet</span>
           <span
-            v-if="annotationStore.pendingCount + annotationStore.dirtyCount > 0"
+            v-if="annotationStore.pendingCount + annotationStore.dirtyCount > 0 || isMetadataDirty"
             class="bg-indigo-500 text-white text-[9px] px-1.5 rounded-full min-w-[16px]"
           >
-            {{ annotationStore.pendingCount + annotationStore.dirtyCount }}
+            {{ annotationStore.pendingCount + annotationStore.dirtyCount + (isMetadataDirty ? 1 : 0) }}
           </span>
+        </button>
+
+        <button
+          v-if="image"
+          @click="handleMarkAsCompleted"
+          :disabled="image.markedAsCompleted"
+          class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg transition-all text-[10px] font-bold uppercase tracking-tight border shadow-sm flex-shrink-0"
+          :class="
+            image.markedAsCompleted
+              ? 'text-gray-400 bg-gray-50 border-gray-100 cursor-not-allowed'
+              : 'text-indigo-600 bg-white border-indigo-100 hover:bg-indigo-50 active:scale-95'
+          "
+        >
+          <svg v-if="image.markedAsCompleted" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+          </svg>
+          <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-3.5 h-3.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+          </svg>
+          <span>{{ image.markedAsCompleted ? 'TAMAMLANDI' : 'İŞARETLEME TAMAMLANDI' }}</span>
         </button>
       </div>
     </div>
@@ -299,10 +272,18 @@ const initialMetadata = ref<Record<string, any>>({});
 
 const imageAnnotations = computed(() => {
   if (!props.image) return [];
-  // Use annotationStore.annotations directly for perfect Vue reactivity
   return annotationStore.annotations.filter(
     (ann: any) => ann.parentId === props.image?.id || ann.parent?.id === props.image?.id
   );
+});
+
+const isMetadataDirty = computed(() => {
+  if (!props.image) return false;
+  return dynamicFields.value.some((field: any) => {
+    const current = localMetadata.value[field.id];
+    const initial = initialMetadata.value[field.id];
+    return current !== initial;
+  });
 });
 
 watch(
@@ -447,13 +428,13 @@ async function handleSaveAll() {
           } else {
             const newAnn = await annotationStore.createAnnotation(props.image.id, {
               annotation_type_id: field.id,
+              annotationTypeId: field.id,
               is_global: true,
               name: field.name,
-              tag_type: field.type || 'select',
-              value: currentVal,
+              tag_type: field.type === 'textarea' ? 'text' : (field.type || 'text'),
+              value: currentVal ?? "",
               ws_id: ws.id,
-              color: '#4F46E5',
-              polygon: [],
+              workspace_id: ws.id,
             } as any);
             if (!newAnn) globalSaveSuccess = false;
           }
@@ -463,6 +444,15 @@ async function handleSaveAll() {
 
     if (dirtySuccess && pendingSuccess && globalSaveSuccess) {
       toast.success('Tüm değişiklikler başarıyla kaydedildi');
+
+      // Update initial metadata state and clear store pending metadata
+      initialMetadata.value = { ...localMetadata.value };
+      if (props.image) {
+        annotationStore.imageMetadata.delete(props.image.id);
+      }
+
+      // Önce store'daki mevcut veriyle anında re-render, ardından sunucu fetch'i
+      annotationStore.needsRefresh++;
       emit('refreshViewer');
     } else {
       toast.warning('Bazı değişiklikler kaydedilemedi');
