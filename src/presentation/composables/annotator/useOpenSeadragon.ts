@@ -20,6 +20,7 @@ export function useOpenSeadragon(viewerId: string) {
   const anno = shallowRef<any>(null);
   const currentImageId = ref<string | null>(null);
   const loading = ref(false);
+  const isDrawingActive = ref(false);
 
   const onSelectionCreated = ref<((selection: any) => void) | null>(null);
   const onAnnotationSelected = ref<((annotation: any) => void) | null>(null);
@@ -185,6 +186,18 @@ export function useOpenSeadragon(viewerId: string) {
               (s as HTMLElement).style.filter = '';
             });
           });
+
+          bubble.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            // Don't select if they clicked one of the action buttons inside the bubble
+            if (target.closest('button')) return;
+
+            e.stopPropagation();
+            e.preventDefault();
+            if (anno.value && !isDrawingActive.value) {
+              anno.value.selectAnnotation(id);
+            }
+          });
         }
 
         const editBtn = labelDiv.querySelector(`#edit-pts-${id}`);
@@ -317,8 +330,22 @@ export function useOpenSeadragon(viewerId: string) {
     });
   }
 
-  function startDrawing() { if (anno.value && viewer.value) { (viewer.value as any).setMouseNavEnabled(false); anno.value.setDrawingTool('polygon'); anno.value.setDrawingEnabled(true); } }
-  function stopDrawing() { if (anno.value && viewer.value) { (viewer.value as any).setMouseNavEnabled(true); anno.value.setDrawingEnabled(false); anno.value.setDrawingTool(null); } }
+  function startDrawing() {
+    if (anno.value && viewer.value) {
+      isDrawingActive.value = true;
+      (viewer.value as any).setMouseNavEnabled(false);
+      anno.value.setDrawingTool('polygon');
+      anno.value.setDrawingEnabled(true);
+    }
+  }
+  function stopDrawing() {
+    if (anno.value && viewer.value) {
+      isDrawingActive.value = false;
+      (viewer.value as any).setMouseNavEnabled(true);
+      anno.value.setDrawingEnabled(false);
+      anno.value.setDrawingTool(null);
+    }
+  }
 
   function initViewer() {
     if (viewer.value) viewer.value.destroy();
@@ -399,10 +426,11 @@ export function useOpenSeadragon(viewerId: string) {
   };
 
   const attachSvgListeners = () => {
-    const svgLayer = document.querySelector('.a9s-annotationlayer');
-    if (!svgLayer) return;
+    const svgLayer = document.querySelector('.a9s-annotationlayer') as any;
+    if (!svgLayer || svgLayer._listenersAttached) return;
+    svgLayer._listenersAttached = true;
 
-    svgLayer.addEventListener('mouseover', (e) => {
+    svgLayer.addEventListener('mouseover', (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const shape = target.closest('.a9s-annotation');
       if (shape) {
@@ -432,7 +460,7 @@ export function useOpenSeadragon(viewerId: string) {
       }
     });
 
-    svgLayer.addEventListener('mouseout', (e) => {
+    svgLayer.addEventListener('mouseout', (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const shape = target.closest('.a9s-annotation');
       if (shape) {
@@ -449,6 +477,22 @@ export function useOpenSeadragon(viewerId: string) {
             bubble.querySelectorAll('.hover-only').forEach(el => (el as HTMLElement).style.opacity = '0');
             document.querySelectorAll('.a9s-label-bubble').forEach(b => { (b as HTMLElement).style.opacity = '1'; });
             document.querySelectorAll('.a9s-annotation').forEach(s => { (s as HTMLElement).style.opacity = '1'; (s as HTMLElement).style.strokeWidth = ''; (s as HTMLElement).style.filter = ''; });
+          }
+        }
+      }
+    });
+
+    svgLayer.addEventListener('click', (e: MouseEvent) => {
+      if (isDrawingActive.value) return;
+      const target = e.target as HTMLElement;
+      const shape = target.closest('.a9s-annotation');
+      if (shape) {
+        const id = shape.getAttribute('data-id')?.replace('#', '');
+        if (id) {
+          e.stopPropagation();
+          e.preventDefault();
+          if (anno.value) {
+            anno.value.selectAnnotation(id);
           }
         }
       }
