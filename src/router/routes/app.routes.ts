@@ -22,6 +22,11 @@ const appRoutes: RouteRecordRaw = {
       component: () => import('@/presentation/views/annotator/AnnotatorView.vue'),
     },
     {
+      path: 'istatistikler',
+      name: 'Statistics',
+      component: () => import('@/presentation/views/dashboard/StatisticsView.vue'),
+    },
+    {
       path: 'workspaces',
       name: 'WorkspaceList',
       component: () => import('@/presentation/views/workspace/WorkspaceListView.vue'),

@@ -189,6 +189,7 @@ function closeDropdown() {
 const navigation = [
   { name: 'Veri Etiketleyici', routeName: 'Annotator' },
   { name: 'Veri Seti Oluşturucu', routeName: 'WorkspaceList' },
+  { name: 'İstatistik', routeName: 'Statistics' },
 ];
 
 async function handleLogout() {
