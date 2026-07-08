@@ -1,46 +1,30 @@
 <template>
   <div class="card shadow-lg rounded-xl">
     <div class="card-body p-6">
-      <!-- Başlık + Veri seti seçici -->
-      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div>
-          <h3 class="text-xl font-semibold text-gray-900">Veri Seti İlerlemesi</h3>
-          <p class="text-sm text-gray-500 mt-0.5">
-            Seçili veri setinin ne kadarı etiketlenmiş?
-          </p>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <select
-            v-model="selectedWorkspaceId"
-            class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:ring-2 focus:ring-indigo-400 outline-none max-w-[220px]"
+      <!-- Başlık + Yenile -->
+      <div class="flex items-center justify-between gap-3 mb-6">
+        <p class="text-sm text-gray-500">Seçili veri setinin ne kadarı etiketlenmiş?</p>
+        <button
+          @click="reload"
+          :disabled="loading || !workspace"
+          class="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-indigo-600 transition-colors disabled:opacity-40"
+          title="Yenile"
+        >
+          <svg
+            class="w-4 h-4"
+            :class="{ 'animate-spin': loading }"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
           >
-            <option v-for="ws in workspaces" :key="ws.id" :value="ws.id">
-              {{ ws.name }}
-            </option>
-          </select>
-          <button
-            @click="reload"
-            :disabled="loading"
-            class="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-indigo-600 transition-colors disabled:opacity-40"
-            title="Yenile"
-          >
-            <svg
-              class="w-4 h-4"
-              :class="{ 'animate-spin': loading }"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4 9a8 8 0 0113.657-3.657M20 15a8 8 0 01-13.657 3.657" />
-            </svg>
-          </button>
-        </div>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4 9a8 8 0 0113.657-3.657M20 15a8 8 0 01-13.657 3.657" />
+          </svg>
+        </button>
       </div>
 
       <!-- Boş durum -->
-      <div v-if="!selectedWorkspaceId" class="py-12 text-center text-gray-400 text-sm">
+      <div v-if="!workspace" class="py-12 text-center text-gray-400 text-sm">
         Görüntülemek için bir veri seti seçin.
       </div>
 
@@ -131,12 +115,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
-import { storeToRefs } from 'pinia';
+import { computed, watch } from 'vue';
 import { Doughnut } from 'vue-chartjs';
 import { Chart as ChartJS, ArcElement, Tooltip } from 'chart.js';
-import { useWorkspaceStore } from '@/stores/workspace';
+import type { Workspace } from '@/core/entities/Workspace';
 import { useDatasetProgress } from '@/presentation/composables/dashboard/useDatasetProgress';
+
+const props = defineProps<{ workspace: Workspace | null }>();
 
 ChartJS.register(ArcElement, Tooltip);
 
@@ -148,16 +133,7 @@ const COLORS = {
   none: '#94a3b8', // slate
 };
 
-const workspaceStore = useWorkspaceStore();
-const { workspaces } = storeToRefs(workspaceStore);
-
 const { loading, error, progress, load } = useDatasetProgress();
-
-const selectedWorkspaceId = ref<string | undefined>(undefined);
-
-const selectedWorkspace = computed(
-  () => workspaces.value.find((w) => w.id === selectedWorkspaceId.value) || null
-);
 
 const segments = computed(() => {
   const p = progress.value;
@@ -222,27 +198,14 @@ const reviewedOfAnnotatedPct = computed(() => {
 });
 
 function reload() {
-  if (selectedWorkspace.value) load(selectedWorkspace.value, { refresh: true });
+  if (props.workspace) load(props.workspace, { refresh: true });
 }
 
-watch(selectedWorkspaceId, () => {
-  if (selectedWorkspace.value) load(selectedWorkspace.value);
-});
-
-// İlk workspace hazır olunca otomatik seç
 watch(
-  workspaces,
-  (list) => {
-    if (!selectedWorkspaceId.value && list.length > 0) {
-      selectedWorkspaceId.value = list[0]!.id;
-    }
+  () => props.workspace,
+  (ws) => {
+    if (ws) load(ws);
   },
   { immediate: true }
 );
-
-onMounted(() => {
-  if (workspaces.value.length === 0) {
-    workspaceStore.fetchWorkspaces();
-  }
-});
 </script>
