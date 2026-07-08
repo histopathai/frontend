@@ -6,8 +6,13 @@ const t = i18n.global.t;
 
 export class ApiClient {
   private client: AxiosInstance;
+  private baseURL: string;
+  // Bir 401 geldiğinde oturumun gerçekten geçersiz olup olmadığını doğrulamak için
+  // yapılan session kontrolünü paylaşır; eşzamanlı 401'lerde tek istek atılır.
+  private sessionProbeInFlight: Promise<boolean> | null = null;
 
   constructor(baseURL: string) {
+    this.baseURL = baseURL;
     this.client = axios.create({
       baseURL,
       headers: {
@@ -54,16 +59,33 @@ export class ApiClient {
       (response) => {
         return response;
       },
-      (error: AxiosError<any>) => {
+      async (error: AxiosError<any>) => {
         if (error.response?.status === 401) {
           const authStore = useAuthStore();
-          authStore.forceLogout();
+          const url = error.config?.url || '';
+          const reject401 = () =>
+            Promise.reject({ message: t('errors.401'), status: 401, originalError: error });
 
-          return Promise.reject({
-            message: t('errors.401'),
-            status: 401,
-            originalError: error,
-          });
+          // Henüz oturum açılmamışsa (login/verify akışı) düşürülecek bir oturum yok.
+          if (!authStore.isAuthenticated) {
+            return reject401();
+          }
+
+          // 401 doğrudan oturum kontrol ucundan geldiyse oturum kesin olarak geçersizdir.
+          if (url.includes('/sessions/current')) {
+            authStore.forceLogout();
+            return reject401();
+          }
+
+          // Diğer uçlardan (özellikle /proxy/* görüntü ve kaynak istekleri) gelen 401,
+          // geçici bir gateway/kaynak hatası olabilir; oturumu düşürmeden önce doğrula.
+          // Sadece oturum gerçekten geçersizse logout yapılır — bozuk bir görüntü
+          // isteği tüm oturumu düşürmez.
+          const stillValid = await this.isSessionStillValid();
+          if (!stillValid) {
+            authStore.forceLogout();
+          }
+          return reject401();
         }
 
         if (error.response?.status === 400) {
@@ -140,6 +162,33 @@ export class ApiClient {
         });
       }
     );
+  }
+
+  // Oturum kontrol ucuna interceptor'ı BYPASS ederek ham bir istek atar; böylece
+  // buradan dönen olası bir 401 tekrar bu mantığı tetiklemez (sonsuz döngü önlenir).
+  // Eşzamanlı 401'lerde aynı uçuş içi istek paylaşılır.
+  private isSessionStillValid(): Promise<boolean> {
+    if (this.sessionProbeInFlight) return this.sessionProbeInFlight;
+
+    const authStore = useAuthStore();
+    this.sessionProbeInFlight = axios
+      .get(`${this.baseURL}/api/v1/sessions/current`, {
+        withCredentials: true,
+        headers: authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {},
+        timeout: 10000,
+      })
+      .then((res) => !!res.data?.session)
+      .catch((err: any) => {
+        // Yalnızca kesin 401'de oturumu geçersiz say. Ağ hatası / timeout / 5xx gibi
+        // belirsiz durumlarda oturumu koru — yanlış logout'u önle.
+        if (err?.response?.status === 401) return false;
+        return true;
+      })
+      .finally(() => {
+        this.sessionProbeInFlight = null;
+      });
+
+    return this.sessionProbeInFlight;
   }
 
   async get<T>(url: string, params?: any): Promise<T> {

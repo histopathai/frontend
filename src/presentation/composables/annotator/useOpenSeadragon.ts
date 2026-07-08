@@ -19,8 +19,19 @@ export function useOpenSeadragon(viewerId: string) {
   const viewer = shallowRef<OpenSeadragon.Viewer | null>(null);
   const anno = shallowRef<any>(null);
   const currentImageId = ref<string | null>(null);
+  const currentWorkspaceId = ref<string | null>(null);
   const loading = ref(false);
   const isDrawingActive = ref(false);
+
+  // "3. taraf anotasyonlarını gizle" aktifse yalnızca mevcut kullanıcının kendi
+  // anotasyonları görüntüleyicide gösterilir; diğerleri (başka kullanıcı/model/import)
+  // gizlenir. Store verisi değişmez — sadece canvas gösterimi filtrelenir.
+  function getVisibleAnnotations(imageId: string) {
+    const all = annotationStore.getAnnotationsByImageId(imageId);
+    if (!annotationStore.isOthersHidden(imageId, currentWorkspaceId.value)) return all;
+    const uid = String(authStore.user?.userId || '');
+    return all.filter((a: any) => String(a.creatorId) === uid);
+  }
 
   const onSelectionCreated = ref<((selection: any) => void) | null>(null);
   const onAnnotationSelected = ref<((annotation: any) => void) | null>(null);
@@ -268,8 +279,8 @@ export function useOpenSeadragon(viewerId: string) {
     const getPolyKey = (polygon: any[]) =>
       polygon.map((p) => Math.round(p.x || p.X || 0) + ',' + Math.round(p.y || p.Y || 0)).join('|');
 
-    // Persisted annotations
-    annotationStore.getAnnotationsByImageId(currentImageId.value)
+    // Persisted annotations (3. taraf gizleme filtresi uygulanmış)
+    getVisibleAnnotations(currentImageId.value)
       .forEach((ann) => {
         if (!ann.polygon || ann.polygon.length === 0) return;
         const dirty = annotationStore.dirtyAnnotations.get(String(ann.id));
@@ -549,7 +560,7 @@ export function useOpenSeadragon(viewerId: string) {
     try {
       if (!skipFetch) await annotationStore.fetchAnnotationsByImage(imageId, { limit: 100 }, { showToast: false });
       if (activeContextId.value !== imageId) return;
-      const imageAnnotations = annotationStore.getAnnotationsByImageId(imageId);
+      const imageAnnotations = getVisibleAnnotations(imageId);
 
       // Aynı polygon koordinatlarına sahip birden fazla anotasyon (birden fazla lokal etiket)
       // tek bir OSD poligonu olarak eklenmeli; sadece grubun birincil (primary) ID'si OSD'ye gönderilir.
@@ -589,6 +600,7 @@ export function useOpenSeadragon(viewerId: string) {
   async function loadImage(image: Image | null) {
     if (!viewer.value) return;
     activeContextId.value = image?.id || null;
+    currentWorkspaceId.value = image ? ((image as any).wsId || image.parent?.id || null) : null;
     currentImageId.value = null;
     if (anno.value) anno.value.clearAnnotations();
     clearLabelOverlays();
@@ -613,6 +625,13 @@ export function useOpenSeadragon(viewerId: string) {
 
   onMounted(() => nextTick(initViewer));
   watch(() => annotationStore.userNames, () => { performUpdateLabelOverlays(); }, { deep: true });
+
+  // "3. taraf anotasyonlarını gizle" tercihi değişince görüntüleyiciyi yeniden çiz
+  // (skipFetch=true → yeniden istek atmadan store verisinden filtreli render).
+  watch(
+    () => (currentImageId.value ? annotationStore.isOthersHidden(currentImageId.value, currentWorkspaceId.value) : false),
+    () => { if (currentImageId.value) loadAnnotations(currentImageId.value, true); }
+  );
 
   onUnmounted(() => { 
     clearTimeout(setupTimeout);
