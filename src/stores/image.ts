@@ -428,11 +428,20 @@ export const useImageStore = defineStore('image', () => {
       return false;
     }
 
+    // Görüntünün mevcut sahibini KORU. Backend, update'te creator_id'yi zorunlu tutup
+    // gönderilen değeri koşulsuz yazdığından, o an giriş yapmış kullanıcıyı göndermek
+    // (özellikle review yapan uzman farklı biriyse) görüntü sahipliğini sessizce bozar.
+    // Bu yüzden mevcut creatorId'yi kullan; bulunamazsa son çare olarak mevcut kullanıcı.
+    const existingImage =
+      getImageById.value(imageId) ||
+      Array.from(imagesByPatient.value.values()).flat().find((img) => img.id === imageId);
+    const ownerId = existingImage?.creatorId || authStore.user.userId;
+
     actionLoading.value = true;
     resetError();
     try {
       const payload: UpdateImageRequest = {
-        creator_id: authStore.user.userId,
+        creator_id: ownerId,
         marked_as_completed: true,
       };
 

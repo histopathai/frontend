@@ -74,6 +74,89 @@
 
       <div class="w-px h-6 bg-gray-200 flex-shrink-0"></div>
 
+      <!-- 3. Taraf Anotasyon Görünürlüğü -->
+      <div class="relative flex-shrink-0">
+        <button
+          @click.stop="togglePopover('annotation_visibility')"
+          :disabled="!image"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-bold transition-all"
+          :class="[
+            !image
+              ? 'opacity-50 cursor-not-allowed border-gray-100 text-gray-400 bg-gray-50'
+              : hideOthersForImage
+                ? 'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100'
+                : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-indigo-600',
+          ]"
+          :title="hideOthersForImage ? 'Yalnızca kendi anotasyonlarınız gösteriliyor' : 'Tüm anotasyonlar gösteriliyor'"
+        >
+          <svg v-if="hideOthersForImage" xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M3.28 2.22a.75.75 0 00-1.06 1.06l14.5 14.5a.75.75 0 101.06-1.06l-1.745-1.745a10.029 10.029 0 003.3-4.38 1.651 1.651 0 000-1.185A10.004 10.004 0 009.999 3a9.956 9.956 0 00-4.744 1.194L3.28 2.22zM7.752 6.69l1.092 1.092a2.5 2.5 0 013.374 3.373l1.091 1.092a4 4 0 00-5.557-5.557z" />
+            <path d="M10.748 13.93l2.523 2.523a9.987 9.987 0 01-3.27.547c-4.258 0-7.894-2.66-9.337-6.41a1.651 1.651 0 010-1.186A10.007 10.007 0 012.839 6.02L6.07 9.252a4 4 0 004.678 4.678z" />
+          </svg>
+          <svg v-else xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+            <path fill-rule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+          </svg>
+          <span>Anotasyon Görünürlüğü</span>
+        </button>
+
+        <!-- Popover -->
+        <div
+          v-if="activePopover === 'annotation_visibility'"
+          @click.stop
+          class="absolute top-11 right-0 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 p-4 z-50 animate-fade-in origin-top-right"
+        >
+          <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
+            3. Taraf Anotasyonları
+          </h3>
+
+          <!-- Bu görüntü için -->
+          <button
+            @click="toggleHideOthersForImage"
+            class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border transition-all mb-2"
+            :class="hideOthersForImage ? 'border-amber-200 bg-amber-50' : 'border-gray-200 hover:bg-gray-50'"
+          >
+            <div class="flex flex-col items-start min-w-0">
+              <span class="text-[11px] font-bold text-gray-700">Bu görüntüde gizle</span>
+              <span class="text-[9px] text-gray-400 text-left">Yalnızca kendi anotasyonlarım gösterilsin</span>
+            </div>
+            <span
+              class="relative inline-flex h-4 w-7 flex-shrink-0 rounded-full transition-colors"
+              :class="hideOthersForImage ? 'bg-amber-500' : 'bg-gray-300'"
+            >
+              <span
+                class="absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all"
+                :class="hideOthersForImage ? 'left-3.5' : 'left-0.5'"
+              ></span>
+            </span>
+          </button>
+
+          <!-- Veriseti geneli -->
+          <label
+            class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              :checked="hideOthersForWorkspace"
+              @change="toggleHideOthersForWorkspace"
+              class="rounded border-gray-300 text-amber-500 focus:ring-amber-400"
+            />
+            <div class="flex flex-col min-w-0">
+              <span class="text-[11px] font-bold text-gray-700">Tüm veri setinde varsayılan</span>
+              <span class="text-[9px] text-gray-400">Bu verisetindeki tüm görüntülerde gizle</span>
+            </div>
+          </label>
+
+          <!-- Override bilgisi -->
+          <div v-if="hasImageOverride && hideOthersForWorkspace !== hideOthersForImage" class="mt-2 flex items-center justify-between">
+            <span class="text-[9px] text-amber-600 italic">Bu görüntü veriseti varsayılanını eziyor</span>
+            <button @click="resetImageOverride" class="text-[9px] font-bold text-indigo-600 hover:underline">
+              Varsayılana dön
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div class="flex items-center gap-2">
         <button
           @click.stop="togglePopover('global_tags')"
@@ -372,6 +455,45 @@ const hasFilledMetadata = computed(() => {
   return Object.values(localMetadata.value).some((v) => v !== null && v !== undefined && v !== '');
 });
 
+// --- 3. taraf anotasyon görünürlüğü ---
+const currentWsId = computed<string | null>(
+  () => workspaceStore.currentWorkspace?.id || (props.image as any)?.wsId || props.image?.parent?.id || null
+);
+
+// Mevcut görüntü için 3. taraf anotasyonlar gizli mi? (görüntü override → veriseti varsayılanı)
+const hideOthersForImage = computed(() =>
+  props.image ? annotationStore.isOthersHidden(props.image.id, currentWsId.value) : false
+);
+
+// Veriseti geneli varsayılan gizleme aktif mi?
+const hideOthersForWorkspace = computed(() =>
+  currentWsId.value ? annotationStore.hideOthersWorkspaces.has(currentWsId.value) : false
+);
+
+// Bu görüntüde veriseti varsayılanını ezen bir override var mı?
+const hasImageOverride = computed(() =>
+  props.image ? annotationStore.hideOthersImages.has(props.image.id) : false
+);
+
+function toggleHideOthersForImage() {
+  if (!props.image) return;
+  annotationStore.setHideOthersForImage(props.image.id, !hideOthersForImage.value);
+}
+
+function toggleHideOthersForWorkspace(event: Event) {
+  if (!currentWsId.value) return;
+  const hide = (event.target as HTMLInputElement).checked;
+  annotationStore.setHideOthersForWorkspace(currentWsId.value, hide);
+  // Veriseti geneli değiştirildiğinde bu görüntüdeki override'ı kaldır ki
+  // görüntü yeni veriseti varsayılanını takip etsin.
+  if (props.image) annotationStore.setHideOthersForImage(props.image.id, null);
+}
+
+function resetImageOverride() {
+  if (!props.image) return;
+  annotationStore.setHideOthersForImage(props.image.id, null);
+}
+
 function closePopovers() {
   activePopover.value = null;
 }
@@ -394,6 +516,23 @@ function formatIndex(index: number) {
 
 async function handleMarkAsCompleted() {
   if (!props.image) return;
+
+  // Kaydedilmemiş değişiklikler (dirty review / pending anotasyon / global etiket)
+  // varsa, görüntü tamamlanıp otomatik "sonraki"ye geçmeden ÖNCE kaydet. Aksi halde
+  // özellikle modifiye edilmiş ama henüz kaydedilmemiş review'lar kaybolur.
+  const hasUnsaved =
+    annotationStore.pendingCount > 0 ||
+    annotationStore.dirtyCount > 0 ||
+    isMetadataDirty.value;
+
+  if (hasUnsaved) {
+    const saved = await handleSaveAll();
+    if (!saved) {
+      toast.error('Değişiklikler kaydedilemedi; görüntü tamamlandı olarak işaretlenmedi.');
+      return;
+    }
+  }
+
   const success = await imageStore.markAsCompleted(props.image.id);
   if (success) {
     emit('next');
@@ -454,11 +593,14 @@ async function handleSaveAll() {
       // Önce store'daki mevcut veriyle anında re-render, ardından sunucu fetch'i
       annotationStore.needsRefresh++;
       emit('refreshViewer');
+      return true;
     } else {
       toast.warning('Bazı değişiklikler kaydedilemedi');
+      return false;
     }
   } catch (e) {
     toast.error('Kaydedilirken bir hata oluştu');
+    return false;
   }
 }
 

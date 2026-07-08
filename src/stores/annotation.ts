@@ -78,6 +78,53 @@ export const useAnnotationStore = defineStore('annotation', () => {
   const tagIndexMap = ref<Record<string, Record<string, number>>>({}); // typeId -> { tagName -> index }
   const imageMetadata = ref<Map<string, any>>(new Map()); // imageId -> metadata object
 
+  // --- "3. taraf anotasyonlarını gizle" tercihi ---
+  // Uzman patolog, kendi dışındaki (başka kullanıcı / model / import) anotasyonları
+  // görüntülemeden sıfırdan etiketleyebilsin diye. Veriseti (workspace) ya da tek
+  // görüntü bazında ayarlanır ve localStorage'da saklanır. Veri silinmez; yalnızca
+  // görüntüleyicide gösterim filtrelenir (review/aktivite verisi bozulmaz).
+  const HIDE_WS_KEY = 'annotator_hide_others_workspaces';
+  const HIDE_IMG_KEY = 'annotator_hide_others_images';
+
+  const loadHideSet = (key: string): Set<string> => {
+    try { return new Set(JSON.parse(localStorage.getItem(key) || '[]')); } catch { return new Set(); }
+  };
+  const loadHideMap = (key: string): Map<string, boolean> => {
+    try { return new Map(Object.entries(JSON.parse(localStorage.getItem(key) || '{}'))); } catch { return new Map(); }
+  };
+
+  const hideOthersWorkspaces = ref<Set<string>>(loadHideSet(HIDE_WS_KEY));
+  // Görüntü seviyesindeki açık override: true = gizle, false = göster (veriseti varsayılanını ezer)
+  const hideOthersImages = ref<Map<string, boolean>>(loadHideMap(HIDE_IMG_KEY));
+
+  const persistHideWs = () =>
+    localStorage.setItem(HIDE_WS_KEY, JSON.stringify([...hideOthersWorkspaces.value]));
+  const persistHideImg = () =>
+    localStorage.setItem(HIDE_IMG_KEY, JSON.stringify(Object.fromEntries(hideOthersImages.value)));
+
+  // Belirli bir görüntü için 3. taraf anotasyonları gizli mi?
+  // Öncelik: görüntü seviyesi override → veriseti varsayılanı → false.
+  const isOthersHidden = (imageId?: string | null, workspaceId?: string | null): boolean => {
+    if (imageId && hideOthersImages.value.has(imageId)) return hideOthersImages.value.get(imageId)!;
+    if (workspaceId && hideOthersWorkspaces.value.has(workspaceId)) return true;
+    return false;
+  };
+
+  const setHideOthersForWorkspace = (workspaceId: string, hide: boolean): void => {
+    if (hide) hideOthersWorkspaces.value.add(workspaceId);
+    else hideOthersWorkspaces.value.delete(workspaceId);
+    hideOthersWorkspaces.value = new Set(hideOthersWorkspaces.value); // reaktiviteyi tetikle
+    persistHideWs();
+  };
+
+  // hide=null → görüntü seviyesindeki override kaldırılır (veriseti varsayılanına döner)
+  const setHideOthersForImage = (imageId: string, hide: boolean | null): void => {
+    if (hide === null) hideOthersImages.value.delete(imageId);
+    else hideOthersImages.value.set(imageId, hide);
+    hideOthersImages.value = new Map(hideOthersImages.value);
+    persistHideImg();
+  };
+
   const needsRefresh = ref(0);
   const isLoading = computed(() => loading.value);
   const isActionLoading = computed(() => actionLoading.value);
@@ -964,6 +1011,13 @@ export const useAnnotationStore = defineStore('annotation', () => {
     hasSelection,
     getAnnotationById,
     getAnnotationsByImageId,
+
+    // "3. taraf anotasyonlarını gizle" tercihi
+    hideOthersWorkspaces,
+    hideOthersImages,
+    isOthersHidden,
+    setHideOthersForWorkspace,
+    setHideOthersForImage,
 
     // Actions - Fetch
     fetchAnnotationById,
