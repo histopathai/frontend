@@ -1,7 +1,11 @@
 <template>
   <div class="relative w-full h-full bg-gray-800">
 
-    <div :id="viewerId" class="w-full h-full" :class="{ 'cursor-grabbing': isSpacePanning }"></div>
+    <div
+      :id="viewerId"
+      class="w-full h-full"
+      :class="{ 'cursor-grab': isSpacePanning && !isDragPanning, 'cursor-grabbing': isDragPanning }"
+    ></div>
 
     <LocalAnnotationModal
       :is-open="isModalOpen"
@@ -91,11 +95,18 @@ const editInitialValues = ref<Record<string, any>>({});
 // pointermove is deliberately left alone so Annotorious still sees it and keeps the
 // live polygon preview tracking the cursor — we just also pan the viewport ourselves.
 const isSpacePanning = ref(false);
-const isPointerOverViewer = ref(false);
 const isDragPanning = ref(false);
 let panPointerId: number | null = null;
 let panLastX = 0;
 let panLastY = 0;
+
+// Live check instead of an enter/leave-tracked ref: a ref would stay false (and
+// silently block Space) whenever the cursor was already resting over the viewer
+// before this listener attached or before draw mode was toggled on, since
+// 'mouseenter' only fires when the pointer newly enters the element.
+function isPointerOverViewer(): boolean {
+  return document.getElementById(viewerId)?.matches(':hover') ?? false;
+}
 
 const isReviewMode = computed(() => {
   if (!selectedAnnotationData.value) return false;
@@ -153,7 +164,7 @@ function handleSpaceKeyDown(e: KeyboardEvent) {
   if (e.code !== 'Space' || e.repeat || isSpacePanning.value) return;
   if (!props.isDrawingMode || anyModalOpen()) return;
   if (isEditableTarget(e.target) || isEditableTarget(document.activeElement)) return;
-  if (!isPointerOverViewer.value) return;
+  if (!isPointerOverViewer()) return;
 
   e.preventDefault();
   isSpacePanning.value = true;
@@ -170,16 +181,38 @@ function resetSpacePanning() {
   panPointerId = null;
 }
 
+// OSD's own on-canvas zoom/home controls render as DOM children of the same
+// viewer container we treat as "the viewer" — let clicks on those through
+// undisturbed instead of swallowing them while Space happens to be held.
+function isOnOsdControl(target: EventTarget | null): boolean {
+  const controls = (viewer.value as any)?.controls;
+  if (!controls || !(target instanceof Node)) return false;
+  return (['topleft', 'topright', 'bottomleft', 'bottomright'] as const).some((corner) =>
+    controls[corner]?.contains(target)
+  );
+}
+
 function handleCapturedPointerDown(e: PointerEvent) {
   if (!isSpacePanning.value) return;
+  if (e.button !== 0) return; // left/primary only — don't hijack right/middle click
   const viewerEl = document.getElementById(viewerId);
   if (!viewerEl || !(e.target instanceof Node) || !viewerEl.contains(e.target)) return;
+  if (isOnOsdControl(e.target)) return;
 
+  // stopPropagation() alone only stops this PointerEvent — the browser still fires a
+  // compatibility mousedown afterwards, which Annotorious's polygon tool also listens
+  // for (natively, not via Pointer Events) and would use to start/commit a vertex.
+  // preventDefault() is what actually suppresses that compatibility mouse event.
   e.stopPropagation();
+  e.preventDefault();
   isDragPanning.value = true;
   panPointerId = e.pointerId;
   panLastX = e.clientX;
   panLastY = e.clientY;
+  // Keeps pointermove/pointerup targeting this element (and thus this listener)
+  // even if the drag leaves the viewer bounds or the browser window mid-gesture,
+  // instead of silently losing the release event and getting stuck panning.
+  viewerEl.setPointerCapture(e.pointerId);
 }
 
 function handleCapturedPointerMove(e: PointerEvent) {
@@ -194,8 +227,16 @@ function handleCapturedPointerMove(e: PointerEvent) {
 function handleCapturedPointerUp(e: PointerEvent) {
   if (!isDragPanning.value || e.pointerId !== panPointerId) return;
   e.stopPropagation();
+  e.preventDefault();
   isDragPanning.value = false;
   panPointerId = null;
+}
+
+// Safety net for setPointerCapture: fires if the browser/OS revokes capture
+// mid-gesture (e.g. an OS-level gesture interrupts it) without a normal pointerup.
+function handleCapturedPointerCancel(e: PointerEvent) {
+  if (e.pointerId !== panPointerId) return;
+  resetSpacePanning();
 }
 
 function handleWindowBlur() {
@@ -207,16 +248,6 @@ function handleVisibilityChange() {
 }
 
 onMounted(() => {
-  const viewerEl = document.getElementById(viewerId);
-  if (viewerEl) {
-    viewerEl.addEventListener('mouseenter', () => {
-      isPointerOverViewer.value = true;
-    });
-    viewerEl.addEventListener('mouseleave', () => {
-      isPointerOverViewer.value = false;
-    });
-  }
-
   window.addEventListener('keydown', handleSpaceKeyDown);
   window.addEventListener('keyup', handleSpaceKeyUp);
   window.addEventListener('blur', handleWindowBlur);
@@ -224,6 +255,7 @@ onMounted(() => {
   window.addEventListener('pointerdown', handleCapturedPointerDown, { capture: true });
   window.addEventListener('pointermove', handleCapturedPointerMove, { capture: true });
   window.addEventListener('pointerup', handleCapturedPointerUp, { capture: true });
+  window.addEventListener('pointercancel', handleCapturedPointerCancel, { capture: true });
 });
 
 onUnmounted(() => {
@@ -235,6 +267,7 @@ onUnmounted(() => {
   window.removeEventListener('pointerdown', handleCapturedPointerDown, { capture: true });
   window.removeEventListener('pointermove', handleCapturedPointerMove, { capture: true });
   window.removeEventListener('pointerup', handleCapturedPointerUp, { capture: true });
+  window.removeEventListener('pointercancel', handleCapturedPointerCancel, { capture: true });
 });
 
 defineExpose({ startDrawing, stopDrawing, loadAnnotations, highlightAnnotation });

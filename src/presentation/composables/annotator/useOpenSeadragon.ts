@@ -359,12 +359,27 @@ export function useOpenSeadragon(viewerId: string) {
   }
 
   // Drawing mode fully disables OSD's own mouse nav (setMouseNavEnabled(false) above), so
-  // Space-to-pan drives the viewport directly instead — same math OSD's own canvas-drag
-  // handler uses internally, so it feels identical to native drag-to-pan.
+  // Space-to-pan drives the viewport directly instead — same math (including the
+  // constrainDuringPan edge clamp) OSD's own canvas-drag handler uses internally, so it
+  // feels identical to native drag-to-pan instead of over-panning past the image bounds.
   function panByPixels(dxPixels: number, dyPixels: number) {
     if (!viewer.value) return;
-    const delta = new OpenSeadragon.Point(dxPixels, dyPixels).negate();
-    viewer.value.viewport.panBy(viewer.value.viewport.deltaPointsFromPixels(delta));
+    const v = viewer.value as any;
+    const viewport = v.viewport;
+    const pixelDelta = new OpenSeadragon.Point(dxPixels, dyPixels).negate();
+
+    if (v.constrainDuringPan) {
+      const delta = viewport.deltaPointsFromPixels(pixelDelta);
+      viewport.centerSpringX.target.value += delta.x;
+      viewport.centerSpringY.target.value += delta.y;
+      const constrainedBounds = viewport.getConstrainedBounds();
+      viewport.centerSpringX.target.value -= delta.x;
+      viewport.centerSpringY.target.value -= delta.y;
+      if (constrainedBounds.xConstrained) pixelDelta.x = 0;
+      if (constrainedBounds.yConstrained) pixelDelta.y = 0;
+    }
+
+    viewport.panBy(viewport.deltaPointsFromPixels(pixelDelta));
   }
 
   function initViewer() {
