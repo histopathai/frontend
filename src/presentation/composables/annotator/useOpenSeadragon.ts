@@ -382,6 +382,22 @@ export function useOpenSeadragon(viewerId: string) {
     viewport.panBy(viewport.deltaPointsFromPixels(pixelDelta));
   }
 
+  // Scroll-to-zoom during drawing: also disabled by setMouseNavEnabled(false) in
+  // startDrawing(), so this replicates OSD's own onCanvasScroll (same zoomPerScroll
+  // factor, cursor-anchored zoom) directly. Unlike panning, wheel input never
+  // competes with Annotorious's own vertex placement, so this doesn't need to be
+  // gated behind Space — it can just work whenever drawing is active.
+  function zoomAtClientPoint(deltaY: number, clientX: number, clientY: number) {
+    if (!viewer.value) return;
+    const v = viewer.value as any;
+    const viewport = v.viewport;
+    const rect = v.canvas.getBoundingClientRect();
+    const pixel = new OpenSeadragon.Point(clientX - rect.left, clientY - rect.top);
+    const factor = Math.pow(v.zoomPerScroll, deltaY < 0 ? 1 : -1);
+    viewport.zoomBy(factor, viewport.pointFromPixel(pixel, true));
+    viewport.applyConstraints();
+  }
+
   function initViewer() {
     if (viewer.value) viewer.value.destroy();
     const container = document.getElementById(viewerId);
@@ -723,7 +739,7 @@ export function useOpenSeadragon(viewerId: string) {
   }
 
   return {
-    loading, loadImage, loadAnnotations, startDrawing, stopDrawing, panByPixels,
+    loading, loadImage, loadAnnotations, startDrawing, stopDrawing, panByPixels, zoomAtClientPoint,
     anno, viewer, updateLabelOverlays, highlightAnnotation,
     onSelectionCreated, onAnnotationSelected, onAnnotationCreated, onAnnotationDeselected, onDeleteAnnotationRequest, onEditAnnotationRequest, onRejectAnnotationRequest
   };
