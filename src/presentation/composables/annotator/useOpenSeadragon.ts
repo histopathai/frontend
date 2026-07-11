@@ -358,6 +358,15 @@ export function useOpenSeadragon(viewerId: string) {
     }
   }
 
+  // Drawing mode fully disables OSD's own mouse nav (setMouseNavEnabled(false) above), so
+  // Space-to-pan drives the viewport directly instead — same math OSD's own canvas-drag
+  // handler uses internally, so it feels identical to native drag-to-pan.
+  function panByPixels(dxPixels: number, dyPixels: number) {
+    if (!viewer.value) return;
+    const delta = new OpenSeadragon.Point(dxPixels, dyPixels).negate();
+    viewer.value.viewport.panBy(viewer.value.viewport.deltaPointsFromPixels(delta));
+  }
+
   function initViewer() {
     if (viewer.value) viewer.value.destroy();
     const container = document.getElementById(viewerId);
@@ -699,7 +708,7 @@ export function useOpenSeadragon(viewerId: string) {
   }
 
   return {
-    loading, loadImage, loadAnnotations, startDrawing, stopDrawing,
+    loading, loadImage, loadAnnotations, startDrawing, stopDrawing, panByPixels,
     anno, viewer, updateLabelOverlays, highlightAnnotation,
     onSelectionCreated, onAnnotationSelected, onAnnotationCreated, onAnnotationDeselected, onDeleteAnnotationRequest, onEditAnnotationRequest, onRejectAnnotationRequest
   };

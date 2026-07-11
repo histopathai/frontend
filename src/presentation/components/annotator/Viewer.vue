@@ -1,7 +1,7 @@
 <template>
   <div class="relative w-full h-full bg-gray-800">
 
-    <div :id="viewerId" class="w-full h-full"></div>
+    <div :id="viewerId" class="w-full h-full" :class="{ 'cursor-grabbing': isSpacePanning }"></div>
 
     <LocalAnnotationModal
       :is-open="isModalOpen"
@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, type PropType, watch, computed, onMounted, nextTick } from 'vue';
+import { ref, type PropType, watch, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import type { Image } from '@/core/entities/Image';
 import { useOpenSeadragon } from '@/presentation/composables/annotator/useOpenSeadragon';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
@@ -59,6 +59,7 @@ const {
   loadImage,
   startDrawing,
   stopDrawing,
+  panByPixels,
   updateLabelOverlays,
   highlightAnnotation,
   anno,
@@ -81,6 +82,20 @@ const isProcessingModal = ref(false);
 const currentDrawingData = ref<any>(null);
 const selectedAnnotationData = ref<any>(null);
 const editInitialValues = ref<Record<string, any>>({});
+
+// Space-to-pan: draw mode fully disables OSD's native mouse nav (see startDrawing() in
+// the composable), so this drives the viewport directly while Space is held instead of
+// being stuck because the pathologist can't reach unrendered parts of a zoomed-in polygon.
+// Capture phase, ahead of Annotorious's own (bubble-phase) listeners on its SVG layer:
+// swallowing pointerdown/pointerup here stops it from starting or committing a vertex.
+// pointermove is deliberately left alone so Annotorious still sees it and keeps the
+// live polygon preview tracking the cursor — we just also pan the viewport ourselves.
+const isSpacePanning = ref(false);
+const isPointerOverViewer = ref(false);
+const isDragPanning = ref(false);
+let panPointerId: number | null = null;
+let panLastX = 0;
+let panLastY = 0;
 
 const isReviewMode = computed(() => {
   if (!selectedAnnotationData.value) return false;
@@ -122,6 +137,106 @@ function convertAnnotoriousToPoints(selection: any): Array<{ x: number; y: numbe
     }, []);
 }
 
+// --- SPACE-TO-PAN ---
+
+function isEditableTarget(el: EventTarget | null): boolean {
+  if (!(el instanceof HTMLElement)) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+}
+
+function anyModalOpen(): boolean {
+  return isModalOpen.value || isConfirmModalOpen.value || isRejectConfirmOpen.value;
+}
+
+function handleSpaceKeyDown(e: KeyboardEvent) {
+  if (e.code !== 'Space' || e.repeat || isSpacePanning.value) return;
+  if (!props.isDrawingMode || anyModalOpen()) return;
+  if (isEditableTarget(e.target) || isEditableTarget(document.activeElement)) return;
+  if (!isPointerOverViewer.value) return;
+
+  e.preventDefault();
+  isSpacePanning.value = true;
+}
+
+function handleSpaceKeyUp(e: KeyboardEvent) {
+  if (e.code !== 'Space') return;
+  resetSpacePanning();
+}
+
+function resetSpacePanning() {
+  isSpacePanning.value = false;
+  isDragPanning.value = false;
+  panPointerId = null;
+}
+
+function handleCapturedPointerDown(e: PointerEvent) {
+  if (!isSpacePanning.value) return;
+  const viewerEl = document.getElementById(viewerId);
+  if (!viewerEl || !(e.target instanceof Node) || !viewerEl.contains(e.target)) return;
+
+  e.stopPropagation();
+  isDragPanning.value = true;
+  panPointerId = e.pointerId;
+  panLastX = e.clientX;
+  panLastY = e.clientY;
+}
+
+function handleCapturedPointerMove(e: PointerEvent) {
+  if (!isDragPanning.value || e.pointerId !== panPointerId) return;
+  const dx = e.clientX - panLastX;
+  const dy = e.clientY - panLastY;
+  panLastX = e.clientX;
+  panLastY = e.clientY;
+  panByPixels(dx, dy);
+}
+
+function handleCapturedPointerUp(e: PointerEvent) {
+  if (!isDragPanning.value || e.pointerId !== panPointerId) return;
+  e.stopPropagation();
+  isDragPanning.value = false;
+  panPointerId = null;
+}
+
+function handleWindowBlur() {
+  resetSpacePanning();
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) resetSpacePanning();
+}
+
+onMounted(() => {
+  const viewerEl = document.getElementById(viewerId);
+  if (viewerEl) {
+    viewerEl.addEventListener('mouseenter', () => {
+      isPointerOverViewer.value = true;
+    });
+    viewerEl.addEventListener('mouseleave', () => {
+      isPointerOverViewer.value = false;
+    });
+  }
+
+  window.addEventListener('keydown', handleSpaceKeyDown);
+  window.addEventListener('keyup', handleSpaceKeyUp);
+  window.addEventListener('blur', handleWindowBlur);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('pointerdown', handleCapturedPointerDown, { capture: true });
+  window.addEventListener('pointermove', handleCapturedPointerMove, { capture: true });
+  window.addEventListener('pointerup', handleCapturedPointerUp, { capture: true });
+});
+
+onUnmounted(() => {
+  resetSpacePanning();
+  window.removeEventListener('keydown', handleSpaceKeyDown);
+  window.removeEventListener('keyup', handleSpaceKeyUp);
+  window.removeEventListener('blur', handleWindowBlur);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  window.removeEventListener('pointerdown', handleCapturedPointerDown, { capture: true });
+  window.removeEventListener('pointermove', handleCapturedPointerMove, { capture: true });
+  window.removeEventListener('pointerup', handleCapturedPointerUp, { capture: true });
+});
+
 defineExpose({ startDrawing, stopDrawing, loadAnnotations, highlightAnnotation });
 
 // --- WATCHERS ---
@@ -141,10 +256,17 @@ watch(
   ([isDrawing, currentAnno]) => {
     if (!viewer.value || !currentAnno) return;
     if (isDrawing) startDrawing();
-    else stopDrawing();
+    else {
+      resetSpacePanning();
+      stopDrawing();
+    }
   },
   { immediate: true }
 );
+
+watch([isModalOpen, isConfirmModalOpen, isRejectConfirmOpen], ([a, b, c]) => {
+  if (a || b || c) resetSpacePanning();
+});
 
 watch(
   () => annotationStore.pendingCount,
