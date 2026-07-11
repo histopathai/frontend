@@ -64,6 +64,7 @@ const {
   startDrawing,
   stopDrawing,
   panByPixels,
+  zoomAtClientPoint,
   updateLabelOverlays,
   highlightAnnotation,
   anno,
@@ -247,7 +248,17 @@ function handleVisibilityChange() {
   if (document.hidden) resetSpacePanning();
 }
 
+// Independent of Space: wheel doesn't compete with vertex placement the way
+// dragging does, so scroll-to-zoom just works whenever drawing is active.
+function handleDrawingWheel(e: WheelEvent) {
+  if (!props.isDrawingMode) return;
+  e.preventDefault();
+  zoomAtClientPoint(e.deltaY, e.clientX, e.clientY);
+}
+
 onMounted(() => {
+  document.getElementById(viewerId)?.addEventListener('wheel', handleDrawingWheel, { passive: false });
+
   window.addEventListener('keydown', handleSpaceKeyDown);
   window.addEventListener('keyup', handleSpaceKeyUp);
   window.addEventListener('blur', handleWindowBlur);
@@ -260,6 +271,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   resetSpacePanning();
+  document.getElementById(viewerId)?.removeEventListener('wheel', handleDrawingWheel);
+
   window.removeEventListener('keydown', handleSpaceKeyDown);
   window.removeEventListener('keyup', handleSpaceKeyUp);
   window.removeEventListener('blur', handleWindowBlur);
