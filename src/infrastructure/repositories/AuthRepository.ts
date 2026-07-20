@@ -46,6 +46,9 @@ export class AuthRepository implements IAuthRepository {
     }
   }
 
+  // null => oturum kesin olarak yok. throw => oturumun durumu belirlenemedi.
+  // Bu ayrım önemli: her hatayı yutup null dönmek, geçici bir ağ kesintisinde
+  // kullanıcıyı haksız yere logout eder.
   async checkSession(): Promise<Session | null> {
     try {
       const response = await this.apiClient.get<BackendSessionResponse>('/api/v1/sessions/current');
@@ -54,8 +57,15 @@ export class AuthRepository implements IAuthRepository {
       }
 
       return null;
-    } catch (error) {
-      return null;
+    } catch (error: any) {
+      // 4xx: sunucu kesin cevap verdi, oturum geçersiz.
+      // 5xx / ağ hatası / timeout (status 0): cevap alınamadı, oturum hakkında
+      // hüküm veremeyiz — çağırana bırak.
+      const status = error?.status;
+      if (typeof status === 'number' && status >= 400 && status < 500) {
+        return null;
+      }
+      throw error;
     }
   }
 

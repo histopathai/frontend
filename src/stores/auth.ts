@@ -44,26 +44,68 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null;
   }
 
+  // Sunucudan kesin cevap alınamadığı durumlar (ağ hatası, timeout, 5xx).
+  // Bunlarda oturum geçersiz sayılmaz.
+  function isInconclusiveError(err: any): boolean {
+    const status = err?.status;
+    return typeof status !== 'number' || status === 0 || status >= 500;
+  }
+
+  async function withRetry<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 800): Promise<T> {
+    let lastError: any;
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      try {
+        return await fn();
+      } catch (err: any) {
+        lastError = err;
+        // Kesin hatada (4xx) yeniden denemenin anlamı yok.
+        if (!isInconclusiveError(err)) throw err;
+        if (attempt < attempts - 1) {
+          await new Promise((resolve) => setTimeout(resolve, baseDelayMs * (attempt + 1)));
+        }
+      }
+    }
+    throw lastError;
+  }
+
+  // Eşzamanlı navigasyonlarda guard'ın initializeAuth'u paralel çağırmasını önler.
+  let initializeInFlight: Promise<void> | null = null;
+
   async function initializeAuth(): Promise<void> {
     if (isInitialized.value) return;
+    if (initializeInFlight) return initializeInFlight;
 
+    initializeInFlight = runInitializeAuth().finally(() => {
+      initializeInFlight = null;
+    });
+    return initializeInFlight;
+  }
+
+  async function runInitializeAuth(): Promise<void> {
     loading.value = true;
     try {
-      const currentSession = await repositories.auth.checkSession();
+      const currentSession = await withRetry(() => repositories.auth.checkSession());
 
-      if (currentSession) {
-        session.value = currentSession;
-
-        const profile = await repositories.auth.getProfile();
-        user.value = profile;
-      } else {
+      if (!currentSession) {
+        // Oturumun olmadığı kesin.
         clearAuthData();
+        isInitialized.value = true;
+        return;
       }
+
+      session.value = currentSession;
+      user.value = await withRetry(() => repositories.auth.getProfile());
+      isInitialized.value = true;
     } catch (err: any) {
+      if (isInconclusiveError(err)) {
+        // Oturumun geçerli olup olmadığını belirleyemedik. Mevcut durumu silme ve
+        // isInitialized'ı işaretleme; sonraki navigasyonda tekrar denensin.
+        return;
+      }
       clearAuthData();
+      isInitialized.value = true;
     } finally {
       loading.value = false;
-      isInitialized.value = true;
     }
   }
 
