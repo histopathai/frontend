@@ -36,6 +36,12 @@ export default defineConfig(({ command, mode }) => {
       https: httpsConfig,
       port: 5173,
       proxy: {
+        '/api-proxy': {
+          target: process.env.VITE_API_BACKEND_TARGET || 'https://auth-service-336790590408.europe-west1.run.app',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/api-proxy/, ''),
+        },
         '/microscope-proxy': {
           target: 'http://192.168.7.2:8080',
           changeOrigin: true,
