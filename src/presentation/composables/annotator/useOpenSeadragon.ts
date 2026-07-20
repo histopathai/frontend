@@ -33,16 +33,6 @@ export function useOpenSeadragon(viewerId: string) {
     return all.filter((a: any) => String(a.creatorId) === uid);
   }
 
-  // "3. taraf anotasyonlarını gizle" aktifse yalnızca mevcut kullanıcının kendi
-  // anotasyonları görüntüleyicide gösterilir; diğerleri (başka kullanıcı/model/import)
-  // gizlenir. Store verisi değişmez — sadece canvas gösterimi filtrelenir.
-  function getVisibleAnnotations(imageId: string) {
-    const all = annotationStore.getAnnotationsByImageId(imageId);
-    if (!annotationStore.isOthersHidden(imageId, currentWorkspaceId.value)) return all;
-    const uid = String(authStore.user?.userId || '');
-    return all.filter((a: any) => String(a.creatorId) === uid);
-  }
-
   const onSelectionCreated = ref<((selection: any) => void) | null>(null);
   const onAnnotationSelected = ref<((annotation: any) => void) | null>(null);
   const onAnnotationCreated = ref<((annotation: any) => void) | null>(null);
@@ -366,46 +356,6 @@ export function useOpenSeadragon(viewerId: string) {
       anno.value.setDrawingEnabled(false);
       anno.value.setDrawingTool(null);
     }
-  }
-
-  // Drawing mode fully disables OSD's own mouse nav (setMouseNavEnabled(false) above), so
-  // Space-to-pan drives the viewport directly instead — same math (including the
-  // constrainDuringPan edge clamp) OSD's own canvas-drag handler uses internally, so it
-  // feels identical to native drag-to-pan instead of over-panning past the image bounds.
-  function panByPixels(dxPixels: number, dyPixels: number) {
-    if (!viewer.value) return;
-    const v = viewer.value as any;
-    const viewport = v.viewport;
-    const pixelDelta = new OpenSeadragon.Point(dxPixels, dyPixels).negate();
-
-    if (v.constrainDuringPan) {
-      const delta = viewport.deltaPointsFromPixels(pixelDelta);
-      viewport.centerSpringX.target.value += delta.x;
-      viewport.centerSpringY.target.value += delta.y;
-      const constrainedBounds = viewport.getConstrainedBounds();
-      viewport.centerSpringX.target.value -= delta.x;
-      viewport.centerSpringY.target.value -= delta.y;
-      if (constrainedBounds.xConstrained) pixelDelta.x = 0;
-      if (constrainedBounds.yConstrained) pixelDelta.y = 0;
-    }
-
-    viewport.panBy(viewport.deltaPointsFromPixels(pixelDelta));
-  }
-
-  // Scroll-to-zoom during drawing: also disabled by setMouseNavEnabled(false) in
-  // startDrawing(), so this replicates OSD's own onCanvasScroll (same zoomPerScroll
-  // factor, cursor-anchored zoom) directly. Unlike panning, wheel input never
-  // competes with Annotorious's own vertex placement, so this doesn't need to be
-  // gated behind Space — it can just work whenever drawing is active.
-  function zoomAtClientPoint(deltaY: number, clientX: number, clientY: number) {
-    if (!viewer.value) return;
-    const v = viewer.value as any;
-    const viewport = v.viewport;
-    const rect = v.canvas.getBoundingClientRect();
-    const pixel = new OpenSeadragon.Point(clientX - rect.left, clientY - rect.top);
-    const factor = Math.pow(v.zoomPerScroll, deltaY < 0 ? 1 : -1);
-    viewport.zoomBy(factor, viewport.pointFromPixel(pixel, true));
-    viewport.applyConstraints();
   }
 
   // Drawing mode fully disables OSD's own mouse nav (setMouseNavEnabled(false) above), so
