@@ -11,6 +11,10 @@ export interface UserProps {
   createdAt: Date;
   updatedAt: Date;
   approvalDate?: Date;
+  /** Membership of the readers group: read-only access to the research data
+   *  from outside the platform (notebooks). Independent of `role`. */
+  dataAccess: boolean;
+  dataAccessAt?: Date;
 }
 
 export class User {
@@ -26,6 +30,8 @@ export class User {
     created_at: string | Date;
     updated_at: string | Date;
     approval_date?: string | Date;
+    data_access?: boolean;
+    data_access_at?: string | Date;
   }): User {
     return new User({
       userId: data.user_id,
@@ -40,6 +46,12 @@ export class User {
         ? typeof data.approval_date === 'string'
           ? new Date(data.approval_date)
           : data.approval_date
+        : undefined,
+      dataAccess: data.data_access ?? false,
+      dataAccessAt: data.data_access_at
+        ? typeof data.data_access_at === 'string'
+          ? new Date(data.data_access_at)
+          : data.data_access_at
         : undefined,
     });
   }
@@ -80,6 +92,14 @@ export class User {
     return this.props.approvalDate;
   }
 
+  get dataAccess(): boolean {
+    return this.props.dataAccess;
+  }
+
+  get dataAccessAt(): Date | undefined {
+    return this.props.dataAccessAt;
+  }
+
   canAccessSystem(): boolean {
     return this.props.status.isActive() && this.props.adminApproved;
   }
@@ -118,6 +138,8 @@ export class User {
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString(),
       approvalDate: this.approvalDate?.toISOString(),
+      dataAccess: this.dataAccess,
+      dataAccessAt: this.dataAccessAt?.toISOString(),
     };
   }
 }

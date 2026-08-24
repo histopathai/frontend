@@ -56,4 +56,25 @@ export class AdminRepository implements IAdminRepository {
   async deleteUser(uid: string): Promise<void> {
     await this.apiClient.delete<void>(`/api/v1/admin/users/${uid}`);
   }
+
+  async grantDataAccess(uid: string): Promise<User> {
+    const response = await this.apiClient.post<{ user: any }>(
+      `/api/v1/admin/users/${uid}/data-access`
+    );
+    return User.create(response.user || response);
+  }
+
+  async revokeDataAccess(uid: string): Promise<User> {
+    const response = await this.apiClient.delete<{ user: any }>(
+      `/api/v1/admin/users/${uid}/data-access`
+    );
+    return User.create(response.user || response);
+  }
+
+  async refreshDataAccess(uid: string): Promise<User> {
+    const response = await this.apiClient.get<{ user: any }>(
+      `/api/v1/admin/users/${uid}/data-access`
+    );
+    return User.create(response.user || response);
+  }
 }

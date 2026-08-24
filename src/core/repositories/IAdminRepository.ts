@@ -13,4 +13,12 @@ export interface IAdminRepository {
   suspendUser(uid: string): Promise<User>;
   makeAdmin(uid: string): Promise<User>;
   deleteUser(uid: string): Promise<void>;
+
+  /** Adds/removes the user in the readers group. This is what grants read-only
+   *  access to the research data outside the platform; it does not change the
+   *  platform role. */
+  grantDataAccess(uid: string): Promise<User>;
+  revokeDataAccess(uid: string): Promise<User>;
+  /** Re-reads the group and repairs the stored flag if they have drifted. */
+  refreshDataAccess(uid: string): Promise<User>;
 }

@@ -91,6 +91,38 @@ export const useAdminStore = defineStore('admin', () => {
     }
   }
 
+  /**
+   * Adds/removes the user in the readers group, which is what grants read-only
+   * access to the research data from outside the platform. Deliberately separate
+   * from the platform role: a viewer need not have data access and vice versa.
+   */
+  async function setDataAccess(uid: string, grant: boolean) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const updatedUser = grant
+        ? await adminRepo.grantDataAccess(uid)
+        : await adminRepo.revokeDataAccess(uid);
+      updateUserInState(updatedUser);
+      toast.success(grant ? t('admin.data_access_granted') : t('admin.data_access_revoked'));
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || t('admin.data_access_failed');
+      error.value = errorMessage;
+      toast.error(errorMessage);
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  /** Re-reads the group; use when the group may have been edited elsewhere. */
+  async function refreshDataAccess(uid: string) {
+    try {
+      updateUserInState(await adminRepo.refreshDataAccess(uid));
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || t('admin.data_access_failed'));
+    }
+  }
+
   async function deleteUser(uid: string) {
     loading.value = true;
     error.value = null;
@@ -118,5 +150,7 @@ export const useAdminStore = defineStore('admin', () => {
     suspendUser,
     makeAdmin,
     deleteUser,
+    setDataAccess,
+    refreshDataAccess,
   };
 });
