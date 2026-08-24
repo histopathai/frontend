@@ -41,6 +41,24 @@
             Hayır
           </span>
         </div>
+        <div class="flex justify-between items-center">
+          <span class="text-sm font-medium text-gray-600" title="Defterlerden Firestore ve işlenmiş bucket'a salt-okunur erişim">
+            Veri Erişimi:
+          </span>
+          <span
+            v-if="user.dataAccess"
+            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800"
+            :title="user.dataAccessAt ? formatDate(user.dataAccessAt) + ' tarihinde verildi' : ''"
+          >
+            Var (salt-okunur)
+          </span>
+          <span
+            v-else
+            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+          >
+            Yok
+          </span>
+        </div>
         <div v-if="user.createdAt" class="flex justify-between items-center">
           <span class="text-sm font-medium text-gray-600">Kayıt Tarihi:</span>
           <span class="text-sm text-gray-900">{{ formatDate(user.createdAt) }}</span>
@@ -82,6 +100,25 @@
         >
           Admin Yap
         </button>
+
+        <!-- Veri erişimi platform rolünden bağımsızdır: kullanıcıyı okuyucu
+             grubuna ekler/çıkarır, IAM politikasına dokunmaz. -->
+        <button
+          v-if="user.status.isActive() && !user.dataAccess"
+          @click="$emit('toggleDataAccess', user.userId, true)"
+          :disabled="loading"
+          class="btn btn-outline btn-sm"
+        >
+          Veri Erişimi Ver
+        </button>
+        <button
+          v-if="user.dataAccess"
+          @click="$emit('toggleDataAccess', user.userId, false)"
+          :disabled="loading"
+          class="btn btn-outline btn-sm"
+        >
+          Veri Erişimini Kaldır
+        </button>
       </div>
     </div>
   </div>
@@ -102,7 +139,7 @@ defineProps({
   },
 });
 
-defineEmits(['approve', 'suspend', 'makeAdmin']);
+defineEmits(['approve', 'suspend', 'makeAdmin', 'toggleDataAccess']);
 
 function formatDate(date: Date) {
   return new Date(date).toLocaleDateString('tr-TR', {

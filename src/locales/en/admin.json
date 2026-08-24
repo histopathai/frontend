@@ -7,5 +7,8 @@
   "user_made_admin": "User granted admin role successfully.",
   "user_make_admin_failed": "Failed to grant admin role.",
   "user_deleted": "User deleted successfully.",
-  "user_delete_failed": "Failed to delete user."
+  "user_delete_failed": "Failed to delete user.",
+  "data_access_granted": "Data access granted",
+  "data_access_revoked": "Data access revoked",
+  "data_access_failed": "Failed to update data access"
 }

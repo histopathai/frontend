@@ -20,6 +20,7 @@
         @approve="approveUser"
         @suspend="suspendUser"
         @makeAdmin="makeAdmin"
+        @toggleDataAccess="toggleDataAccess"
       />
     </div>
   </div>
@@ -52,6 +53,15 @@ async function suspendUser(userId: string) {
 async function makeAdmin(userId: string) {
   if (confirm('Bu kullanıcıyı Admin yapmak istediğinizden emin misiniz?')) {
     await store.makeAdmin(userId);
+  }
+}
+
+async function toggleDataAccess(userId: string, grant: boolean) {
+  const message = grant
+    ? 'Bu kullanıcıya araştırma verisine salt-okunur erişim verilecek. Emin misiniz?'
+    : 'Bu kullanıcının araştırma verisine erişimi kaldırılacak. Emin misiniz?';
+  if (confirm(message)) {
+    await store.setDataAccess(userId, grant);
   }
 }
 </script>
