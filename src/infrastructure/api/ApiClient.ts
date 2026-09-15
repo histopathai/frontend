@@ -196,6 +196,11 @@ export class ApiClient {
     return response.data;
   }
 
+  async getBlob(url: string): Promise<Blob> {
+    const response = await this.client.get<Blob>(url, { responseType: 'blob', timeout: 60000 });
+    return response.data;
+  }
+
   async post<T>(url: string, data?: any): Promise<T> {
     const response = await this.client.post<T>(url, data);
     return response.data;
