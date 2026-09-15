@@ -1,0 +1,361 @@
+{
+  "generator": "gen_reference.py",
+  "notebook": "wsi_anotasyon_patch_testi.ipynb",
+  "notebook_code_sha256": "9d2d8888ac104a85dc8f552a399d597d7965e22a676bf27e4c9ae38188d32777",
+  "params": {
+    "saturation_threshold": 0.05,
+    "gray_threshold": 0.92,
+    "closing_radius": 3,
+    "min_object_area": 500,
+    "min_hole_area": 500
+  },
+  "env": {
+    "python": "3.12.13",
+    "numpy": "2.5.2",
+    "scipy": "1.18.1",
+    "scikit-image": "0.26.0",
+    "machine": "x86_64"
+  },
+  "slides": [
+    {
+      "key": "acrobat_he",
+      "preview": "previews/acrobat_he.png",
+      "width": 512,
+      "height": 363,
+      "level0_width": 21504,
+      "level0_height": 15232,
+      "preview_sha256": "41326e4ef05e2abc823cfbf7e74a37f56837877388be2a8be477c8f44f86f302",
+      "methods": {
+        "saturation-gray": {
+          "mask": "masks/acrobat_he.saturation-gray.png",
+          "threshold": 56657,
+          "closing": 58165,
+          "remove_small_objects": 57104,
+          "remove_small_holes": 57201
+        },
+        "otsu-saturation": {
+          "mask": "masks/acrobat_he.otsu-saturation.png",
+          "otsu_threshold": "0x1.2b5ed097b425ep-4",
+          "threshold": 47068,
+          "closing": 48236,
+          "remove_small_objects": 47494,
+          "remove_small_holes": 48133
+        },
+        "otsu-gray": {
+          "mask": "masks/acrobat_he.otsu-gray.png",
+          "otsu_threshold": "0x1.b5a33173cebd2p-1",
+          "threshold": 56140,
+          "closing": 58818,
+          "remove_small_objects": 57639,
+          "remove_small_holes": 58304
+        }
+      }
+    },
+    {
+      "key": "acrobat_pgr",
+      "preview": "previews/acrobat_pgr.png",
+      "width": 512,
+      "height": 418,
+      "level0_width": 15360,
+      "level0_height": 12544,
+      "preview_sha256": "415e8629e1b18ddb6633aa7d7ab8e13e53bf4cdff3856c483f11f204a67e46f8",
+      "methods": {
+        "saturation-gray": {
+          "mask": "masks/acrobat_pgr.saturation-gray.png",
+          "threshold": 9495,
+          "closing": 19847,
+          "remove_small_objects": 16507,
+          "remove_small_holes": 18596
+        },
+        "otsu-saturation": {
+          "mask": "masks/acrobat_pgr.otsu-saturation.png",
+          "otsu_threshold": "0x1.9800000000000p-4",
+          "threshold": 5559,
+          "closing": 11595,
+          "remove_small_objects": 8383,
+          "remove_small_holes": 8932
+        },
+        "otsu-gray": {
+          "mask": "masks/acrobat_pgr.otsu-gray.png",
+          "otsu_threshold": "0x1.a6ff7c8ae0e50p-1",
+          "threshold": 10867,
+          "closing": 23682,
+          "remove_small_objects": 19051,
+          "remove_small_holes": 22395
+        }
+      }
+    },
+    {
+      "key": "bach_19",
+      "preview": "previews/bach_19.png",
+      "width": 512,
+      "height": 290,
+      "level0_width": 54721,
+      "level0_height": 30942,
+      "preview_sha256": "1d37a5732126a11d7b45dba7f3f8d393e90cce8b76d208b5d0b9b24c25f202c0",
+      "methods": {
+        "saturation-gray": {
+          "mask": "masks/bach_19.saturation-gray.png",
+          "threshold": 84446,
+          "closing": 93726,
+          "remove_small_objects": 93650,
+          "remove_small_holes": 95439
+        },
+        "otsu-saturation": {
+          "mask": "masks/bach_19.otsu-saturation.png",
+          "otsu_threshold": "0x1.5019d0ac19d0cp-3",
+          "threshold": 62740,
+          "closing": 82627,
+          "remove_small_objects": 82431,
+          "remove_small_holes": 87876
+        },
+        "otsu-gray": {
+          "mask": "masks/bach_19.otsu-gray.png",
+          "otsu_threshold": "0x1.78dbbfa3c9786p-1",
+          "threshold": 64169,
+          "closing": 83593,
+          "remove_small_objects": 83367,
+          "remove_small_holes": 88404
+        }
+      }
+    },
+    {
+      "key": "bracs_n",
+      "preview": "previews/bracs_n.png",
+      "width": 512,
+      "height": 350,
+      "level0_width": 17135,
+      "level0_height": 11733,
+      "preview_sha256": "a5b1b7b3dfeb245b8ca91e46b386edd5362811842b7d01e09659bfa6c06b2574",
+      "methods": {
+        "saturation-gray": {
+          "mask": "masks/bracs_n.saturation-gray.png",
+          "threshold": 21929,
+          "closing": 30557,
+          "remove_small_objects": 28466,
+          "remove_small_holes": 29426
+        },
+        "otsu-saturation": {
+          "mask": "masks/bracs_n.otsu-saturation.png",
+          "otsu_threshold": "0x1.04609a90e7d95p-4",
+          "threshold": 17630,
+          "closing": 26071,
+          "remove_small_objects": 24688,
+          "remove_small_holes": 25329
+        },
+        "otsu-gray": {
+          "mask": "masks/bracs_n.otsu-gray.png",
+          "otsu_threshold": "0x1.b0600d3c56f6bp-1",
+          "threshold": 25857,
+          "closing": 38248,
+          "remove_small_objects": 34637,
+          "remove_small_holes": 36262
+        }
+      }
+    },
+    {
+      "key": "buu_frozen",
+      "preview": "previews/buu_frozen.png",
+      "width": 512,
+      "height": 118,
+      "level0_width": 99840,
+      "level0_height": 23040,
+      "preview_sha256": "8798c01f5d11751bf59c1ab0a70513955d2c7e2d916dcc32d26bc16251e2e2f2",
+      "methods": {
+        "saturation-gray": {
+          "mask": "masks/buu_frozen.saturation-gray.png",
+          "threshold": 672,
+          "closing": 720,
+          "remove_small_objects": 0,
+          "remove_small_holes": 0
+        },
+        "otsu-saturation": {
+          "mask": "masks/buu_frozen.otsu-saturation.png",
+          "otsu_threshold": "0x1.2034dce51b4dep-3",
+          "threshold": 479,
+          "closing": 511,
+          "remove_small_objects": 0,
+          "remove_small_holes": 0
+        },
+        "otsu-gray": {
+          "mask": "masks/buu_frozen.otsu-gray.png",
+          "otsu_threshold": "0x1.a4700ad1e2adep-1",
+          "threshold": 727,
+          "closing": 801,
+          "remove_small_objects": 0,
+          "remove_small_holes": 0
+        }
+      }
+    },
+    {
+      "key": "cmb_medium",
+      "preview": "previews/cmb_medium.png",
+      "width": 414,
+      "height": 512,
+      "level0_width": 51791,
+      "level0_height": 64077,
+      "preview_sha256": "2143448fb6480659fea5b453b1e505447c6263a0f6fe9dcffe72abe52b663d3a",
+      "methods": {
+        "saturation-gray": {
+          "mask": "masks/cmb_medium.saturation-gray.png",
+          "threshold": 12628,
+          "closing": 13578,
+          "remove_small_objects": 12515,
+          "remove_small_holes": 12693
+        },
+        "otsu-saturation": {
+          "mask": "masks/cmb_medium.otsu-saturation.png",
+          "otsu_threshold": "0x1.6a9f5d3eba7d8p-3",
+          "threshold": 9799,
+          "closing": 11018,
+          "remove_small_objects": 9228,
+          "remove_small_holes": 9307
+        },
+        "otsu-gray": {
+          "mask": "masks/cmb_medium.otsu-gray.png",
+          "otsu_threshold": "0x1.79c30d3d92c52p-1",
+          "threshold": 10902,
+          "closing": 11991,
+          "remove_small_objects": 10200,
+          "remove_small_holes": 10265
+        }
+      }
+    },
+    {
+      "key": "cmb_small",
+      "preview": "previews/cmb_small.png",
+      "width": 502,
+      "height": 512,
+      "level0_width": 7967,
+      "level0_height": 8116,
+      "preview_sha256": "619f3d7530a887aa671dd92f35d04c369fe4c3e8c95c0f9ec55e1638a81e6887",
+      "methods": {
+        "saturation-gray": {
+          "mask": "masks/cmb_small.saturation-gray.png",
+          "threshold": 21583,
+          "closing": 23804,
+          "remove_small_objects": 23777,
+          "remove_small_holes": 24532
+        },
+        "otsu-saturation": {
+          "mask": "masks/cmb_small.otsu-saturation.png",
+          "otsu_threshold": "0x1.1600000000000p-2",
+          "threshold": 18168,
+          "closing": 21969,
+          "remove_small_objects": 21962,
+          "remove_small_holes": 23182
+        },
+        "otsu-gray": {
+          "mask": "masks/cmb_small.otsu-gray.png",
+          "otsu_threshold": "0x1.3bf4969c585a0p-1",
+          "threshold": 19113,
+          "closing": 22536,
+          "remove_small_objects": 22526,
+          "remove_small_holes": 23618
+        }
+      }
+    },
+    {
+      "key": "tcia_a",
+      "preview": "previews/tcia_a.png",
+      "width": 512,
+      "height": 373,
+      "level0_width": 3365,
+      "level0_height": 2453,
+      "preview_sha256": "7929aece8f03c76909223426053c5a7663ee01f62c137cb256f0a5e4cc5455fd",
+      "methods": {
+        "saturation-gray": {
+          "mask": "masks/tcia_a.saturation-gray.png",
+          "threshold": 129597,
+          "closing": 140387,
+          "remove_small_objects": 140382,
+          "remove_small_holes": 143263
+        },
+        "otsu-saturation": {
+          "mask": "masks/tcia_a.otsu-saturation.png",
+          "otsu_threshold": "0x1.8f94d653594d6p-3",
+          "threshold": 107251,
+          "closing": 131445,
+          "remove_small_objects": 131134,
+          "remove_small_holes": 135852
+        },
+        "otsu-gray": {
+          "mask": "masks/tcia_a.otsu-gray.png",
+          "otsu_threshold": "0x1.7fcb387b3f090p-1",
+          "threshold": 113271,
+          "closing": 133926,
+          "remove_small_objects": 133516,
+          "remove_small_holes": 137770
+        }
+      }
+    },
+    {
+      "key": "tcia_c",
+      "preview": "previews/tcia_c.png",
+      "width": 428,
+      "height": 512,
+      "level0_width": 17075,
+      "level0_height": 20434,
+      "preview_sha256": "8a50c0a0910b5d031ffa9efd4851d6c4330a526f6ea4931eeafa7fa9a6855a99",
+      "methods": {
+        "saturation-gray": {
+          "mask": "masks/tcia_c.saturation-gray.png",
+          "threshold": 121508,
+          "closing": 130321,
+          "remove_small_objects": 130288,
+          "remove_small_holes": 130678
+        },
+        "otsu-saturation": {
+          "mask": "masks/tcia_c.otsu-saturation.png",
+          "otsu_threshold": "0x1.1df999999999ap-3",
+          "threshold": 108593,
+          "closing": 127803,
+          "remove_small_objects": 127789,
+          "remove_small_holes": 129267
+        },
+        "otsu-gray": {
+          "mask": "masks/tcia_c.otsu-gray.png",
+          "otsu_threshold": "0x1.971c586091b8ap-1",
+          "threshold": 115096,
+          "closing": 129226,
+          "remove_small_objects": 129213,
+          "remove_small_holes": 129820
+        }
+      }
+    },
+    {
+      "key": "zenodo_bx",
+      "preview": "previews/zenodo_bx.png",
+      "width": 512,
+      "height": 295,
+      "level0_width": 46017,
+      "level0_height": 26536,
+      "preview_sha256": "0b738f411bf882d0e0675481a5b53c1a66eea62a9460f1bb6219a204cc0471e2",
+      "methods": {
+        "saturation-gray": {
+          "mask": "masks/zenodo_bx.saturation-gray.png",
+          "threshold": 19306,
+          "closing": 20305,
+          "remove_small_objects": 20264,
+          "remove_small_holes": 20264
+        },
+        "otsu-saturation": {
+          "mask": "masks/zenodo_bx.otsu-saturation.png",
+          "otsu_threshold": "0x1.664508a114228p-3",
+          "threshold": 16969,
+          "closing": 19174,
+          "remove_small_objects": 19147,
+          "remove_small_holes": 19176
+        },
+        "otsu-gray": {
+          "mask": "masks/zenodo_bx.otsu-gray.png",
+          "otsu_threshold": "0x1.91705143bf726p-1",
+          "threshold": 17619,
+          "closing": 19442,
+          "remove_small_objects": 19415,
+          "remove_small_holes": 19444
+        }
+      }
+    }
+  ]
+}

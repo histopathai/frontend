@@ -22,6 +22,12 @@ const appRoutes: RouteRecordRaw = {
       component: () => import('@/presentation/views/annotator/AnnotatorView.vue'),
     },
     {
+      path: 'tissue',
+      name: 'TissueMasks',
+      component: () => import('@/presentation/views/tissue/TissueMaskView.vue'),
+      meta: { requiresAdmin: true },
+    },
+    {
       path: 'istatistikler',
       name: 'Statistics',
       component: () => import('@/presentation/views/dashboard/StatisticsView.vue'),

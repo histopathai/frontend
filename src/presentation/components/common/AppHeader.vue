@@ -11,7 +11,7 @@
           </RouterLink>
           <div class="hidden sm:ml-6 sm:flex sm:space-x-4 h-full">
             <RouterLink
-              v-for="item in navigation"
+              v-for="item in visibleNavigation"
               :key="item.name"
               :to="{ name: item.routeName }"
               v-slot="{ href, navigate, isExactActive }"
@@ -190,7 +190,10 @@ const navigation = [
   { name: 'Veri Etiketleyici', routeName: 'Annotator' },
   { name: 'Veri Seti Oluşturucu', routeName: 'WorkspaceList' },
   { name: 'İstatistik', routeName: 'Statistics' },
+  { name: 'Doku Maskeleri', routeName: 'TissueMasks', adminOnly: true },
 ];
+
+const visibleNavigation = computed(() => navigation.filter((item) => !item.adminOnly || isAdmin.value));
 
 async function handleLogout() {
   closeDropdown();
