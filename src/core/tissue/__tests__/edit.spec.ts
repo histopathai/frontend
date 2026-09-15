@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  addHole,
   areaRatio,
+  hitHole,
+  removeHole,
+  ringArea,
   containsPoint,
   hitTest,
   insertVertex,
@@ -71,5 +75,35 @@ describe('tissue polygon editing', () => {
   it('orients drawn exteriors clockwise on screen', () => {
     const ccw = square(0, 0, 10).reverse();
     expect(orientExterior(ccw)).toEqual(square(0, 0, 10).reverse().reverse());
+  });
+});
+
+describe('tissue hole editing', () => {
+  it('finds the hole under a point', () => {
+    expect(hitHole([donut, island], { x: 30, y: 30 })).toEqual({ polygon: 0, hole: 0 });
+    expect(hitHole([donut, island], { x: 5, y: 5 })).toBeNull();
+  });
+
+  it('fills a hole and drops the islands inside it', () => {
+    const outside: TissuePolygon = { exterior: square(200, 0, 10), holes: [] };
+    const filled = removeHole([donut, island, outside], 0, 0);
+    expect(filled).toEqual([{ exterior: donut.exterior, holes: [] }, outside]);
+    expect(polygonArea(filled[0]!)).toBe(10000);
+  });
+
+  it('cuts a drawn hole into the polygon that contains it', () => {
+    const solid: TissuePolygon = { exterior: square(0, 0, 100), holes: [] };
+    const result = addHole([solid], square(10, 10, 20));
+    expect('polygons' in result).toBe(true);
+    if (!('polygons' in result)) return;
+    const hole = result.polygons[0]!.holes[0]!;
+    expect(ringArea(hole)).toBeLessThan(0);
+    expect(polygonArea(result.polygons[0]!)).toBe(10000 - 400);
+  });
+
+  it('refuses holes outside tissue or overlapping another hole', () => {
+    expect(addHole([donut], square(90, 90, 20))).toHaveProperty('error');
+    expect(addHole([donut], square(20, 20, 10))).toHaveProperty('error');
+    expect(addHole([donut], square(5, 5, 10))).not.toHaveProperty('error');
   });
 });

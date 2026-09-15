@@ -12,7 +12,19 @@
           {{ statusLabel }}
         </span>
       </div>
-      <p v-if="editor.mask.value?.approvedAt" class="mt-1 text-[10px] text-gray-400">
+      <div
+        v-if="editor.mask.value?.status === 'rejected'"
+        class="mt-2 rounded-lg bg-rose-50 px-2 py-1.5 text-[11px] text-rose-700"
+      >
+        <span class="font-bold">Reddedildi</span>
+        <span v-if="editor.mask.value.rejectedAt">
+          · {{ formatDate(editor.mask.value.rejectedAt) }}</span
+        >
+        <p v-if="editor.mask.value.rejectReason" class="mt-0.5 whitespace-pre-line">
+          {{ editor.mask.value.rejectReason }}
+        </p>
+      </div>
+      <p v-else-if="editor.mask.value?.approvedAt" class="mt-1 text-[10px] text-gray-400">
         Onay: {{ formatDate(editor.mask.value.approvedAt) }}
       </p>
       <p v-else-if="editor.mask.value?.editedAt" class="mt-1 text-[10px] text-gray-400">
@@ -63,7 +75,7 @@
       <!-- Tools -->
       <section class="px-4 py-3 border-b border-gray-100">
         <h3 class="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2">Araçlar</h3>
-        <div class="grid grid-cols-3 gap-1.5">
+        <div class="grid grid-cols-4 gap-1.5">
           <button
             v-for="t in tools"
             :key="t.id"
@@ -224,6 +236,14 @@
       >
         {{ editor.status.value === 'approved' ? 'Onaylı' : 'Onayla' }}
       </button>
+      <button
+        class="w-full rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-40"
+        :disabled="!editor.canReject.value"
+        title="Görüntü doku maskı için kullanılamaz (doku yok, boyama/tarama sorunu). Kaydedilmemiş değişiklikler önce kaydedilir."
+        @click="$emit('reject')"
+      >
+        {{ editor.status.value === 'rejected' ? 'Reddedildi · gerekçeyi değiştir' : 'Reddet' }}
+      </button>
     </div>
   </aside>
 </template>
@@ -250,6 +270,7 @@ const props = defineProps<{
 defineEmits<{
   'update:overlayVisible': [value: boolean];
   'update:fillOpacity': [value: number];
+  reject: [];
 }>();
 
 type NumericKey = Exclude<keyof TissueParams, 'method'>;
@@ -336,8 +357,9 @@ function setNumber(key: NumericKey, raw: string) {
 
 const tools: Array<{ id: TissueTool; label: string; key: string; hint: string }> = [
   { id: 'select', label: 'Seç', key: 'V', hint: 'Bölge seç, noktaları sürükle' },
-  { id: 'delete', label: 'Sil', key: 'X', hint: 'Tıklanan bölgeyi sil' },
+  { id: 'delete', label: 'Sil', key: 'X', hint: 'Bölgeyi sil veya deliği doldur' },
   { id: 'draw', label: 'Çiz', key: 'D', hint: 'Yeni bölge çiz' },
+  { id: 'hole', label: 'Delik', key: 'H', hint: 'Bölgenin içine delik çiz' },
 ];
 
 const toolHint = computed(() => {
@@ -345,9 +367,11 @@ const toolHint = computed(() => {
     case 'select':
       return 'Bölgeye tıklayıp seçin. Noktayı sürükleyin; kenar ortasındaki noktadan sürükleyince yeni nokta eklenir; Alt+tık noktayı siler.';
     case 'delete':
-      return 'Silmek istediğiniz bölgeye (kalem izi, artefakt) tıklayın.';
+      return 'Bölgeye tıklarsanız bölge silinir (kalem izi, artefakt); bir deliğin içine tıklarsanız delik doldurulur.';
     case 'draw':
       return 'Tıklayarak köşe ekleyin; çift tık veya Enter ile bitirin, Esc ile iptal edin.';
+    case 'hole':
+      return 'Doku içinde çıkarılacak alanı (mürekkep, katlanma, kabarcık) çizin; tamamı tek bir bölgenin içinde olmalı. Çift tık veya Enter ile bitirin.';
     default:
       return '';
   }
@@ -367,6 +391,8 @@ const statusLabel = computed(() => {
       return 'Düzenlendi';
     case 'approved':
       return 'Onaylandı';
+    case 'rejected':
+      return 'Reddedildi';
     default:
       return 'Maske yok';
   }
@@ -381,6 +407,8 @@ const statusClass = computed(() => {
       return 'bg-indigo-100 text-indigo-700';
     case 'approved':
       return 'bg-emerald-100 text-emerald-700';
+    case 'rejected':
+      return 'bg-rose-100 text-rose-700';
     default:
       return 'bg-gray-100 text-gray-500';
   }

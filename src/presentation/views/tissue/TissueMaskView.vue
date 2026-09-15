@@ -72,6 +72,28 @@
       v-model:overlay-visible="overlayVisible"
       v-model:fill-opacity="fillOpacity"
       :editor="editor"
+      @reject="rejectOpen = true"
+    />
+
+    <TissueDialog
+      :is-open="rejectOpen"
+      title="Görüntüyü reddet"
+      message="Bu görüntü doku maskı için kullanılamaz olarak işaretlenir; ML onaylı maskları kullanır. Kaydedilmemiş değişiklikler önce kaydedilir. Daha sonra düzenleyip kaydetmek veya onaylamak reddi kaldırır."
+      confirm-label="Reddet"
+      confirm-class="bg-rose-600 hover:bg-rose-700"
+      with-reason
+      :initial-reason="editor.mask.value?.rejectReason ?? ''"
+      @confirm="onReject"
+      @cancel="rejectOpen = false"
+    />
+    <TissueDialog
+      :is-open="editor.conflict.value"
+      title="Maske başka biri tarafından değiştirildi"
+      message="Siz düzenlerken bu maske başka bir kullanıcı tarafından kaydedildi, onaylandı veya reddedildi. Yeniden yüklerseniz sizin kaydedilmemiş değişiklikleriniz silinir."
+      confirm-label="Yeniden yükle"
+      cancel-label="Kapat"
+      @confirm="editor.reload()"
+      @cancel="editor.conflict.value = false"
     />
 
     <ConfirmModal
@@ -99,6 +121,7 @@ import type { Patient } from '@/core/entities/Patient';
 import type { Workspace } from '@/core/entities/Workspace';
 import AnnotatorSidebar from '@/presentation/components/annotator/AnnotatorSidebar.vue';
 import ConfirmModal from '@/presentation/components/common/ConfirmModal.vue';
+import TissueDialog from '@/presentation/components/tissue/TissueDialog.vue';
 import TissuePanel from '@/presentation/components/tissue/TissuePanel.vue';
 import TissueViewer from '@/presentation/components/tissue/TissueViewer.vue';
 import { useAnnotatorNavigation } from '@/presentation/composables/annotator/useAnnotatorNavigation';
@@ -132,6 +155,12 @@ const {
 const editor = useTissueMaskEditor();
 const viewerRef = ref<InstanceType<typeof TissueViewer> | null>(null);
 const overlayVisible = ref(true);
+const rejectOpen = ref(false);
+
+function onReject(reason: string) {
+  rejectOpen.value = false;
+  editor.reject(reason);
+}
 const fillOpacity = ref(0.25);
 
 watch(

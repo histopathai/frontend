@@ -79,6 +79,81 @@ export function hitTest(polygons: TissuePolygon[], point: TissuePoint): number {
   return best;
 }
 
+/** Returns the hole under point (the smallest one), or null. */
+export function hitHole(
+  polygons: TissuePolygon[],
+  point: TissuePoint
+): { polygon: number; hole: number } | null {
+  let best: { polygon: number; hole: number } | null = null;
+  let bestArea = Infinity;
+  polygons.forEach((p, i) => {
+    if (!insideRing(p.exterior, point.x, point.y)) return;
+    p.holes.forEach((h, j) => {
+      if (!insideRing(h, point.x, point.y)) return;
+      const area = Math.abs(ringArea(h));
+      if (area < bestArea) {
+        best = { polygon: i, hole: j };
+        bestArea = area;
+      }
+    });
+  });
+  return best;
+}
+
+/**
+ * Fills a hole. Polygons lying entirely inside the hole (islands) are dropped,
+ * since the filled region already covers them.
+ */
+export function removeHole(
+  polygons: TissuePolygon[],
+  index: number,
+  hole: number
+): TissuePolygon[] {
+  const polygon = polygons[index]!;
+  const ring = polygon.holes[hole]!;
+  const filled: TissuePolygon = {
+    exterior: polygon.exterior,
+    holes: polygon.holes.filter((_, j) => j !== hole),
+  };
+  return polygons
+    .map((p, i) => (i === index ? filled : p))
+    .filter((p, i) => i === index || !p.exterior.every((q) => insideRing(ring, q.x, q.y)));
+}
+
+/**
+ * Cuts a hole drawn by the user into the polygon that contains it. Fails when
+ * the ring is not inside a single polygon or overlaps an existing hole.
+ */
+export function addHole(
+  polygons: TissuePolygon[],
+  ring: TissuePoint[]
+): { polygons: TissuePolygon[]; polygon: number } | { error: string } {
+  if (ring.length < 3) return { error: 'Delik en az 3 noktadan oluşmalı' };
+  let target = -1;
+  let targetArea = Infinity;
+  polygons.forEach((p, i) => {
+    if (!ring.every((q) => insideRing(p.exterior, q.x, q.y))) return;
+    const area = Math.abs(ringArea(p.exterior));
+    if (area < targetArea) {
+      target = i;
+      targetArea = area;
+    }
+  });
+  if (target < 0) return { error: 'Delik tamamen tek bir doku bölgesinin içine çizilmeli' };
+
+  const polygon = polygons[target]!;
+  const overlaps = polygon.holes.some(
+    (h) => ring.some((q) => insideRing(h, q.x, q.y)) || h.some((q) => insideRing(ring, q.x, q.y))
+  );
+  if (overlaps) return { error: 'Delik mevcut bir delikle çakışıyor' };
+
+  // Holes run counter-clockwise on screen, opposite to exteriors.
+  const hole = ringArea(ring) > 0 ? ring.slice().reverse() : ring;
+  const next = polygons.slice();
+  next[target] = { exterior: polygon.exterior, holes: [...polygon.holes, hole] };
+  return { polygons: next, polygon: target };
+}
+
 export function removePolygon(polygons: TissuePolygon[], index: number): TissuePolygon[] {
   return polygons.filter((_, i) => i !== index);
 }

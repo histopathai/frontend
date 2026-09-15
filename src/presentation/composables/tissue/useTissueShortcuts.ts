@@ -28,7 +28,7 @@ export function useTissueShortcuts(editor: TissueMaskEditor, fitToSelection: () 
         else editor.selectedIndex.value = -1;
         break;
       case 'Enter':
-        if (editor.tool.value === 'draw') editor.finishDraft();
+        if (editor.tool.value === 'draw' || editor.tool.value === 'hole') editor.finishDraft();
         break;
       case 'Delete':
       case 'Backspace':
@@ -46,7 +46,13 @@ export function useTissueShortcuts(editor: TissueMaskEditor, fitToSelection: () 
         break;
       case 'd':
       case 'D':
+        editor.cancelDraft();
         editor.tool.value = 'draw';
+        break;
+      case 'h':
+      case 'H':
+        editor.cancelDraft();
+        editor.tool.value = 'hole';
         break;
       case 'f':
       case 'F':

@@ -27,9 +27,22 @@ export class TissueMaskRepository implements ITissueMaskRepository {
     return tissueMaskFromApi(response.data);
   }
 
-  async approve(imageId: string): Promise<TissueMask> {
+  async approve(imageId: string, expectedRevision?: number): Promise<TissueMask> {
     const response = await this.apiClient.post<any>(
-      `/api/v1/proxy/tissue-masks/image/${imageId}/approve`
+      `/api/v1/proxy/tissue-masks/image/${imageId}/approve`,
+      { expected_revision: expectedRevision }
+    );
+    return tissueMaskFromApi(response.data);
+  }
+
+  async reject(
+    imageId: string,
+    reason: string | null,
+    expectedRevision?: number
+  ): Promise<TissueMask> {
+    const response = await this.apiClient.post<any>(
+      `/api/v1/proxy/tissue-masks/image/${imageId}/reject`,
+      { reason, expected_revision: expectedRevision }
     );
     return tissueMaskFromApi(response.data);
   }

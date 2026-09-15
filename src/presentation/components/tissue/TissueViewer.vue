@@ -21,7 +21,13 @@
         />
 
         <template v-if="editor.draft.value.length">
-          <polyline :points="draftPoints" vector-effect="non-scaling-stroke" class="tissue-draft" />
+          <polyline
+            :points="draftPoints"
+            vector-effect="non-scaling-stroke"
+            :class="
+              editor.tool.value === 'hole' ? 'tissue-draft tissue-draft-hole' : 'tissue-draft'
+            "
+          />
           <circle
             v-for="(p, i) in editor.draft.value"
             :key="`draft-${i}`"
@@ -112,6 +118,7 @@ const cursorClass = computed(() => {
   if (props.editor.busy.value) return 'cursor-wait';
   switch (props.editor.tool.value) {
     case 'draw':
+    case 'hole':
       return 'cursor-crosshair';
     case 'delete':
       return 'cursor-not-allowed';
@@ -251,6 +258,9 @@ function initViewer() {
     visibilityRatio: 1,
     zoomPerScroll: 1.2,
     showNavigationControl: true,
+    // Full-page mode moves the viewer out of the page, leaving the overlay and
+    // the panel behind.
+    showFullPageControl: false,
     loadTilesWithAjax: true,
     ajaxWithCredentials: true,
     gestureSettingsMouse: { clickToZoom: false, dblClickToZoom: false },
@@ -279,6 +289,7 @@ function initViewer() {
         props.editor.deleteAt(point);
         break;
       case 'draw':
+      case 'hole':
         props.editor.addDraftPoint(point);
         break;
     }
@@ -289,7 +300,9 @@ function initViewer() {
     event.preventDefaultAction = true;
   });
   v.addHandler('canvas-double-click', () => {
-    if (props.editor.tool.value === 'draw') props.editor.finishDraft();
+    if (props.editor.tool.value === 'draw' || props.editor.tool.value === 'hole') {
+      props.editor.finishDraft();
+    }
   });
 
   openImage(props.image);
@@ -358,6 +371,9 @@ defineExpose({
   stroke: #f59e0b;
   stroke-width: 2px;
   stroke-dasharray: 6 4;
+}
+.tissue-draft-hole {
+  stroke: #e11d48;
 }
 .tissue-draft-point {
   fill: #f59e0b;

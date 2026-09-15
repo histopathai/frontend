@@ -1,12 +1,14 @@
 import type { TissueParams, TissuePolygon } from '@/core/tissue';
 
-export type TissueMaskStatus = 'auto' | 'edited' | 'approved';
+export type TissueMaskStatus = 'auto' | 'edited' | 'approved' | 'rejected';
 
 /** Tissue mask of one image (tissue_masks/{imageId}); polygons are in level-0 pixels. */
 export interface TissueMask {
   imageId: string;
   wsId: string;
   status: TissueMaskStatus;
+  /** Increases with every write; sent back so stale writes are refused. */
+  revision: number;
   algorithmVersion: string;
   params: TissueParams;
   polygons: TissuePolygon[];
@@ -22,6 +24,9 @@ export interface TissueMask {
   editedAt: Date | null;
   approvedBy: string | null;
   approvedAt: Date | null;
+  rejectedBy: string | null;
+  rejectedAt: Date | null;
+  rejectReason: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +40,7 @@ export function tissueMaskFromApi(data: any): TissueMask {
     imageId: data.image_id,
     wsId: data.ws_id,
     status: data.status,
+    revision: data.revision ?? 0,
     algorithmVersion: data.algorithm_version,
     params: { ...data.params },
     polygons: (data.polygons || []).map((p: any) => ({
@@ -53,6 +59,9 @@ export function tissueMaskFromApi(data: any): TissueMask {
     editedAt: toDate(data.edited_at),
     approvedBy: data.approved_by ?? null,
     approvedAt: toDate(data.approved_at),
+    rejectedBy: data.rejected_by ?? null,
+    rejectedAt: toDate(data.rejected_at),
+    rejectReason: data.reject_reason ?? null,
     createdAt: new Date(data.created_at),
     updatedAt: new Date(data.updated_at),
   };

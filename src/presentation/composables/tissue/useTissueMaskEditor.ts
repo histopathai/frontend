@@ -6,14 +6,17 @@ import type { TissueMask } from '@/core/entities/TissueMask';
 import {
   ALGORITHM_VERSION,
   MAX_POINTS,
+  addHole,
   areaRatio,
   clampPoint,
   defaultTissueParams,
+  hitHole,
   hitTest,
   insertVertex,
   moveVertex,
   orientExterior,
   pointCount,
+  removeHole,
   removePolygon,
   removeVertex,
   validateTissueParams,
@@ -24,7 +27,7 @@ import {
 } from '@/core/tissue';
 import { decodePreview, useTissueWorker } from './useTissueWorker';
 
-export type TissueTool = 'select' | 'delete' | 'draw';
+export type TissueTool = 'select' | 'delete' | 'draw' | 'hole';
 
 interface Geometry {
   previewWidth: number;
@@ -77,6 +80,8 @@ export function useTissueMaskEditor() {
 
   // Parameter change waiting for confirmation because it would drop manual edits.
   const pendingParams = ref<TissueParams | null>(null);
+  // Set when the server refused a write because someone else changed the mask.
+  const conflict = ref(false);
 
   const level0Size = shallowRef<{ width: number; height: number } | null>(null);
   let loadToken = 0;
@@ -105,6 +110,10 @@ export function useTissueMaskEditor() {
   const canApprove = computed(
     () => !!mask.value && !dirty.value && !saving.value && mask.value.status !== 'approved'
   );
+  // Rejecting unsaved changes saves them first, so it needs a savable state.
+  const canReject = computed(
+    () => !saving.value && !busy.value && (dirty.value ? canSave.value : !!mask.value)
+  );
 
   function level0(): { width: number; height: number } | null {
     if (mask.value) return { width: mask.value.level0Width, height: mask.value.level0Height };
@@ -129,6 +138,7 @@ export function useTissueMaskEditor() {
     draft.value = [];
     history.value = [];
     pendingParams.value = null;
+    conflict.value = false;
     level0Size.value = null;
     computeWhenSized = false;
   }
@@ -343,12 +353,16 @@ export function useTissueMaskEditor() {
     selectedIndex.value = hitTest(polygons.value, point);
   }
 
+  /** Deletes the region under point, or fills the hole under it. */
   function deleteAt(point: TissuePoint) {
-    if (refuseWhileBusy()) return;
     const index = hitTest(polygons.value, point);
-    if (index < 0) return;
+    const hole = index < 0 ? hitHole(polygons.value, point) : null;
+    if ((index < 0 && !hole) || refuseWhileBusy()) return;
     pushHistory();
-    polygons.value = removePolygon(polygons.value, index);
+    polygons.value =
+      index >= 0
+        ? removePolygon(polygons.value, index)
+        : removeHole(polygons.value, hole!.polygon, hole!.hole);
     selectedIndex.value = -1;
     afterManualEdit();
   }
@@ -366,13 +380,25 @@ export function useTissueMaskEditor() {
     draft.value = [...draft.value, clamp(point)];
   }
 
+  /** Finishes the drawn ring: a new region, or a hole with the hole tool. */
   function finishDraft() {
     const points = draft.value;
     draft.value = [];
     if (points.length < 3 || !geometry.value || refuseWhileBusy()) return;
-    pushHistory();
-    polygons.value = [...polygons.value, { exterior: orientExterior(points), holes: [] }];
-    selectedIndex.value = polygons.value.length - 1;
+    if (tool.value === 'hole') {
+      const result = addHole(polygons.value, points);
+      if ('error' in result) {
+        toast.warning(result.error);
+        return;
+      }
+      pushHistory();
+      polygons.value = result.polygons;
+      selectedIndex.value = result.polygon;
+    } else {
+      pushHistory();
+      polygons.value = [...polygons.value, { exterior: orientExterior(points), holes: [] }];
+      selectedIndex.value = polygons.value.length - 1;
+    }
     afterManualEdit();
   }
 
@@ -411,31 +437,51 @@ export function useTissueMaskEditor() {
 
   // --- Persistence ----------------------------------------------------------
 
-  async function save() {
-    if (computeTimer) await computeNow();
+  // The revision the client based its changes on; the server refuses writes
+  // against any other revision (someone else saved, approved or rejected).
+  function expectedRevision(): number {
+    return mask.value?.revision ?? 0;
+  }
+
+  function handleWriteError(e: any, fallback: string) {
+    if (e?.status === 409) {
+      conflict.value = true;
+      return;
+    }
+    toast.error(e?.message || fallback);
+  }
+
+  async function persist(): Promise<boolean> {
     const img = image.value;
     const g = geometry.value;
-    if (!img || !g || !canSave.value) return;
+    // Callers check canSave before marking the editor as saving.
+    if (!img || !g) return false;
+    const saved = await repositories.tissueMask.save(img.id, {
+      algorithm_version: ALGORITHM_VERSION,
+      params: { ...params.value },
+      polygons: polygons.value,
+      preview_width: g.previewWidth,
+      preview_height: g.previewHeight,
+      level0_width: g.level0Width,
+      level0_height: g.level0Height,
+      downsample_x: g.downsampleX,
+      downsample_y: g.downsampleY,
+      tissue_area_ratio: ratio.value,
+      expected_revision: expectedRevision(),
+    });
+    if (image.value?.id !== img.id) return false;
+    applyMask(saved);
+    return true;
+  }
 
+  async function save() {
+    if (computeTimer) await computeNow();
+    if (!canSave.value) return;
     saving.value = true;
     try {
-      const saved = await repositories.tissueMask.save(img.id, {
-        algorithm_version: ALGORITHM_VERSION,
-        params: { ...params.value },
-        polygons: polygons.value,
-        preview_width: g.previewWidth,
-        preview_height: g.previewHeight,
-        level0_width: g.level0Width,
-        level0_height: g.level0Height,
-        downsample_x: g.downsampleX,
-        downsample_y: g.downsampleY,
-        tissue_area_ratio: ratio.value,
-      });
-      if (image.value?.id !== img.id) return;
-      applyMask(saved);
-      toast.success('Doku maskı kaydedildi');
+      if (await persist()) toast.success('Doku maskı kaydedildi');
     } catch (e: any) {
-      toast.error(e?.message || 'Doku maskı kaydedilemedi');
+      handleWriteError(e, 'Doku maskı kaydedilemedi');
     } finally {
       saving.value = false;
     }
@@ -446,15 +492,44 @@ export function useTissueMaskEditor() {
     if (!img || !canApprove.value) return;
     saving.value = true;
     try {
-      const approved = await repositories.tissueMask.approve(img.id);
+      const approved = await repositories.tissueMask.approve(img.id, expectedRevision());
       if (image.value?.id !== img.id) return;
       mask.value = approved;
       toast.success('Doku maskı onaylandı');
     } catch (e: any) {
-      toast.error(e?.message || 'Doku maskı onaylanamadı');
+      handleWriteError(e, 'Doku maskı onaylanamadı');
     } finally {
       saving.value = false;
     }
+  }
+
+  /** Marks the image unusable; unsaved changes are saved first. */
+  async function reject(reason: string) {
+    if (computeTimer) await computeNow();
+    const img = image.value;
+    if (!img || !canReject.value) return;
+    saving.value = true;
+    try {
+      if (dirty.value && !(await persist())) return;
+      const rejected = await repositories.tissueMask.reject(
+        img.id,
+        reason.trim() || null,
+        expectedRevision()
+      );
+      if (image.value?.id !== img.id) return;
+      mask.value = rejected;
+      toast.success('Görüntü reddedildi');
+    } catch (e: any) {
+      handleWriteError(e, 'Doku maskı reddedilemedi');
+    } finally {
+      saving.value = false;
+    }
+  }
+
+  /** Discards local changes and loads the mask as stored now. */
+  function reload() {
+    conflict.value = false;
+    return load(image.value);
   }
 
   return {
@@ -477,6 +552,7 @@ export function useTissueMaskEditor() {
     selectedIndex,
     draft,
     pendingParams,
+    conflict,
     // derived
     status,
     polygonCount,
@@ -485,6 +561,7 @@ export function useTissueMaskEditor() {
     canUndo,
     canSave,
     canApprove,
+    canReject,
     // actions
     load,
     setLevel0Size,
@@ -505,6 +582,8 @@ export function useTissueMaskEditor() {
     deleteVertex,
     save,
     approve,
+    reject,
+    reload,
   };
 }
 
