@@ -22,6 +22,11 @@ export interface ImageProps {
   // WSI-specific properties
   magnification: OpticalMagnification | null;
 
+  // Microns per pixel and nominal magnification label ("5x"/"10x"/"20x"/"40x"/...),
+  // backfilled from a CSV import; read-only, informational display only.
+  mpp: number | null;
+  magnificationLabel: string | null;
+
   status: ImageStatus;
   markedAsCompleted: boolean;
   createdAt: Date;
@@ -59,6 +64,8 @@ export class Image {
       width: data.width ?? null,
       height: data.height ?? null,
       magnification: magnification,
+      mpp: data.mpp ?? null,
+      magnificationLabel: data.magnification_label ?? null,
       status: ImageStatus.fromString(data.status || 'PROCESSING'),
       markedAsCompleted: !!data.marked_as_completed,
       createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,
@@ -121,6 +128,14 @@ export class Image {
 
   get magnification(): OpticalMagnification | null {
     return this.props.magnification;
+  }
+
+  get mpp(): number | null {
+    return this.props.mpp;
+  }
+
+  get magnificationLabel(): string | null {
+    return this.props.magnificationLabel;
   }
 
   get createdAt(): Date {

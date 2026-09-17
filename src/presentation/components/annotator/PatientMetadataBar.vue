@@ -23,6 +23,14 @@
         </div>
       </div>
 
+      <!-- MPP / Büyütme Bilgisi -->
+      <div
+        v-if="resolutionLabel"
+        class="flex-shrink-0 px-2 py-0.5 rounded-md bg-gray-50 border border-gray-200 text-[9px] font-bold text-gray-500 tracking-tight"
+      >
+        {{ resolutionLabel }}
+      </div>
+
       <!-- Navigasyon -->
       <div class="flex items-center bg-gray-50 rounded-lg p-0.5 border border-gray-200 shadow-sm flex-shrink-0 ml-1">
         <button
@@ -413,6 +421,15 @@ function handleMetadataChange() {
 }
 
 const isDrawingMode = computed(() => props.isDrawingMode);
+
+// MPP / nominal magnification, informational only — absent for images the CSV backfill didn't cover.
+const resolutionLabel = computed(() => {
+  if (!props.image) return null;
+  const parts: string[] = [];
+  if (props.image.magnificationLabel) parts.push(props.image.magnificationLabel);
+  if (props.image.mpp != null) parts.push(`${props.image.mpp} µm/px`);
+  return parts.length > 0 ? parts.join(' · ') : null;
+});
 
 const dynamicFields = computed(() => {
   const ws = workspaceStore.currentWorkspace;
