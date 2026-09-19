@@ -110,9 +110,11 @@ def ann(id_, type_id, name, owner, resource, label, poly):
 
 # ── tiles ────────────────────────────────────────────────────────────────────
 
-def write_dzi(slide, folder: Path):
+def write_dzi(slide, folder: Path, max_side=None):
     """Tiles are drawn straight from the polygons, level by level — the full
-    image never exists in memory."""
+    image never exists in memory. With ``max_side``, levels larger than that
+    are left out (a real slide has ~100 000 tiles at full size); the harness
+    server answers their tiles with a plain grey one."""
     w, h = slide["width"], slide["height"]
     max_level = math.ceil(math.log2(max(w, h)))
     folder.mkdir(parents=True, exist_ok=True)
@@ -127,6 +129,8 @@ def write_dzi(slide, folder: Path):
         lw, lh = math.ceil(w / scale), math.ceil(h / scale)
         if max(lw, lh) < 1:
             break
+        if max_side and max(lw, lh) > max_side:
+            continue
         level_dir = folder / "image_files" / str(level)
         level_dir.mkdir(parents=True, exist_ok=True)
         for ty in range(math.ceil(lh / TILE)):
@@ -155,6 +159,12 @@ def write_dzi(slide, folder: Path):
                     level_dir / f"{tx}_{ty}.jpg", quality=80)
                 count += 1
     return count
+
+
+def write_blank_tile():
+    """What the harness server sends for a tile that was not generated."""
+    (OUT / "tiles").mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", (TILE, TILE), (232, 229, 231)).save(OUT / "tiles" / "blank.jpg", quality=70)
 
 
 def mask_doc(slide, status):
@@ -199,6 +209,7 @@ if __name__ == "__main__":
 
     for slide in (a, b):
         print(f"{slide['id']}: {write_dzi(slide, OUT / 'tiles' / slide['id'])} tiles")
+    write_blank_tile()
     (OUT / "api.json").write_text(json.dumps({
         "images": images, "masks": masks, "annotations": annotations,
         "users": {"u-ayse": "Dr. Ayşe Demir", "u-mehmet": "Dr. Mehmet Kaya"},

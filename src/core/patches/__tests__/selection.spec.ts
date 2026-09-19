@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  annotators,
-  chooseAnnotator,
-  chooseLabelSet,
-  NO_CHOICE,
-  resolveLabelSet,
-  type LabelSet,
-} from '..';
+import { annotators, chooseAnnotator, neighbourImage, NO_CHOICE, select, type CatalogSet } from '..';
 
 const set = (
   ownerId: string,
@@ -14,73 +7,85 @@ const set = (
   typeId: string,
   type: string,
   resource: string,
-  n: number
-): LabelSet => ({
-  key: `${ownerId}\u0000${typeId}`,
-  ownerId,
-  owner,
-  annotationTypeId: typeId,
-  annotationType: type,
-  resource,
-  polygons: Array.from({ length: n }) as LabelSet['polygons'],
-  labelCounts: [],
-  sideUm: null,
-});
+  polygons: number,
+  imageIds: string[] | null
+): CatalogSet => ({ ownerId, owner, annotationTypeId: typeId, annotationType: type, resource, polygons, imageIds });
 
-const ayseGleason = set('u1', 'Dr. Ayşe', 't1', 'Gleason Pattern', 'manual', 5);
-const ayseTumor = set('u1', 'Dr. Ayşe', 't2', 'Tümör Bölgesi', 'manual', 2);
-const mehmet = set('u2', 'Dr. Mehmet', 't1', 'Gleason Pattern', 'manual', 3);
-const imported = set('placeholder', 'imported', 't3', 'Gleason Skorlama', 'imported', 520);
+// Gleason_CNN as it is: an imported dataset and one person, each with two annotation types.
+const importedGleason = set('1111', 'imported', 't1', 'Gleason Pattern', 'imported', 1147, ['a', 'b', 'c']);
+const importedTumor = set('1111', 'imported', 't2', 'Tümör Bölgesi', 'imported', 183, ['c', 'd']);
+const selvaGleason = set('u1', 'Selva Kabul', 't1', 'Gleason Pattern', 'manual', 19, ['a', 'e']);
+const selvaTumor = set('u1', 'Selva Kabul', 't2', 'Tümör Bölgesi', 'manual', 19, ['a', 'e']);
+const catalog = [importedGleason, importedTumor, selvaGleason, selvaTumor];
 
 describe('annotators', () => {
-  it('lists everyone with labels on the image, an imported dataset included', () => {
-    const list = annotators([ayseGleason, imported, mehmet, ayseTumor]);
-    expect(list.map((a) => [a.owner, a.resource, a.polygons, a.sets.length])).toEqual([
-      ['Dr. Ayşe', 'manual', 7, 2],
-      ['Dr. Mehmet', 'manual', 3, 1],
-      ['imported', 'imported', 520, 1],
+  it('lists everyone with labels in the workspace, an imported dataset included', () => {
+    expect(annotators(catalog).map((a) => [a.owner, a.resource, a.polygons, a.images, a.sets.length])).toEqual([
+      ['Selva Kabul', 'manual', 38, 2, 2],
+      ['imported', 'imported', 1330, 4, 2],
     ]);
+  });
+
+  it('does not count images it does not know', () => {
+    const onScreen = [set('u1', 'Selva Kabul', 't1', 'Gleason Pattern', 'manual', 4, null)];
+    expect(annotators(onScreen)[0]!.images).toBeNull();
   });
 });
 
-describe('resolveLabelSet', () => {
-  it('asks for nothing when there is nothing to choose', () => {
-    const r = resolveLabelSet([imported], NO_CHOICE);
-    expect(r.status === 'ok' && r.set).toBe(imported);
+describe('select', () => {
+  it('asks for the annotator, then for the type', () => {
+    expect(select(catalog, NO_CHOICE)).toEqual({ status: 'choose-annotator' });
+    const selva = chooseAnnotator(annotators(catalog)[0]!, NO_CHOICE);
+    expect(selva).toEqual({ ownerId: 'u1', annotationTypeId: null });
+    expect(select(catalog, selva).status).toBe('choose-type');
+    expect(select(catalog, { ownerId: 'u1', annotationTypeId: 't2' })).toMatchObject({
+      status: 'chosen',
+      set: selvaTumor,
+    });
   });
 
-  it('asks for the annotator first, then for the type', () => {
-    const sets = [ayseGleason, ayseTumor, mehmet, imported];
-    expect(resolveLabelSet(sets, NO_CHOICE).status).toBe('choose-annotator');
-
-    const ayse = chooseAnnotator(annotators(sets)[0]!, NO_CHOICE);
-    expect(ayse).toMatchObject({ ownerId: 'u1', ownerName: 'Dr. Ayşe', annotationTypeId: null });
-    expect(resolveLabelSet(sets, ayse).status).toBe('choose-type');
-
-    const r = resolveLabelSet(sets, chooseLabelSet(ayseTumor));
-    expect(r.status === 'ok' && r.set).toBe(ayseTumor);
+  it('keeps the annotation type when the annotator changes: the same question, another answer', () => {
+    const toImported = chooseAnnotator(annotators(catalog)[1]!, { ownerId: 'u1', annotationTypeId: 't2' });
+    expect(toImported).toEqual({ ownerId: '1111', annotationTypeId: 't2' });
+    expect(select(catalog, toImported)).toMatchObject({ status: 'chosen', set: importedTumor });
   });
 
-  it('takes the only type of an annotator along, and keeps a type the next annotator also has', () => {
-    const list = annotators([ayseGleason, ayseTumor, mehmet, imported]);
-    const viaImported = chooseAnnotator(list[2]!, NO_CHOICE);
-    expect(viaImported).toMatchObject({ ownerId: 'placeholder', annotationTypeId: 't3' });
-
-    const fromMehmetToAyse = chooseAnnotator(list[0]!, chooseLabelSet(mehmet));
-    expect(fromMehmetToAyse).toMatchObject({ ownerId: 'u1', annotationTypeId: 't1' });
+  it('asks for nothing where there is nothing to choose', () => {
+    expect(select([selvaGleason], NO_CHOICE)).toMatchObject({ status: 'chosen', set: selvaGleason });
+    // Zenodo-Dataset: two annotators, one type — picking the annotator is the whole choice.
+    const zenodo = [importedGleason, selvaGleason];
+    expect(chooseAnnotator(annotators(zenodo)[0]!, NO_CHOICE)).toEqual({ ownerId: 'u1', annotationTypeId: 't1' });
   });
 
-  it('never swaps an explicit choice for what happens to be on the image', () => {
-    // dev-ingestor skips such an image; showing the imported labels instead would mislead.
-    expect(resolveLabelSet([imported], chooseLabelSet(ayseGleason)).status).toBe(
-      'annotator-absent'
-    );
-    expect(resolveLabelSet([ayseTumor, mehmet], chooseLabelSet(ayseGleason)).status).toBe(
-      'type-absent'
-    );
+  it('never stands in one annotator for another', () => {
+    // The chosen annotator has nothing on image "b"; that is for the caller to say — the choice stays.
+    const chosen = select(catalog, { ownerId: 'u1', annotationTypeId: 't1' });
+    expect(chosen).toMatchObject({ status: 'chosen', set: selvaGleason });
+    expect(chosen.status === 'chosen' && chosen.set.imageIds?.includes('b')).toBe(false);
   });
 
-  it('knows an image without region annotations', () => {
-    expect(resolveLabelSet([], chooseLabelSet(imported)).status).toBe('no-annotations');
+  it('treats a choice the workspace does not have as none', () => {
+    expect(select(catalog, { ownerId: 'someone-else', annotationTypeId: 't1' })).toEqual({
+      status: 'choose-annotator',
+    });
+    expect(select([], { ownerId: 'u1', annotationTypeId: 't1' })).toEqual({ status: 'empty' });
+  });
+});
+
+describe('neighbourImage', () => {
+  it('walks the images of the set and wraps around', () => {
+    expect(neighbourImage(importedGleason, 'a', 1)).toBe('b');
+    expect(neighbourImage(importedGleason, 'c', 1)).toBe('a');
+    expect(neighbourImage(importedGleason, 'a', -1)).toBe('c');
+  });
+
+  it('enters the set from an image that is not in it', () => {
+    expect(neighbourImage(selvaGleason, 'b', 1)).toBe('a');
+    expect(neighbourImage(selvaGleason, 'b', -1)).toBe('e');
+  });
+
+  it('has nowhere to go from the only image, or without knowing the images', () => {
+    expect(neighbourImage(set('u', 'U', 't', 'T', 'manual', 1, ['a']), 'a', 1)).toBeNull();
+    expect(neighbourImage(set('u', 'U', 't', 'T', 'manual', 1, null), 'a', 1)).toBeNull();
   });
 });

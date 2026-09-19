@@ -1,116 +1,130 @@
 // Whose labels, of which type — the choice behind `owner=` and
 // `annotation_type=` of `workspace_patches`.
 //
-// The choice belongs to the workspace, not to the image on screen. dev-ingestor
-// takes one owner and one annotation type for a whole workspace and skips the
-// images that have no polygons of that label set; the tab does the same instead
-// of quietly showing somebody else's labels on such an image.
-import { compare, type LabelSet } from './annotations';
+// Patches are made from one annotator's labels of one annotation type, never
+// from a mixture: two annotators may well disagree on the same square. The
+// choice is made for the workspace, from the annotators of the workspace (the
+// catalog, what dev-ingestor's `label_sets(ds)` lists) — not from whoever
+// happens to have drawn on the image on screen. An image the chosen annotator
+// did not label gives no patches, which is what dev-ingestor does with it too.
 
-/** What the user picked. The names are kept so that an image without the set can still say what is missing. */
-export interface LabelSetChoice {
-  ownerId: string | null;
-  ownerName: string | null;
-  annotationTypeId: string | null;
-  annotationTypeName: string | null;
+/** One annotator's labels of one annotation type, in a workspace. */
+export interface CatalogSet {
+  ownerId: string;
+  owner: string;
+  annotationTypeId: string;
+  annotationType: string;
+  /** "manual", "model", "imported" — several joined by "|". */
+  resource: string;
+  polygons: number;
+  /** Images that carry the set; null when only the image on screen is known. */
+  imageIds: string[] | null;
 }
 
-export const NO_CHOICE: LabelSetChoice = {
-  ownerId: null,
-  ownerName: null,
-  annotationTypeId: null,
-  annotationTypeName: null,
-};
+/** What the user picked. */
+export interface LabelSetChoice {
+  ownerId: string | null;
+  annotationTypeId: string | null;
+}
 
-/** Someone whose labels are on the image: a person, a model, or an imported dataset. */
+export const NO_CHOICE: LabelSetChoice = { ownerId: null, annotationTypeId: null };
+
+/** Someone whose labels are in the workspace: a person, a model, or an imported dataset. */
 export interface Annotator {
   ownerId: string;
   owner: string;
-  /** "manual", "model", "imported" — several joined by "|" when one owner has more than one kind. */
   resource: string;
   polygons: number;
-  sets: LabelSet[];
+  /** Images with any label of this annotator; null when not known. */
+  images: number | null;
+  sets: CatalogSet[];
 }
 
-export function annotators(sets: LabelSet[]): Annotator[] {
-  const byOwner = new Map<string, Annotator>();
-  for (const set of sets) {
+const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+export function annotators(catalog: CatalogSet[]): Annotator[] {
+  const byOwner = new Map<string, Annotator & { imageIds: Set<string> | null }>();
+  for (const set of catalog) {
     let entry = byOwner.get(set.ownerId);
     if (!entry) {
-      entry = { ownerId: set.ownerId, owner: set.owner, resource: '', polygons: 0, sets: [] };
+      entry = {
+        ownerId: set.ownerId,
+        owner: set.owner,
+        resource: '',
+        polygons: 0,
+        images: null,
+        sets: [],
+        imageIds: new Set(),
+      };
       byOwner.set(set.ownerId, entry);
     }
     entry.sets.push(set);
-    entry.polygons += set.polygons.length;
+    entry.polygons += set.polygons;
+    if (set.imageIds === null) entry.imageIds = null;
+    else if (entry.imageIds) for (const id of set.imageIds) entry.imageIds.add(id);
   }
-  for (const entry of byOwner.values()) {
-    entry.resource = [...new Set(entry.sets.flatMap((s) => s.resource.split('|')))]
-      .sort()
-      .join('|');
-  }
-  return [...byOwner.values()].sort((a, b) => compare(a.owner, b.owner));
+  return [...byOwner.values()]
+    .map(({ imageIds, ...annotator }) => ({
+      ...annotator,
+      images: imageIds ? imageIds.size : null,
+      resource: [...new Set(annotator.sets.flatMap((s) => s.resource.split('|')))]
+        .sort()
+        .join('|'),
+      sets: [...annotator.sets].sort((a, b) => compare(a.annotationType, b.annotationType)),
+    }))
+    .sort((a, b) => compare(a.owner, b.owner));
 }
 
-export type Resolution =
-  | { status: 'ok'; set: LabelSet; annotator: Annotator }
-  | { status: 'no-annotations' }
+export type Selection =
+  /** The workspace has no region annotations at all. */
+  | { status: 'empty' }
   | { status: 'choose-annotator' }
-  /** The chosen annotator has no polygons on this image: dev-ingestor skips it. */
-  | { status: 'annotator-absent' }
   | { status: 'choose-type'; annotator: Annotator }
-  /** The annotator is here, but not with the chosen annotation type: dev-ingestor skips it. */
-  | { status: 'type-absent'; annotator: Annotator };
+  | { status: 'chosen'; annotator: Annotator; set: CatalogSet };
 
 /**
- * The label set to use on this image. Where there is nothing to choose — one
- * annotator, one type — it is used without asking; an explicit choice is never
- * replaced by something else.
+ * The label set the choice stands for. Where there is nothing to choose — one
+ * annotator in the workspace, or one type of the chosen annotator — it is taken
+ * without asking. A choice the catalog does not have (another workspace's, a
+ * deleted user's) counts as none.
  */
-export function resolveLabelSet(sets: LabelSet[], choice: LabelSetChoice): Resolution {
-  if (!sets.length) return { status: 'no-annotations' };
-  const all = annotators(sets);
+export function select(catalog: CatalogSet[], choice: LabelSetChoice): Selection {
+  if (!catalog.length) return { status: 'empty' };
+  const all = annotators(catalog);
+  const annotator =
+    all.find((a) => a.ownerId === choice.ownerId) ?? (all.length === 1 ? all[0]! : undefined);
+  if (!annotator) return { status: 'choose-annotator' };
 
-  let annotator: Annotator | undefined;
-  if (choice.ownerId) {
-    annotator = all.find((a) => a.ownerId === choice.ownerId);
-    if (!annotator) return { status: 'annotator-absent' };
-  } else if (all.length === 1) {
-    annotator = all[0]!;
-  } else {
-    return { status: 'choose-annotator' };
-  }
-
-  // A type that was chosen together with an annotator; without an annotator it says nothing.
-  const typeId = choice.ownerId ? choice.annotationTypeId : null;
-  if (typeId) {
-    const set = annotator.sets.find((s) => s.annotationTypeId === typeId);
-    return set ? { status: 'ok', set, annotator } : { status: 'type-absent', annotator };
-  }
-  return annotator.sets.length === 1
-    ? { status: 'ok', set: annotator.sets[0]!, annotator }
-    : { status: 'choose-type', annotator };
+  const set =
+    annotator.sets.find((s) => s.annotationTypeId === choice.annotationTypeId) ??
+    (annotator.sets.length === 1 ? annotator.sets[0]! : undefined);
+  return set ? { status: 'chosen', annotator, set } : { status: 'choose-type', annotator };
 }
 
 /**
- * The choice after picking an annotator: their only type is taken along, a
- * type they also have is kept, otherwise the type is asked for next.
+ * The choice after picking an annotator: a type they also have is kept (the
+ * same question, answered by someone else), their only type is taken along,
+ * otherwise the type is asked for next.
  */
 export function chooseAnnotator(annotator: Annotator, current: LabelSetChoice): LabelSetChoice {
   const kept = annotator.sets.find((s) => s.annotationTypeId === current.annotationTypeId);
   const set = kept ?? (annotator.sets.length === 1 ? annotator.sets[0]! : null);
-  return {
-    ownerId: annotator.ownerId,
-    ownerName: annotator.owner,
-    annotationTypeId: set?.annotationTypeId ?? null,
-    annotationTypeName: set?.annotationType ?? null,
-  };
+  return { ownerId: annotator.ownerId, annotationTypeId: set?.annotationTypeId ?? null };
 }
 
-export function chooseLabelSet(set: LabelSet): LabelSetChoice {
-  return {
-    ownerId: set.ownerId,
-    ownerName: set.owner,
-    annotationTypeId: set.annotationTypeId,
-    annotationTypeName: set.annotationType,
-  };
+/**
+ * The image of the chosen set that comes after (or before) the current one —
+ * for going straight to where the chosen annotator has labels. Wraps around.
+ */
+export function neighbourImage(
+  set: CatalogSet,
+  currentImageId: string | null,
+  step: 1 | -1
+): string | null {
+  const ids = set.imageIds;
+  if (!ids?.length) return null;
+  const at = currentImageId ? ids.indexOf(currentImageId) : -1;
+  if (at === -1) return step === 1 ? ids[0]! : ids[ids.length - 1]!;
+  if (ids.length === 1) return null;
+  return ids[(at + step + ids.length) % ids.length]!;
 }

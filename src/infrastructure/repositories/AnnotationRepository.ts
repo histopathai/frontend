@@ -2,6 +2,7 @@ import type {
   CreateNewAnnotationRequest,
   IAnnotationRepository,
   UpdateAnnotationRequest,
+  WorkspaceLabelSet,
 } from '@/core/repositories/IAnnotation';
 import type { PaginatedResult, QueryOptions } from '@/core/types/common';
 
@@ -93,6 +94,27 @@ export class AnnotationRepository implements IAnnotationRepository {
         .filter((item: Annotation | null): item is Annotation => item !== null),
       pagination: pagination as any,
     };
+  }
+
+  async labelSetsByWorkspace(workspaceId: string): Promise<WorkspaceLabelSet[] | null> {
+    try {
+      const response = await this.apiClient.get<any>(
+        `/api/v1/proxy/annotations/workspace/${workspaceId}/label-sets`
+      );
+      const items: any[] = Array.isArray(response.data) ? response.data : [];
+      return items.map((item) => ({
+        creatorId: item.creator_id,
+        annotationTypeId: item.annotation_type_id,
+        resources: item.resources ?? [],
+        name: item.name ?? '',
+        polygonCount: item.polygon_count ?? 0,
+        imageIds: item.image_ids ?? [],
+      }));
+    } catch (e: any) {
+      // A main-service without the endpoint answers 404 (or takes "label-sets" for something else).
+      if (e?.status === 404 || e?.status === 400) return null;
+      throw e;
+    }
   }
 
   async create(data: CreateNewAnnotationRequest): Promise<Annotation> {

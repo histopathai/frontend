@@ -23,6 +23,57 @@
         </span>
       </p>
 
+      <!-- Whose labels the patches are made from. Always in view, so it can be changed while
+           looking at an image; the options are the annotators of the workspace. -->
+      <div v-if="s.source === 'annotation'" class="mt-2 space-y-1.5">
+        <label class="flex items-center gap-2">
+          <span class="w-16 flex-shrink-0 text-[10px] font-bold text-gray-500">Annotator</span>
+          <select
+            class="select-input"
+            :value="grid.annotator.value?.ownerId ?? ''"
+            :disabled="!grid.annotators.value.length"
+            @change="grid.pickAnnotator(($event.target as HTMLSelectElement).value)"
+          >
+            <option value="" disabled>
+              {{ grid.catalogLoading.value ? 'yükleniyor…' : 'Annotator seçin…' }}
+            </option>
+            <option v-for="a in grid.annotators.value" :key="a.ownerId" :value="a.ownerId">
+              {{ annotatorOption(a) }}
+            </option>
+          </select>
+        </label>
+        <label v-if="grid.annotator.value" class="flex items-center gap-2">
+          <span class="w-16 flex-shrink-0 text-[10px] font-bold text-gray-500">Tür</span>
+          <select
+            class="select-input"
+            :value="grid.chosenSet.value?.annotationTypeId ?? ''"
+            @change="grid.pickType(($event.target as HTMLSelectElement).value)"
+          >
+            <option value="" disabled>Annotation türü seçin…</option>
+            <option
+              v-for="set in grid.annotator.value.sets"
+              :key="set.annotationTypeId"
+              :value="set.annotationTypeId"
+            >
+              {{ set.annotationType }} — {{ set.polygons.toLocaleString('tr-TR') }} poligon
+            </option>
+          </select>
+        </label>
+
+        <!-- Which annotator these patches were made with -->
+        <p
+          v-if="grid.provenance.value && grid.labelSet.value"
+          class="rounded-lg bg-indigo-50 px-2 py-1.5 text-[11px] text-indigo-800"
+        >
+          Bu patch'ler <span class="font-black">{{ grid.provenance.value.owner }}</span>
+          <span v-if="resourceText(grid.provenance.value.resource)" class="text-indigo-500">
+            ({{ resourceText(grid.provenance.value.resource) }})</span
+          >
+          annotator'ının <span class="font-bold">{{ grid.provenance.value.annotationType }}</span>
+          etiketlerinden çıkarıldı.
+        </p>
+      </div>
+
       <p
         v-if="grid.blocker.value"
         class="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-700"
@@ -49,6 +100,38 @@
       >
         Doku maskesi yok: annotation patch'leri dokuya göre süzülmeden gösteriliyor.
       </p>
+      <!-- The images the chosen annotator labelled: a few among many, so go straight to them -->
+      <div
+        v-if="
+          s.source === 'annotation' && grid.imagesWithSet.value && grid.imagesWithSet.value.total
+        "
+        class="mt-2 flex items-center justify-between gap-2 text-[11px] text-gray-500"
+      >
+        <span>
+          Bu annotator'ın görüntüleri:
+          <span class="font-bold text-gray-700">
+            {{ grid.imagesWithSet.value.position ?? '–' }} / {{ grid.imagesWithSet.value.total }}
+          </span>
+        </span>
+        <span class="flex gap-1">
+          <button
+            class="rounded border border-gray-200 px-1.5 py-0.5 font-bold hover:bg-gray-50 disabled:opacity-40"
+            :disabled="!grid.neighbour(-1)"
+            title="Bu annotator'ın etiketlediği önceki görüntü"
+            @click="$emit('open-image', grid.neighbour(-1)!)"
+          >
+            ‹
+          </button>
+          <button
+            class="rounded border border-gray-200 px-1.5 py-0.5 font-bold hover:bg-gray-50 disabled:opacity-40"
+            :disabled="!grid.neighbour(1)"
+            title="Bu annotator'ın etiketlediği sonraki görüntü"
+            @click="$emit('open-image', grid.neighbour(1)!)"
+          >
+            ›
+          </button>
+        </span>
+      </div>
       <!-- Its own v-if: this can hold together with any of the notes above -->
       <p
         v-if="grid.unresolved.value && grid.cells.value"
@@ -92,6 +175,7 @@
             :cells="grid.cells.value"
             :index="selectedIndex"
             :label-colors="labelColors"
+            :provenance="provenance"
           />
         </div>
         <p class="mt-1.5 text-[10px] text-gray-400">
@@ -190,7 +274,7 @@
             <span
               v-if="grid.annotators.value.length"
               class="text-[9px] opacity-60"
-              title="Bu görüntüde etiketi olan annotator sayısı"
+              title="Bu workspace'te etiketi olan annotator sayısı"
               >{{ grid.annotators.value.length }}</span
             >
           </button>
@@ -206,94 +290,35 @@
           </span>
         </div>
 
-        <!-- One label set at a time: a label only means something with whose it is and of which type -->
-        <div v-else class="mt-2">
-          <p
-            v-if="!grid.sets.value.length && !grid.loading.value"
-            class="text-[11px] text-gray-400"
-          >
-            Bu görüntüde poligonlu annotation yok.
-          </p>
-
-          <template v-else>
-            <!-- Whose labels: people, models and imported datasets alike -->
-            <label class="field-label"
-              >Annotator <span class="text-gray-300">kimin etiketleri</span></label
-            >
-            <div class="max-h-40 space-y-1 overflow-y-auto">
-              <button
-                v-for="a in grid.annotators.value"
-                :key="a.ownerId"
-                class="flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition-colors"
-                :class="
-                  grid.annotator.value?.ownerId === a.ownerId
-                    ? 'border-indigo-500 bg-indigo-50'
-                    : 'border-gray-200 hover:bg-gray-50'
-                "
-                @click="grid.pickAnnotator(a)"
+        <!-- The chosen label set as it is on this image -->
+        <div
+          v-else-if="grid.labelSet.value"
+          class="mt-2 rounded-lg border border-gray-200 px-2.5 py-1.5"
+        >
+          <div class="flex items-center justify-between gap-2 text-[11px]">
+            <span class="truncate font-bold text-gray-700">Bu görüntüde</span>
+            <span class="flex-shrink-0 text-[10px] text-gray-400">
+              {{ grid.labelSet.value.polygons.length }} poligon<template
+                v-if="grid.labelSet.value.sideUm !== null"
               >
-                <span class="min-w-0 flex-1 truncate text-[11px] font-bold text-gray-700">{{
-                  a.owner
-                }}</span>
-                <span
-                  v-if="resourceTag(a.resource)"
-                  class="flex-shrink-0 rounded px-1 text-[9px] font-bold"
-                  :class="resourceTag(a.resource)!.cls"
-                >
-                  {{ resourceTag(a.resource)!.text }}
-                </span>
-                <span class="flex-shrink-0 text-[10px] tabular-nums text-gray-400"
-                  >{{ a.polygons }} poligon</span
-                >
-              </button>
-            </div>
-            <!-- The choice belongs to the workspace; this image may simply not have it -->
-            <p
-              v-if="s.ownerId && !grid.annotators.value.some((a) => a.ownerId === s.ownerId)"
-              class="mt-1 text-[10px] text-gray-400"
+                · ortanca {{ grid.labelSet.value.sideUm }} µm</template
+              >
+            </span>
+          </div>
+          <div class="mt-1 flex flex-wrap gap-1">
+            <span
+              v-for="l in grid.labelSet.value.labelCounts"
+              :key="l.label"
+              class="rounded bg-gray-50 px-1 text-[9px] font-semibold text-gray-500 ring-1 ring-gray-200"
             >
-              Seçiminiz: <span class="font-bold">{{ s.ownerName ?? s.ownerId }}</span> — bu
-              görüntüde yok.
-            </p>
-
-            <template v-if="grid.annotator.value">
-              <label class="field-label mt-2.5">Annotation türü</label>
-              <div class="space-y-1">
-                <button
-                  v-for="set in grid.annotator.value.sets"
-                  :key="set.key"
-                  class="w-full rounded-lg border px-2.5 py-1.5 text-left transition-colors"
-                  :class="
-                    grid.labelSet.value?.key === set.key
-                      ? 'border-indigo-500 bg-indigo-50'
-                      : 'border-gray-200 hover:bg-gray-50'
-                  "
-                  @click="grid.pickLabelSet(set)"
-                >
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="truncate text-[11px] font-bold text-gray-700">{{
-                      set.annotationType
-                    }}</span>
-                    <span class="flex-shrink-0 text-[10px] text-gray-400">
-                      {{ set.polygons.length }} poligon<template v-if="set.sideUm !== null">
-                        · ortanca {{ set.sideUm }} µm</template
-                      >
-                    </span>
-                  </div>
-                  <div class="mt-1 flex flex-wrap gap-1">
-                    <span
-                      v-for="l in set.labelCounts"
-                      :key="l.label"
-                      class="rounded bg-white/70 px-1 text-[9px] font-semibold text-gray-500 ring-1 ring-gray-200"
-                    >
-                      {{ l.label }} · {{ l.count }}
-                    </span>
-                  </div>
-                </button>
-              </div>
-            </template>
-          </template>
+              {{ l.label }} · {{ l.count }}
+            </span>
+          </div>
         </div>
+        <p v-else-if="otherAnnotatorsHere" class="mt-2 text-[10px] leading-snug text-gray-400">
+          Bu görüntüde etiketi olanlar: {{ otherAnnotatorsHere }}. Etiketler asla birlikte
+          değerlendirilmez; birini görmek için yukarıdan o annotator'ı seçin.
+        </p>
       </section>
 
       <!-- Placement -->
@@ -521,6 +546,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useToast } from 'vue-toastification';
+import type { Annotator } from '@/core/patches';
 import type { ColorBy, PatchGrid } from '@/presentation/composables/patches/usePatchGrid';
 import PatchFacts from './PatchFacts.vue';
 import PatchPreview from './PatchPreview.vue';
@@ -534,6 +560,7 @@ const props = defineProps<{
   grid: PatchGrid;
   labelColors: string[];
   selectedIndex: number | null;
+  provenance: string | null;
   showPatches: boolean;
   showTissue: boolean;
   showAnnotations: boolean;
@@ -547,6 +574,7 @@ defineEmits<{
   'update:fillOpacity': [value: number];
   locate: [];
   deselect: [];
+  'open-image': [imageId: string];
 }>();
 
 const toast = useToast();
@@ -560,13 +588,30 @@ const loadingText = computed(() =>
     : 'yükleniyor…'
 );
 
+const RESOURCE: Record<string, string> = { imported: 'içe aktarılan', model: 'model' };
+
 /** What kind of annotator this is, where it is not a person drawing by hand. */
-function resourceTag(resource: string): { text: string; cls: string } | null {
-  if (resource === 'manual') return null;
-  if (resource === 'imported') return { text: 'içe aktarılan', cls: 'bg-amber-50 text-amber-700' };
-  if (resource === 'model') return { text: 'model', cls: 'bg-sky-50 text-sky-700' };
-  return { text: resource.split('|').join(' + '), cls: 'bg-gray-100 text-gray-600' };
+function resourceText(resource: string): string {
+  return resource
+    .split('|')
+    .filter((r) => r !== 'manual')
+    .map((r) => RESOURCE[r] ?? r)
+    .join(' + ');
 }
+
+function annotatorOption(a: Annotator): string {
+  const kind = resourceText(a.resource);
+  const images = a.images === null ? '' : ` · ${a.images.toLocaleString('tr-TR')} görüntü`;
+  const here = props.grid.sets.value.some((s) => s.ownerId === a.ownerId)
+    ? ''
+    : ' · bu görüntüde yok';
+  return `${a.owner}${kind ? ` (${kind})` : ''} — ${a.polygons.toLocaleString('tr-TR')} poligon${images}${here}`;
+}
+
+/** Who else drew on this image — never shown together with the chosen annotator's labels. */
+const otherAnnotatorsHere = computed(() =>
+  [...new Set(props.grid.sets.value.map((s) => s.owner))].join(', ')
+);
 
 const maskStatus = computed(() => {
   switch (props.grid.mask.value?.status) {
@@ -642,10 +687,7 @@ function setFloat(key: 'mpp', event: Event, min: number, max: number) {
 }
 
 // The label set is a choice for the workspace: it can be copied from an image that lacks it.
-const canCopy = computed(
-  () =>
-    s.source === 'tissue' || !!props.grid.labelSet.value || !!(s.ownerName && s.annotationTypeName)
-);
+const canCopy = computed(() => s.source === 'tissue' || !!props.grid.chosenSet.value);
 
 const copied = ref(false);
 async function copy() {
@@ -674,6 +716,9 @@ async function copy() {
 }
 .chip-off {
   @apply border-gray-200 text-gray-600 hover:bg-gray-50;
+}
+.select-input {
+  @apply min-w-0 flex-1 rounded-md border-gray-300 py-1 pl-2 pr-7 text-[11px] font-bold text-gray-700 focus:border-indigo-500 focus:ring-indigo-500;
 }
 .number-input {
   @apply rounded-md border-gray-200 px-1.5 py-1 text-[11px] font-bold text-gray-700 focus:border-indigo-500 focus:ring-indigo-500;
