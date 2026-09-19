@@ -30,25 +30,7 @@ export interface UpdateAnnotationRequest {
   polygon?: PointRequest[];
 }
 
-/** One annotator's labels of one annotation type in a workspace, as main-service reports them. */
-export interface WorkspaceLabelSet {
-  creatorId: string;
-  annotationTypeId: string;
-  /** "manual", "model", "imported" */
-  resources: string[];
-  /** The annotations' own name when all of the type agree on it, otherwise "". */
-  name: string;
-  polygonCount: number;
-  imageIds: string[];
-}
-
 export interface IAnnotationRepository {
-  /**
-   * Who labelled what in the workspace. Null when the server does not know the
-   * endpoint yet (a main-service one release behind): the caller then works
-   * from the image on screen.
-   */
-  labelSetsByWorkspace(workspaceId: string): Promise<WorkspaceLabelSet[] | null>;
   listByImage(imageId: string, options?: QueryOptions): Promise<PaginatedResult<Annotation>>;
   listByParent(parentId: string, options?: QueryOptions): Promise<PaginatedResult<Annotation>>;
   listByWorkspace(

@@ -26,13 +26,6 @@
         :position="`${index + 1} / ${images.length}`"
         @prev="index = Math.max(0, index - 1)"
         @next="index = Math.min(images.length - 1, index + 1)"
-        @open-image="
-          (id: string) =>
-            (index = Math.max(
-              0,
-              images.findIndex((img) => img.id === id)
-            ))
-        "
       />
     </div>
   </div>

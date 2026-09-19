@@ -36,41 +36,6 @@ repositories.annotation.listByImage = async (imageId: string, options?: any) => 
   };
 };
 
-// What main-service answers on /annotations/workspace/:id/label-sets, worked out from the same data.
-repositories.annotation.labelSetsByWorkspace = async (workspaceId: string) => {
-  await wait(200);
-  const groups = new Map<string, any>();
-  const names = new Map<string, Set<string>>();
-  for (const image of data.images as any[]) {
-    if (image.ws_id !== workspaceId) continue;
-    for (const a of (data.annotations[image.id] ?? []) as any[]) {
-      if (a.is_global || (a.polygon ?? []).length < 3) continue;
-      const key = `${a.creator_id}\u0000${a.annotation_type_id}`;
-      if (!groups.has(key)) {
-        groups.set(key, {
-          creatorId: a.creator_id,
-          annotationTypeId: a.annotation_type_id,
-          resources: new Set<string>(),
-          polygonCount: 0,
-          imageIds: new Set<string>(),
-        });
-      }
-      const g = groups.get(key);
-      g.resources.add(a.resource);
-      g.polygonCount++;
-      g.imageIds.add(image.id);
-      if (!names.has(a.annotation_type_id)) names.set(a.annotation_type_id, new Set());
-      names.get(a.annotation_type_id)!.add(a.name);
-    }
-  }
-  return [...groups.values()].map((g) => ({
-    ...g,
-    resources: [...g.resources].sort(),
-    imageIds: [...g.imageIds].sort(),
-    name: names.get(g.annotationTypeId)!.size === 1 ? [...names.get(g.annotationTypeId)!][0] : '',
-  }));
-};
-
 repositories.annotationType.getById = async (id: string) =>
   ({ id, name: data.annotation_types[id] ?? id }) as any;
 

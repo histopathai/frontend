@@ -43,7 +43,6 @@
         :show-annotations="showAnnotations"
         :fill-opacity="fillOpacity"
         :selected-index="selectedIndex"
-        :provenance="provenanceText"
         @select="selectedIndex = $event"
       />
       <div v-else class="absolute inset-0 flex items-center justify-center text-sm text-gray-400">
@@ -60,10 +59,8 @@
     :grid="grid"
     :label-colors="labelColors"
     :selected-index="selectedIndex"
-    :provenance="provenanceText"
     @locate="selectedIndex !== null && viewerRef?.showPatch(selectedIndex)"
     @deselect="selectedIndex = null"
-    @open-image="$emit('open-image', $event)"
   />
 </template>
 
@@ -83,8 +80,7 @@ const props = defineProps<{
   /** "3 / 12" */
   position?: string;
 }>();
-// open-image: go to an image by id — one the chosen annotator labelled, wherever it is in the workspace.
-const emit = defineEmits<{ prev: []; next: []; 'open-image': [imageId: string] }>();
+const emit = defineEmits<{ prev: []; next: [] }>();
 
 const grid = usePatchGrid();
 const viewerRef = ref<InstanceType<typeof PatchGridViewer> | null>(null);
@@ -101,13 +97,6 @@ const labelColors = computed(() => {
     : (grid.labelSet.value?.labelCounts.map((l) => l.label) ?? []);
   return labels.map((_, i) => labelColor(i));
 });
-
-/** "Selva Kabul · Gleason Pattern": every patch on screen says whose labels it came from. */
-const provenanceText = computed(() =>
-  grid.provenance.value
-    ? `${grid.provenance.value.owner} · ${grid.provenance.value.annotationType}`
-    : null
-);
 
 watch(
   () => props.image?.id,
