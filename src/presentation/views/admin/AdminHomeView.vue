@@ -192,10 +192,8 @@
                     <p class="text-sm text-gray-500">{{ user.email }}</p>
                   </div>
                 </div>
-                <div class="flex-shrink-0 space-x-2">
-                  <button @click="approveUser(user.userId)" class="btn btn-primary btn-sm">
-                    Onayla
-                  </button>
+                <div class="flex flex-shrink-0 items-center gap-2">
+                  <ApproveWithRole @approve="(role) => approveUser(user.userId, role)" />
                   <button @click="suspendUser(user.userId)" class="btn btn-outline btn-sm">
                     Reddet (Askıya Al)
                   </button>
@@ -232,6 +230,8 @@ import { RouterLink } from 'vue-router';
 import { useAdminDashboard } from '@/presentation/composables/admin/useAdminDashboard';
 import { useAdminStore } from '@/stores/admin';
 import UserRegistrationChart from '@/presentation/components/admin/UserRegistrationChart.vue';
+import ApproveWithRole from '@/presentation/components/admin/ApproveWithRole.vue';
+import { UserRole } from '@/core/value-objects/UserRole';
 
 const {
   loading,
@@ -246,9 +246,10 @@ const {
 
 const adminStore = useAdminStore();
 
-async function approveUser(userId: string) {
-  if (confirm('Bu kullanıcıyı onaylamak istediğinizden emin misiniz?')) {
-    await adminStore.approveUser(userId);
+async function approveUser(userId: string, role: 'pathologist' | 'datascientist') {
+  const name = UserRole.fromString(role).toDisplayString();
+  if (confirm(`Bu kullanıcı "${name}" grubuyla onaylanacak. Emin misiniz?`)) {
+    await adminStore.approveUser(userId, role);
   }
 }
 

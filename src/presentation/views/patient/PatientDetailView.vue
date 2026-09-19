@@ -88,7 +88,7 @@
         </div>
       </div>
 
-      <div v-if="patient">
+      <div v-if="patient && canWrite">
         <button
           @click="isImageUploadModalOpen = true"
           class="btn btn-primary flex items-center gap-2 shadow-sm"
@@ -139,12 +139,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { repositories } from '@/services';
 import type { Workspace } from '@/core/entities/Workspace';
 import type { Patient } from '@/core/entities/Patient';
 import { useToast } from 'vue-toastification';
+import { useAuthStore } from '@/stores/auth';
 import PatientImageGrid from '@/presentation/components/image/PatientImageGrid.vue';
 import ImageUploadModal from '@/presentation/components/image/ImageUploadModal.vue';
 import TransferImageModal from '@/presentation/components/image/TransferImageModal.vue';
@@ -156,6 +157,8 @@ const props = defineProps({
 
 const { t } = useI18n();
 const toast = useToast();
+// Read-only groups (data scientists) browse the dataset; they upload nothing.
+const canWrite = computed(() => useAuthStore().can('dataset.write'));
 const workspace = ref<Workspace | null>(null);
 const patient = ref<Patient | null>(null);
 const pageLoading = ref(true);

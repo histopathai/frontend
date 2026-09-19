@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted, shallowRef, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, shallowRef, watch, nextTick } from 'vue';
 import { useAnnotationStore } from '@/stores/annotation';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import type { Image } from '@/core/entities/Image';
@@ -22,6 +22,10 @@ export function useOpenSeadragon(viewerId: string) {
   const currentWorkspaceId = ref<string | null>(null);
   const loading = ref(false);
   const isDrawingActive = ref(false);
+
+  // Groups without labeling.write (data scientists) see every polygon and its
+  // label but get no way to draw, edit, delete or review one.
+  const readOnly = computed(() => !authStore.can('labeling.write'));
 
   // "3. taraf anotasyonlarını gizle" aktifse yalnızca mevcut kullanıcının kendi
   // anotasyonları görüntüleyicide gösterilir; diğerleri (başka kullanıcı/model/import)
@@ -125,6 +129,7 @@ export function useOpenSeadragon(viewerId: string) {
             <div class="main-pill" style="display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; background: rgba(15, 23, 42, 0.2); color: white; font-size: 9px; font-weight: 700; border: 1.5px solid ${color}; white-space: nowrap; box-shadow: 0 4px 10px ${color}11; position: relative; transition: all 0.2s ease;">
               <span>${text || 'Anotasyon'}</span>
 
+              ${readOnly.value ? '' : `
               <div style="width: 1px; height: 10px; background: rgba(255,255,255,0.2); margin: 0 6px;"></div>
 
               <div style="display: flex; align-items: center; gap: 4px;">
@@ -147,6 +152,7 @@ export function useOpenSeadragon(viewerId: string) {
                   </button>
                 `}
               </div>
+              `}
               
               <!-- Pin Line Indicator -->
               <div class="pin-line" style="position: absolute; ${isNearTop ? 'top: -30px; height: 30px;' : 'bottom: -30px; height: 30px;'} left: 50%; transform: translateX(-50%); width: 1.2px; background: ${color}; opacity: 0.3; transition: all 0.2s ease;"></div>
@@ -342,6 +348,7 @@ export function useOpenSeadragon(viewerId: string) {
   }
 
   function startDrawing() {
+    if (readOnly.value) return;
     if (anno.value && viewer.value) {
       isDrawingActive.value = true;
       (viewer.value as any).setMouseNavEnabled(false);
@@ -438,6 +445,8 @@ export function useOpenSeadragon(viewerId: string) {
         anno.value = new (Annotorious as any)(viewer.value, {
           locale: 'en',
           allowEmpty: true,
+          // Shapes stay selectable but get no edit handles.
+          readOnly: readOnly.value,
           disableEditor: true,
           keyboardShortcuts: false,
           formatter: (annotation: any) => {

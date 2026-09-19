@@ -17,9 +17,10 @@
         :key="user.userId"
         :user="user"
         :loading="store.loading"
+        :is-self="user.userId === authStore.user?.userId"
         @approve="approveUser"
         @suspend="suspendUser"
-        @makeAdmin="makeAdmin"
+        @changeRole="changeRole"
         @toggleDataAccess="toggleDataAccess"
       />
     </div>
@@ -29,18 +30,26 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import { useAdminStore } from '@/stores/admin';
+import { useAuthStore } from '@/stores/auth';
+import { UserRole, type UserRoleValue } from '@/core/value-objects/UserRole';
 
 import UserCard from '@/presentation/components/admin/UserCard.vue';
 
 const store = useAdminStore();
+const authStore = useAuthStore();
 
 onMounted(() => {
   store.fetchAllUsers();
 });
 
-async function approveUser(userId: string) {
-  if (confirm('Bu kullanıcıyı onaylamak istediğinizden emin misiniz?')) {
-    await store.approveUser(userId);
+// A new user arrives with the group picked on their card; reactivating a
+// suspended one sends none and they keep the role they had.
+async function approveUser(userId: string, role?: 'pathologist' | 'datascientist') {
+  const message = role
+    ? `Bu kullanıcı "${UserRole.fromString(role).toDisplayString()}" grubuyla onaylanacak. Emin misiniz?`
+    : 'Bu kullanıcıyı yeniden aktif etmek istediğinizden emin misiniz?';
+  if (confirm(message)) {
+    await store.approveUser(userId, role);
   }
 }
 
@@ -50,9 +59,17 @@ async function suspendUser(userId: string) {
   }
 }
 
-async function makeAdmin(userId: string) {
-  if (confirm('Bu kullanıcıyı Admin yapmak istediğinizden emin misiniz?')) {
-    await store.makeAdmin(userId);
+const ROLE_EFFECT: Record<Exclude<UserRoleValue, 'unassigned'>, string> = {
+  admin: 'Her yerde okuma-yazma ve bu yönetim paneline erişim kazanır.',
+  pathologist: 'Veri etiketleme, doku maskeleri ve patch ızgarasında okuma-yazma yapabilir.',
+  datascientist:
+    'Veri etiketlemede yalnızca görüntüleyebilir; doku maskeleri ve patch ızgarasında çalışabilir.',
+};
+
+async function changeRole(userId: string, role: Exclude<UserRoleValue, 'unassigned'>) {
+  const name = UserRole.fromString(role).toDisplayString();
+  if (confirm(`Kullanıcının grubu "${name}" olacak.\n\n${ROLE_EFFECT[role]}\n\nEmin misiniz?`)) {
+    await store.setRole(userId, role);
   }
 }
 

@@ -62,8 +62,19 @@
 
     <!-- SAĞ BÖLÜM: Modlar + Kaydet -->
     <div class="flex items-center gap-2 flex-shrink-0 justify-end">
+      <!-- Read-only groups look at the data; they get no drawing mode. -->
+      <span
+        v-if="readOnly"
+        class="flex-shrink-0 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-tight text-amber-700"
+        title="Grubunuz veri etiketlemede yalnızca görüntüleyebilir; kayıtlar değiştirilemez."
+      >
+        Salt okunur
+      </span>
       <!-- Drawing Modes -->
-      <div class="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 flex-shrink-0">
+      <div
+        v-else
+        class="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 flex-shrink-0"
+      >
         <button
           @click="$emit('stopDrawing')"
           class="flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all text-[9px] font-black uppercase tracking-tight"
@@ -184,6 +195,7 @@
         </button>
 
         <button
+          v-if="!readOnly"
           @click="handleSaveAll"
           :disabled="annotationStore.pendingCount === 0 && annotationStore.dirtyCount === 0 && !isMetadataDirty"
           class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all shadow-sm flex-shrink-0"
@@ -203,7 +215,7 @@
         </button>
 
         <button
-          v-if="image"
+          v-if="image && (!readOnly || image.markedAsCompleted)"
           @click="handleMarkAsCompleted"
           :disabled="image.markedAsCompleted"
           class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg transition-all text-[10px] font-bold uppercase tracking-tight border shadow-sm flex-shrink-0"
@@ -232,7 +244,7 @@
       <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
         Hasta Bilgileri
       </h3>
-      <div class="grid grid-cols-2 gap-3">
+      <fieldset :disabled="readOnly" class="grid grid-cols-2 gap-3">
         <div class="space-y-1">
           <label class="text-[9px] font-bold text-gray-500">YAŞ</label>
           <input type="number" v-model.number="age" class="form-input-compact" />
@@ -249,7 +261,7 @@
           <label class="text-[9px] font-bold text-gray-500">IRK / KÖKEN</label>
           <input type="text" v-model="race" class="form-input-compact" />
         </div>
-      </div>
+      </fieldset>
       <div class="mt-4 flex justify-end">
         <button
           @click="activePopover = null"
@@ -268,7 +280,11 @@
       <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
         Global Etiketler (Dataset)
       </h3>
-      <div v-if="dynamicFields.length > 0" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+      <fieldset
+        v-if="dynamicFields.length > 0"
+        :disabled="readOnly"
+        class="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar"
+      >
         <div v-for="field in dynamicFields" :key="field.id" class="space-y-1.5">
           <label class="text-[9px] font-bold text-gray-500 uppercase flex items-center gap-1">
             {{ field.name }}
@@ -300,7 +316,7 @@
             @input="handleMetadataChange"
           ></textarea>
         </div>
-      </div>
+      </fieldset>
       <div v-else class="py-6 text-center">
         <p class="text-xs text-gray-400 italic">Bu çalışma alanında tanımlı global etiket bulunmuyor.</p>
       </div>
@@ -342,6 +358,9 @@ const workspaceStore = useWorkspaceStore();
 const annotationTypeStore = useAnnotationTypeStore();
 const imageStore = useImageStore();
 const toast = useToast();
+
+// Groups without labeling.write (data scientists) only look; the server refuses their writes too.
+const readOnly = computed(() => !useAuthStore().can('labeling.write'));
 
 // Check if we are in review mode (any annotation belongs to someone else)
 const isReviewMode = computed(() => {

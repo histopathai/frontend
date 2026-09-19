@@ -1,17 +1,16 @@
 import type { User } from '../entities/User';
 import type { PaginatedResult, Pagination } from '../types/common';
-import type { UserRole } from '../value-objects/UserRole';
-
-export interface ApproveUserRequest {
-  role: UserRole;
-}
+import type { UserRoleValue } from '../value-objects/UserRole';
 
 export interface IAdminRepository {
   getAllUsers(pagination: Pagination): Promise<PaginatedResult<User>>;
   getUser(uid: string): Promise<User>;
-  approveUser(uid: string, data: ApproveUserRequest): Promise<User>;
+  /** Activates a user. `role` is the group a new user joins; reactivating a
+   *  suspended user takes none — they keep the role they had. */
+  approveUser(uid: string, role?: 'pathologist' | 'datascientist'): Promise<User>;
   suspendUser(uid: string): Promise<User>;
-  makeAdmin(uid: string): Promise<User>;
+  /** Moves an active user to another group. Refused for one's own account. */
+  setRole(uid: string, role: Exclude<UserRoleValue, 'unassigned'>): Promise<User>;
   deleteUser(uid: string): Promise<void>;
 
   /** Adds/removes the user in the readers group. This is what grants read-only

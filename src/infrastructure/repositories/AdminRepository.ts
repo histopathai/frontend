@@ -1,6 +1,7 @@
 import type { ApiClient } from '../api/ApiClient';
-import type { IAdminRepository, ApproveUserRequest } from '@/core/repositories/IAdminRepository';
+import type { IAdminRepository } from '@/core/repositories/IAdminRepository';
 import type { PaginatedResult, Pagination } from '@/core/types/common';
+import type { UserRoleValue } from '@/core/value-objects/UserRole';
 
 import { User } from '@/core/entities/User';
 import type { deleteUser } from 'firebase/auth';
@@ -28,12 +29,10 @@ export class AdminRepository implements IAdminRepository {
     return User.create(userData);
   }
 
-  async approveUser(uid: string, data: ApproveUserRequest): Promise<User> {
+  async approveUser(uid: string, role?: 'pathologist' | 'datascientist'): Promise<User> {
     const response = await this.apiClient.post<{ user: any }>(
       `/api/v1/admin/users/${uid}/approve`,
-      {
-        role: data.role.toString(),
-      }
+      role ? { role } : undefined
     );
     const userData = response.user || response;
     return User.create(userData);
@@ -45,10 +44,10 @@ export class AdminRepository implements IAdminRepository {
     return User.create(userData);
   }
 
-  async makeAdmin(uid: string): Promise<User> {
-    const response = await this.apiClient.post<{ user: any }>(
-      `/api/v1/admin/users/${uid}/make-admin`
-    );
+  async setRole(uid: string, role: Exclude<UserRoleValue, 'unassigned'>): Promise<User> {
+    const response = await this.apiClient.put<{ user: any }>(`/api/v1/admin/users/${uid}/role`, {
+      role,
+    });
     const userData = response.user || response;
     return User.create(userData);
   }

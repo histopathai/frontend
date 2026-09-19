@@ -1,8 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import type { Capability } from '@/core/auth/permissions';
 import appRoutes from './routes/app.routes';
 import authRoutes from './routes/auth.routes';
 import adminRoutes from './routes/admin.routes';
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean;
+    requiresAdmin?: boolean;
+    /** The route is only for groups with this capability (core/auth/permissions). */
+    capability?: Capability;
+  }
+}
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -29,6 +39,11 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (to.meta.requiresAdmin && !authStore.isAdmin) {
+    return next({ name: 'Home' });
+  }
+
+  // A route a group may not use sends the user home, like an admin route does.
+  if (to.meta.capability && !authStore.can(to.meta.capability)) {
     return next({ name: 'Home' });
   }
 

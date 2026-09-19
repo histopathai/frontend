@@ -57,7 +57,7 @@
           </span>
         </div>
       </div>
-      <div class="flex gap-3">
+      <div v-if="canWrite" class="flex gap-3">
         <button
           class="btn btn-outline bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50"
           @click="isAnnotationSettingsModalOpen = true"
@@ -126,6 +126,7 @@ import { useI18n } from 'vue-i18n';
 import { useToast } from 'vue-toastification';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { usePatientStore } from '@/stores/patient';
+import { useAuthStore } from '@/stores/auth';
 
 import PatientList from '@/presentation/components/patient/PatientList.vue';
 import AnnotationSettingsModal from '@/presentation/components/workspace/AnnotationSettingsModal.vue';
@@ -139,6 +140,8 @@ const { t } = useI18n();
 const toast = useToast();
 const workspaceStore = useWorkspaceStore();
 const patientStore = usePatientStore();
+// Read-only groups (data scientists) browse the dataset; they get no create, edit or delete.
+const canWrite = computed(() => useAuthStore().can('dataset.write'));
 
 const workspace = computed(() => workspaceStore.currentWorkspace);
 

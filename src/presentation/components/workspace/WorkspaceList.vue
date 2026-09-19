@@ -19,7 +19,7 @@
           <tr>
             <th scope="col" class="px-6 py-3 w-10">
               <input
-                v-if="workspaces.length > 0"
+                v-if="canWrite && workspaces.length > 0"
                 type="checkbox"
                 class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                 :checked="isAllSelected"
@@ -84,6 +84,7 @@
           >
             <td class="px-6 py-4 whitespace-nowrap" @click.stop>
               <input
+                v-if="canWrite"
                 type="checkbox"
                 class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                 :value="ws.id"
@@ -149,7 +150,7 @@
             </td>
 
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" @click.stop>
-              <div class="flex justify-end items-center gap-6">
+              <div v-if="canWrite" class="flex justify-end items-center gap-6">
                 <button
                   @click="$emit('edit', ws)"
                   class="text-indigo-600 hover:text-indigo-900 font-medium transition-colors"
@@ -213,6 +214,7 @@ import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import type { PropType } from 'vue';
+import { useAuthStore } from '@/stores/auth';
 import type { Workspace } from '@/core/entities/Workspace';
 
 const props = defineProps({
@@ -231,6 +233,10 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['page-change', 'edit', 'delete', 'delete-selected']);
+
+// Read-only groups (data scientists) browse the dataset; selection and the
+// actions behind it are for groups that may change records.
+const canWrite = computed(() => useAuthStore().can('dataset.write'));
 
 const router = useRouter();
 const { t } = useI18n();
