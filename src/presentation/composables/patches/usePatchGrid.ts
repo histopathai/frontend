@@ -6,16 +6,17 @@ import {
   NO_CHOICE,
   annotators as listAnnotators,
   chooseAnnotator,
-  chooseLabelSet,
+  neighbourImage,
   describeSpec,
   filterCells,
   isUpsampled,
   patchSpec,
   patchSummary,
   pythonSnippet,
-  resolveLabelSet,
+  select,
   type AnnotationInput,
   type Annotator,
+  type CatalogSet,
   type LabelSetChoice,
   type LabelSet,
   type PatchCells,
@@ -61,6 +62,8 @@ function loadSettings(workspaceId: string | null): PatchGridSettings {
     if (typeof labelSetKey === 'string' && !rest.ownerId) {
       [rest.ownerId, rest.annotationTypeId] = labelSetKey.split('\u0000');
     }
+    delete rest.ownerName;
+    delete rest.annotationTypeName;
     return { ...DEFAULT_SETTINGS, ...rest };
   } catch {
     return { ...DEFAULT_SETTINGS };
@@ -170,22 +173,134 @@ export function usePatchGrid() {
   const specText = computed(() => (spec.value ? describeSpec(spec.value) : ''));
   const upsampled = computed(() => !!spec.value && isUpsampled(spec.value));
 
-  // Whose labels, of which type. The choice in `settings` is the user's and only a
-  // click changes it: an image that lacks the chosen label set does not get
-  // somebody else's labels instead — dev-ingestor would skip that image too.
-  const annotators = computed<Annotator[]>(() => listAnnotators(sets.value));
-  const resolution = computed(() => resolveLabelSet(sets.value, settings));
-  const labelSet = computed(() => (resolution.value.status === 'ok' ? resolution.value.set : null));
-  /** The annotator whose types are on offer: the one in use, or the one still missing a type. */
+  // ── whose labels, of which type ─────────────────────────────────────────────
+  //
+  // The choice is made from the annotators of the workspace (what dev-ingestor's
+  // `label_sets(ds)` lists), not from whoever drew on the image on screen: in a
+  // workspace where no image has two annotators, a list per image has a single
+  // entry and nothing to switch to. Labels of different annotators are never
+  // evaluated together; an image the chosen annotator did not label gives no
+  // patches, as in dev-ingestor.
+
+  /** Label sets of the workspace from main-service; null until loaded, or when the server lacks the endpoint. */
+  const workspaceSets = shallowRef<CatalogSet[] | null>(null);
+  const catalogLoading = ref(false);
+
+  const catalog = computed<CatalogSet[]>(
+    () =>
+      workspaceSets.value ??
+      // A main-service one release behind: only the image on screen is known.
+      sets.value.map((s) => ({
+        ownerId: s.ownerId,
+        owner: s.owner,
+        annotationTypeId: s.annotationTypeId,
+        annotationType: s.annotationType,
+        resource: s.resource,
+        polygons: s.polygons.length,
+        imageIds: null,
+      }))
+  );
+  const annotators = computed<Annotator[]>(() => listAnnotators(catalog.value));
+  const selection = computed(() => select(catalog.value, settings));
+  /** The annotator whose types are on offer: the chosen one, or the one still missing a type. */
   const annotator = computed(() =>
-    'annotator' in resolution.value ? resolution.value.annotator : null
+    'annotator' in selection.value ? selection.value.annotator : null
+  );
+  const chosenSet = computed(() =>
+    selection.value.status === 'chosen' ? selection.value.set : null
+  );
+  /** The chosen label set as it is on this image: the polygons the patches are made from. */
+  const labelSet = computed(() => {
+    const chosen = chosenSet.value;
+    if (!chosen) return null;
+    return (
+      sets.value.find(
+        (s) => s.ownerId === chosen.ownerId && s.annotationTypeId === chosen.annotationTypeId
+      ) ?? null
+    );
+  });
+
+  function pickAnnotator(ownerId: string) {
+    const target = annotators.value.find((a) => a.ownerId === ownerId);
+    if (target) Object.assign(settings, chooseAnnotator(target, settings));
+  }
+  function pickType(annotationTypeId: string) {
+    const owner = annotator.value;
+    if (owner) Object.assign(settings, { ownerId: owner.ownerId, annotationTypeId });
+  }
+
+  /** "Selva Kabul · Gleason Pattern" — which annotator the patches on screen were made with. */
+  const provenance = computed(() =>
+    settings.source === 'annotation' && chosenSet.value
+      ? {
+          owner: chosenSet.value.owner,
+          annotationType: chosenSet.value.annotationType,
+          resource: chosenSet.value.resource,
+        }
+      : null
   );
 
-  function pickAnnotator(target: Annotator) {
-    Object.assign(settings, chooseAnnotator(target, settings));
-  }
-  function pickLabelSet(target: LabelSet) {
-    Object.assign(settings, chooseLabelSet(target));
+  /** Where the chosen annotator has labels, for going there from an image without any. */
+  const imagesWithSet = computed(() => {
+    const ids = chosenSet.value?.imageIds;
+    if (!ids) return null;
+    const at = image.value ? ids.indexOf(image.value.id) : -1;
+    return { total: ids.length, position: at === -1 ? null : at + 1 };
+  });
+  const neighbour = (step: 1 | -1) =>
+    chosenSet.value ? neighbourImage(chosenSet.value, image.value?.id ?? null, step) : null;
+
+  async function loadCatalog(workspaceId: string) {
+    workspaceSets.value = null;
+    catalogLoading.value = true;
+    try {
+      const rows = await repositories.annotation.labelSetsByWorkspace(workspaceId);
+      if (settingsWorkspace !== workspaceId || !rows) return;
+
+      // Named the way dev-ingestor names them, so that the copied owner= and
+      // annotation_type= select the same label set there.
+      const people = rows.filter((r) => !r.resources.includes('imported')).map((r) => r.creatorId);
+      const unnamed = [...new Set(rows.filter((r) => !r.name).map((r) => r.annotationTypeId))];
+      const typeNames: Record<string, string> = {};
+      await Promise.all([
+        annotationStore.resolveCreatorNames(people),
+        ...unnamed.map(async (id) => {
+          try {
+            typeNames[id] = (await repositories.annotationType.getById(id)).name;
+          } catch {
+            // The id stands in for the name, as it does in dev-ingestor.
+          }
+        }),
+      ]);
+      if (settingsWorkspace !== workspaceId) return;
+
+      const ownerName = (r: (typeof rows)[number]) =>
+        annotationStore.userNames[r.creatorId] ||
+        (r.resources.includes('imported') ? 'imported' : r.creatorId);
+      const nameCount = new Map<string, Set<string>>();
+      for (const r of rows) {
+        const name = ownerName(r);
+        if (!nameCount.has(name)) nameCount.set(name, new Set());
+        nameCount.get(name)!.add(r.creatorId);
+      }
+      workspaceSets.value = rows.map((r) => {
+        const name = ownerName(r);
+        return {
+          ownerId: r.creatorId,
+          // Two ids sharing one name are kept apart, as dev-ingestor does.
+          owner: nameCount.get(name)!.size > 1 ? `${name} [${r.creatorId}]` : name,
+          annotationTypeId: r.annotationTypeId,
+          annotationType: r.name || typeNames[r.annotationTypeId] || r.annotationTypeId,
+          resource: [...r.resources].sort().join('|'),
+          polygons: r.polygonCount,
+          imageIds: r.imageIds,
+        };
+      });
+    } catch {
+      // The choice then works from the image on screen; loading the image reports its own errors.
+    } finally {
+      if (settingsWorkspace === workspaceId) catalogLoading.value = false;
+    }
   }
 
   /** Polygons of the chosen label set are smaller than the patch: a grid cannot label them. */
@@ -209,17 +324,18 @@ export function usePatchGrid() {
       if (!tissueUsable.value)
         return 'Doku maskesi reddedilmiş; reddedilen maske patch üretiminde kullanılmaz.';
     } else {
-      switch (resolution.value.status) {
-        case 'no-annotations':
-          return 'Bu görüntüde poligonlu annotation yok.';
-        case 'choose-annotator':
-          return 'Kimin etiketleriyle çalışacağınızı seçin.';
-        case 'choose-type':
-          return `${resolution.value.annotator.owner} için annotation türünü seçin.`;
-        case 'annotator-absent':
-          return `Bu görüntüde ${settings.ownerName ?? 'seçili annotator'} tarafından çizilmiş poligon yok; dev-ingestor bu görüntüyü atlar.`;
-        case 'type-absent':
-          return `${resolution.value.annotator.owner} bu görüntüde "${settings.annotationTypeName ?? 'seçili tür'}" türünde poligon çizmemiş; dev-ingestor bu görüntüyü atlar.`;
+      const chosen = selection.value;
+      if (catalogLoading.value && chosen.status !== 'chosen') return null;
+      if (chosen.status === 'empty') return "Bu workspace'te poligonlu annotation yok.";
+      if (chosen.status === 'choose-annotator')
+        return "Annotator seçin: patch'ler tek bir annotator'ın etiketlerinden çıkarılır.";
+      if (chosen.status === 'choose-type')
+        return `${chosen.annotator.owner} için annotation türünü seçin.`;
+      if (!labelSet.value) {
+        const where = imagesWithSet.value
+          ? ` Bu workspace'te ${imagesWithSet.value.total} görüntüde var.`
+          : '';
+        return `${chosen.set.owner} bu görüntüde "${chosen.set.annotationType}" türünde poligon çizmemiş; dev-ingestor bu görüntüyü atlar.${where}`;
       }
     }
     return null;
@@ -232,12 +348,10 @@ export function usePatchGrid() {
   const snippet = computed(() =>
     pythonSnippet(
       settings,
-      // The names of the choice, so the snippet is the same on an image that lacks the set.
-      labelSet.value
-        ? { owner: labelSet.value.owner, annotationType: labelSet.value.annotationType }
-        : settings.ownerName && settings.annotationTypeName
-          ? { owner: settings.ownerName, annotationType: settings.annotationTypeName }
-          : null
+      chosenSet.value && {
+        owner: chosenSet.value.owner,
+        annotationType: chosenSet.value.annotationType,
+      }
     )
   );
 
@@ -312,6 +426,8 @@ export function usePatchGrid() {
     if (next.wsId !== settingsWorkspace) {
       settingsWorkspace = next.wsId;
       Object.assign(settings, loadSettings(next.wsId));
+      // Not awaited: the annotators of the workspace arrive while the image loads.
+      void loadCatalog(next.wsId);
     }
 
     const isCurrent = () => image.value?.id === next.id;
@@ -476,9 +592,14 @@ export function usePatchGrid() {
     sets,
     annotators,
     annotator,
+    catalogLoading,
+    chosenSet,
+    provenance,
+    imagesWithSet,
+    neighbour,
     labelSet,
     pickAnnotator,
-    pickLabelSet,
+    pickType,
     polygonsSmallerThanPatch,
     slideSize,
     baseMpp,
@@ -503,9 +624,7 @@ export function usePatchGrid() {
       Object.assign(settings, DEFAULT_SETTINGS, {
         // Thresholds and target go back to the defaults; whose labels stays as chosen.
         ownerId: settings.ownerId,
-        ownerName: settings.ownerName,
         annotationTypeId: settings.annotationTypeId,
-        annotationTypeName: settings.annotationTypeName,
       }),
   };
 }

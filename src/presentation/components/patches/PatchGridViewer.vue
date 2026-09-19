@@ -9,7 +9,13 @@
       class="absolute z-10 pointer-events-none rounded-lg bg-gray-900/90 px-2.5 py-2 text-[11px] leading-snug text-white shadow-lg"
       :style="tooltipStyle"
     >
-      <PatchFacts :cells="grid.cells.value" :index="hover.index" :label-colors="labelColors" dark />
+      <PatchFacts
+        :cells="grid.cells.value"
+        :index="hover.index"
+        :label-colors="labelColors"
+        :provenance="provenance"
+        dark
+      />
     </div>
   </div>
 </template>
@@ -34,6 +40,7 @@ const props = defineProps<{
   showAnnotations: boolean;
   fillOpacity: number;
   selectedIndex: number | null;
+  provenance: string | null;
 }>();
 
 const emit = defineEmits<{ select: [index: number | null] }>();
