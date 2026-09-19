@@ -167,6 +167,7 @@ import { computed, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useImageStore } from '@/stores/image';
+import type { Capability } from '@/core/auth/permissions';
 
 const authStore = useAuthStore();
 const imageStore = useImageStore();
@@ -186,14 +187,16 @@ function closeDropdown() {
   isDropdownOpen.value = false;
 }
 
-const navigation = [
+const navigation: { name: string; routeName: string; capability?: Capability }[] = [
   { name: 'Veri Etiketleyici', routeName: 'Annotator' },
   { name: 'Veri Seti Oluşturucu', routeName: 'WorkspaceList' },
   { name: 'İstatistik', routeName: 'Statistics' },
-  { name: 'Doku Maskeleri', routeName: 'TissueMasks', adminOnly: true },
+  { name: 'Doku Maskeleri', routeName: 'TissueMasks', capability: 'tissue.access' },
 ];
 
-const visibleNavigation = computed(() => navigation.filter((item) => !item.adminOnly || isAdmin.value));
+const visibleNavigation = computed(() =>
+  navigation.filter((item) => !item.capability || authStore.can(item.capability))
+);
 
 async function handleLogout() {
   closeDropdown();

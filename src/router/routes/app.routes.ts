@@ -25,7 +25,7 @@ const appRoutes: RouteRecordRaw = {
       path: 'tissue',
       name: 'TissueMasks',
       component: () => import('@/presentation/views/tissue/TissueMaskView.vue'),
-      meta: { requiresAdmin: true },
+      meta: { capability: 'tissue.access' },
     },
     {
       path: 'istatistikler',

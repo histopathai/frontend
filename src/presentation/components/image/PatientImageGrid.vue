@@ -4,7 +4,7 @@
       class="flex flex-wrap items-center justify-between gap-4 bg-white p-3 rounded-lg border border-gray-200"
     >
       <div class="flex items-center text-sm text-gray-600">
-        <div class="flex items-center mr-4 pr-4 border-r border-gray-200">
+        <div v-if="canWrite" class="flex items-center mr-4 pr-4 border-r border-gray-200">
           <input
             type="checkbox"
             id="select-all-images"
@@ -90,9 +90,9 @@
             ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50'
             : 'border-gray-200'
         "
-        @click="toggleSelection(img.id)"
+        @click="canWrite && toggleSelection(img.id)"
       >
-        <div class="absolute top-2 left-2 z-10">
+        <div v-if="canWrite" class="absolute top-2 left-2 z-10">
           <input
             type="checkbox"
             :value="img.id"
@@ -103,6 +103,7 @@
         </div>
 
         <div
+          v-if="canWrite"
           class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1"
         >
           <button
@@ -266,6 +267,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useImageList } from '@/presentation/composables/image/useImageList';
 import { useImageStore } from '@/stores/image';
+import { useAuthStore } from '@/stores/auth';
 import DeleteConfirmationModal from '@/presentation/components/common/DeleteConfirmationModal.vue';
 
 const props = defineProps({
@@ -273,6 +275,10 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['transfer', 'batch-transfer']);
+
+// Read-only groups (data scientists) browse the dataset; selection and the
+// actions behind it are for groups that may change records.
+const canWrite = computed(() => useAuthStore().can('dataset.write'));
 const imageStore = useImageStore();
 
 const {

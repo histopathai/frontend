@@ -371,6 +371,10 @@ onMounted(() => {
   };
 
   onAnnotationSelected.value = (annotation: any) => {
+    // Selecting opens the tag editor. A read-only group has nothing to edit;
+    // the label on the polygon already shows its tags and who drew it.
+    if (!authStore.can('labeling.write')) return;
+
     // If we just clicked 'Edit Points', skip opening the modal once
     if ((window as any)._skipAnnotationModal) {
       (window as any)._skipAnnotationModal = false;

@@ -37,7 +37,7 @@
             <tr>
               <th scope="col" class="px-6 py-3 w-10">
                 <input
-                  v-if="patients.length > 0"
+                  v-if="canWrite && patients.length > 0"
                   type="checkbox"
                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                   :checked="isAllSelected"
@@ -78,6 +78,7 @@
             >
               <td class="px-6 py-4 whitespace-nowrap" @click.stop>
                 <input
+                  v-if="canWrite"
                   type="checkbox"
                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                   :value="patient.id"
@@ -113,6 +114,7 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" @click.stop>
                 <div
+                  v-if="canWrite"
                   class="flex justify-end items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <button
@@ -260,16 +262,22 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { usePatientList } from '@/presentation/composables/patient/usePatientList';
 
 import EditPatientModal from '@/presentation/components/patient/EditPatientModal.vue';
 import TransferPatientModal from '@/presentation/components/patient/TransferPatientModal.vue';
 import DeleteConfirmationModal from '@/presentation/components/common/DeleteConfirmationModal.vue';
+import { useAuthStore } from '@/stores/auth';
 
 const props = defineProps({
   workspaceId: { type: String, required: true },
 });
+
+// Read-only groups (data scientists) browse the dataset; selection and the
+// actions behind it are for groups that may change records.
+const canWrite = computed(() => useAuthStore().can('dataset.write'));
 
 const router = useRouter();
 const {

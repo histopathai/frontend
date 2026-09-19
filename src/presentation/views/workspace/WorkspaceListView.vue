@@ -7,7 +7,7 @@
           {{ t('workspace.list.search_placeholder') }}
         </p>
       </div>
-      <button @click="openCreateModal" class="btn btn-primary">
+      <button v-if="canWrite" @click="openCreateModal" class="btn btn-primary">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
@@ -63,6 +63,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, shallowRef } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
+import { useAuthStore } from '@/stores/auth';
 import { repositories } from '@/services';
 import type { Workspace } from '@/core/entities/Workspace';
 import { useI18n } from 'vue-i18n';
@@ -71,6 +72,8 @@ import WorkspaceFormModal from '@/presentation/components/workspace/WorkspaceFor
 import DeleteConfirmationModal from '@/presentation/components/common/DeleteConfirmationModal.vue';
 
 const store = useWorkspaceStore();
+// Read-only groups (data scientists) browse the dataset; they get no create, edit or delete.
+const canWrite = computed(() => useAuthStore().can('dataset.write'));
 const { t } = useI18n();
 const isModalOpen = ref(false);
 const selectedWorkspace = shallowRef<Workspace | null>(null);

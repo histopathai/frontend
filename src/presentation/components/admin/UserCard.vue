@@ -66,14 +66,11 @@
       </div>
 
       <div class="mt-6 flex flex-wrap gap-2 border-t border-gray-100 pt-4">
-        <button
+        <ApproveWithRole
           v-if="user.needsApproval()"
-          @click="$emit('approve', user.userId)"
           :disabled="loading"
-          class="btn btn-primary btn-sm"
-        >
-          Onayla
-        </button>
+          @approve="(role) => $emit('approve', user.userId, role)"
+        />
         <button
           v-if="user.status.isSuspended()"
           @click="$emit('approve', user.userId)"
@@ -92,14 +89,24 @@
           Askıya Al
         </button>
 
-        <button
-          v-if="!user.role.isAdmin() && user.status.isActive()"
-          @click="$emit('makeAdmin', user.userId)"
-          :disabled="loading"
-          class="btn btn-primary btn-sm"
+        <!-- Nobody changes their own role (the server refuses it too), so the
+             last admin cannot demote themselves out of this panel. -->
+        <label
+          v-if="user.status.isActive() && !isSelf"
+          class="inline-flex items-center gap-1.5 text-sm text-gray-600"
         >
-          Admin Yap
-        </button>
+          Grup
+          <select
+            :value="user.role.toString()"
+            :disabled="loading"
+            class="rounded-md border-gray-300 py-1 pl-2 pr-7 text-sm text-gray-700 focus:border-indigo-500 focus:ring-indigo-500"
+            @change="onRoleChange"
+          >
+            <option v-for="role in ASSIGNABLE_ROLES" :key="role" :value="role">
+              {{ UserRole.fromString(role).toDisplayString() }}
+            </option>
+          </select>
+        </label>
 
         <!-- Veri erişimi platform rolünden bağımsızdır: kullanıcıyı okuyucu
              grubuna ekler/çıkarır, IAM politikasına dokunmaz. -->
@@ -127,8 +134,10 @@
 <script setup lang="ts">
 import type { PropType } from 'vue';
 import type { User } from '@/core/entities/User';
+import { ASSIGNABLE_ROLES, UserRole } from '@/core/value-objects/UserRole';
+import ApproveWithRole from './ApproveWithRole.vue';
 
-defineProps({
+const props = defineProps({
   user: {
     type: Object as PropType<User>,
     required: true,
@@ -137,9 +146,23 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  /** The card of the signed-in admin: their own role is not theirs to change. */
+  isSelf: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-defineEmits(['approve', 'suspend', 'makeAdmin', 'toggleDataAccess']);
+const emit = defineEmits(['approve', 'suspend', 'changeRole', 'toggleDataAccess']);
+
+function onRoleChange(event: Event) {
+  const select = event.target as HTMLSelectElement;
+  const role = select.value;
+  // The parent asks for confirmation; until the store answers, the select
+  // keeps showing the role the user actually has.
+  select.value = props.user.role.toString();
+  emit('changeRole', props.user.userId, role);
+}
 
 function formatDate(date: Date) {
   return new Date(date).toLocaleDateString('tr-TR', {

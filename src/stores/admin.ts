@@ -2,7 +2,7 @@ import { ref, shallowRef } from 'vue';
 import { defineStore } from 'pinia';
 import { repositories } from '@/services';
 import type { User } from '@/core/entities/User';
-import { UserRole } from '@/core/value-objects/UserRole';
+import type { UserRoleValue } from '@/core/value-objects/UserRole';
 import { useToast } from 'vue-toastification';
 import type { Pagination } from '@/core/types/common';
 import { i18n } from '@/i18n';
@@ -43,11 +43,12 @@ export const useAdminStore = defineStore('admin', () => {
     }
   }
 
-  async function approveUser(uid: string) {
+  /** `role` places a new user in a group; omit it to reactivate a suspended one. */
+  async function approveUser(uid: string, role?: 'pathologist' | 'datascientist') {
     loading.value = true;
     error.value = null;
     try {
-      const updatedUser = await adminRepo.approveUser(uid, { role: UserRole.user() });
+      const updatedUser = await adminRepo.approveUser(uid, role);
       updateUserInState(updatedUser);
       toast.success(t('admin.user_approved'));
     } catch (err: any) {
@@ -75,15 +76,16 @@ export const useAdminStore = defineStore('admin', () => {
     }
   }
 
-  async function makeAdmin(uid: string) {
+  async function setRole(uid: string, role: Exclude<UserRoleValue, 'unassigned'>) {
     loading.value = true;
     error.value = null;
     try {
-      const updatedUser = await adminRepo.makeAdmin(uid);
+      const updatedUser = await adminRepo.setRole(uid, role);
       updateUserInState(updatedUser);
-      toast.success(t('admin.user_made_admin'));
+      toast.success(t('admin.user_role_changed'));
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || t('admin.user_make_admin_failed');
+      // The server says why (own role, inactive user); ApiClient rejects with { message, status }.
+      const errorMessage = err?.message || t('admin.user_role_change_failed');
       error.value = errorMessage;
       toast.error(errorMessage);
     } finally {
@@ -148,7 +150,7 @@ export const useAdminStore = defineStore('admin', () => {
     fetchAllUsers,
     approveUser,
     suspendUser,
-    makeAdmin,
+    setRole,
     deleteUser,
     setDataAccess,
     refreshDataAccess,

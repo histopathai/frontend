@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { repositories } from '@/services';
 import { Session } from '@/core/entities/Session';
 import { User } from '@/core/entities/User';
+import { can as roleCan, type Capability } from '@/core/auth/permissions';
 import type { BackendRegisterRequest } from '@/core/repositories/IAuthRepository';
 import router from '@/router';
 import { useToast } from 'vue-toastification';
@@ -22,6 +23,11 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoading = computed(() => loading.value);
   const isAdmin = computed(() => user.value?.role.isAdmin() ?? false);
   const isApproved = computed(() => user.value?.adminApproved ?? false);
+
+  /** Whether the signed-in user's group has this capability; reactive in templates and computeds. */
+  function can(capability: Capability): boolean {
+    return roleCan(user.value?.role.toString(), capability);
+  }
 
   // --- EKLENEN KISIM: Token Getter ---
   // Session ID'yi token olarak dışarı açıyoruz.
@@ -276,6 +282,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading,
     isAdmin,
     isApproved,
+    can,
     userInitials,
     token,
 
