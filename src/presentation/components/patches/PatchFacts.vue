@@ -22,10 +22,6 @@
       <dt :class="muted">{{ label === null ? 'doku kaplama' : 'etiket kaplama' }}</dt>
       <dd>{{ percent(cells.coverage[index]!) }}</dd>
       <template v-if="label !== null">
-        <template v-if="provenance">
-          <dt :class="muted">annotator</dt>
-          <dd class="font-bold">{{ provenance }}</dd>
-        </template>
         <dt :class="muted">saflık</dt>
         <dd>
           {{ percent(cells.purity[index]!) }}
@@ -78,8 +74,6 @@ const props = defineProps<{
   cells: PatchCells;
   index: number;
   labelColors: string[];
-  /** Whose labels the patch was made from — "owner · annotation type". */
-  provenance?: string | null;
   /** On a dark background (the hover tooltip). */
   dark?: boolean;
 }>();

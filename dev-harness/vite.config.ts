@@ -25,14 +25,8 @@ export default defineConfig({
           const file = path.normalize(
             path.join(tiles, decodeURIComponent((req.url ?? '').split('?')[0]!))
           );
-          if (!file.startsWith(tiles)) return next();
-          if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
-            // Slides taken from the mirror carry only their coarse levels; deeper tiles are plain grey.
-            const blank = path.join(tiles, 'blank.jpg');
-            if (!file.endsWith('.jpg') || !fs.existsSync(blank)) return next();
-            res.setHeader('Content-Type', 'image/jpeg');
-            return void fs.createReadStream(blank).pipe(res);
-          }
+          if (!file.startsWith(tiles) || !fs.existsSync(file) || !fs.statSync(file).isFile())
+            return next();
           res.setHeader('Content-Type', TYPES[path.extname(file)] ?? 'application/octet-stream');
           fs.createReadStream(file).pipe(res);
         });

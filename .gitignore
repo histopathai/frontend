@@ -50,4 +50,3 @@ coverage
 __screenshots__/
 # Patch grid harness: generated slides (python dev-harness/generate_data.py)
 dev-harness/data
-dev-harness/__pycache__

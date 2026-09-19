@@ -8,15 +8,6 @@ python dev-harness/generate_data.py   # bir kez: sentetik slaytlar → dev-harne
 npm run harness                       # http://localhost:5199/dev-harness/patch-grid.html
 ```
 
-Gerçek maske ve annotation'larla denemek için (dev-ingestor'ın yerel aynasından okur, buluta dokunmaz):
-
-```bash
-python dev-harness/from_mirror.py Zenodo-Dataset Gleason_CNN --images 4
-```
-
-Slayt pikselleri okunmaz: karolar doku maskesinden çizilir (en fazla 4096 px; daha derin zoom'da düz gri karo),
-poligonlar ve onlardan hesaplanan her şey gerçektir. Her annotator'dan görüntü seçer. `histopathai` paketi gerekir.
-
 `generate_data.py` Pillow ve numpy ister (`ml/.venv/bin/python` ikisini de içerir).
 
 | Görüntü | Ne gösterir |

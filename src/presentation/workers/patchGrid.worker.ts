@@ -109,7 +109,6 @@ scope.onmessage = (event) => {
       regions: new Map(),
     };
     scope.postMessage({ type: 'geometry', imageKey: msg.imageKey, labelSets: sets });
-    warmUp(msg.imageKey, Object.keys(geometry.labelSets));
     return;
   }
   latest = msg;
@@ -118,35 +117,6 @@ scope.onmessage = (event) => {
     setTimeout(run, 0);
   }
 };
-
-/** The label regions of a set: built once per image, on first use or by the warm-up. */
-function regionsOf(current: Geometry, key: string) {
-  let built = current.regions.get(key);
-  if (!built) {
-    const report = newReport();
-    built = { ...labelRegions(current.labelSets[key]!, report), unresolved: report.unresolved };
-    current.regions.set(key, built);
-  }
-  return built;
-}
-
-/**
- * Builds the label regions of every annotator of the image ahead of time, one
- * set per turn of the event loop so that a compute request never waits behind
- * the whole lot. Switching the annotator while looking at an image then costs
- * the grid only, not the uniting of that annotator's polygons first.
- */
-function warmUp(imageKey: string, keys: string[]) {
-  const next = () => {
-    const current = geometry;
-    if (!current || current.key !== imageKey) return; // the user moved on
-    const key = keys.find((k) => !current.regions.has(k));
-    if (key === undefined) return;
-    if (!latest) regionsOf(current, key); // a pending grid goes first
-    setTimeout(next, 0);
-  };
-  setTimeout(next, 0);
-}
 
 function run() {
   scheduled = false;
@@ -201,7 +171,12 @@ function compute(req: Extract<PatchWorkerRequest, { type: 'compute' }>): PatchWo
   } else {
     const polygons = req.labelSetKey ? geometry.labelSets[req.labelSetKey] : undefined;
     if (!polygons) throw new Error('Etiket kümesi seçilmedi');
-    const built = regionsOf(geometry, req.labelSetKey!);
+    let built = geometry.regions.get(req.labelSetKey!);
+    if (!built) {
+      const report = newReport();
+      built = { ...labelRegions(polygons, report), unresolved: report.unresolved };
+      geometry.regions.set(req.labelSetKey!, built);
+    }
     unresolved += built.unresolved;
     if (req.placement === 'grid') {
       cells = gridAnnotations(built.labels, built.regions, spec, slide, geometry.tissue);
