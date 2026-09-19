@@ -32,8 +32,15 @@ export const useAdminStore = defineStore('admin', () => {
     loading.value = true;
     error.value = null;
     try {
-      const result = await adminRepo.getAllUsers(pagination);
-      users.value = result.data;
+      // auth-service caps a page at 100: keep asking until a page comes back short,
+      // or users beyond the first hundred would never show up.
+      const all: User[] = [];
+      for (let offset = pagination.offset; ; offset += pagination.limit) {
+        const page = await adminRepo.getAllUsers({ ...pagination, offset });
+        all.push(...page.data);
+        if (page.data.length < pagination.limit) break;
+      }
+      users.value = all;
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || t('admin.users_fetch_failed');
       error.value = errorMessage;
