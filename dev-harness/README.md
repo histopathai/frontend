@@ -22,3 +22,10 @@ npm run harness                       # http://localhost:5199/dev-harness/patch-
 `main.ts` sekmenin yaptığı dört repository çağrısını `data/api.json`'dan cevaplar (annotation'lar
 main-service gibi 100'lük sayfalarla); `vite.config.ts` karo proxy'sinin yolunu (`/api/v1/proxy/...`)
 `data/tiles`'tan sunar. Production build'e hiçbir şey girmez.
+
+## Kullanıcı Yönetimi
+
+`http://localhost:5199/dev-harness/users.html` — admin kullanıcı listesini 130 uydurma kullanıcıyla açar (100'lük
+sayfalamayı da sınar). Admin repository'si bellekte sahtedir: onay, askıya alma ve grup değiştirme çalışır,
+hiçbir şey sayfanın dışına çıkmaz. Veri üretmek gerekmez.
+

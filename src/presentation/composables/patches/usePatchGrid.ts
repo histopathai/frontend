@@ -3,13 +3,20 @@ import type { Image } from '@/core/entities/Image';
 import type { TissueMask } from '@/core/entities/TissueMask';
 import {
   DEFAULT_THRESHOLDS,
+  NO_CHOICE,
+  annotators as listAnnotators,
+  chooseAnnotator,
+  chooseLabelSet,
   describeSpec,
   filterCells,
   isUpsampled,
   patchSpec,
   patchSummary,
   pythonSnippet,
+  resolveLabelSet,
   type AnnotationInput,
+  type Annotator,
+  type LabelSetChoice,
   type LabelSet,
   type PatchCells,
   type PatchParams,
@@ -25,10 +32,9 @@ import { useAnnotationStore } from '@/stores/annotation';
 
 export type ColorBy = 'label' | 'coverage' | 'purity' | 'tissueCoverage' | 'inside';
 
-export interface PatchGridSettings extends PatchParams {
+/** Whose labels and of which type (`LabelSetChoice`) is part of the settings: it belongs to the workspace. */
+export interface PatchGridSettings extends PatchParams, LabelSetChoice {
   colorBy: ColorBy;
-  /** `${ownerId}\u0000${annotationTypeId}` — stable across images of a workspace. */
-  labelSetKey: string | null;
 }
 
 const DEFAULT_SETTINGS: PatchGridSettings = {
@@ -40,7 +46,7 @@ const DEFAULT_SETTINGS: PatchGridSettings = {
   merge: false,
   ...DEFAULT_THRESHOLDS,
   colorBy: 'coverage',
-  labelSetKey: null,
+  ...NO_CHOICE,
 };
 
 const STORAGE_PREFIX = 'patch-grid:settings:';
@@ -49,8 +55,13 @@ const PAGE = 100; // main-service caps a page at 100
 function loadSettings(workspaceId: string | null): PatchGridSettings {
   if (!workspaceId) return { ...DEFAULT_SETTINGS };
   try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_PREFIX + workspaceId) || 'null');
-    return { ...DEFAULT_SETTINGS, ...(stored ?? {}) };
+    const stored = JSON.parse(localStorage.getItem(STORAGE_PREFIX + workspaceId) || 'null') ?? {};
+    // Saved by the first release as one key, `${ownerId}\u0000${annotationTypeId}`.
+    const { labelSetKey, ...rest } = stored;
+    if (typeof labelSetKey === 'string' && !rest.ownerId) {
+      [rest.ownerId, rest.annotationTypeId] = labelSetKey.split('\u0000');
+    }
+    return { ...DEFAULT_SETTINGS, ...rest };
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
@@ -159,14 +170,23 @@ export function usePatchGrid() {
   const specText = computed(() => (spec.value ? describeSpec(spec.value) : ''));
   const upsampled = computed(() => !!spec.value && isUpsampled(spec.value));
 
-  // `settings.labelSetKey` is what the user chose, and only a click changes it:
-  // an image that lacks that set must not erase the choice for the images after
-  // it. Where an image has a single set there is nothing to choose, so it is used.
-  const labelSet = computed(
-    () =>
-      sets.value.find((s) => s.key === settings.labelSetKey) ??
-      (sets.value.length === 1 ? sets.value[0]! : null)
+  // Whose labels, of which type. The choice in `settings` is the user's and only a
+  // click changes it: an image that lacks the chosen label set does not get
+  // somebody else's labels instead — dev-ingestor would skip that image too.
+  const annotators = computed<Annotator[]>(() => listAnnotators(sets.value));
+  const resolution = computed(() => resolveLabelSet(sets.value, settings));
+  const labelSet = computed(() => (resolution.value.status === 'ok' ? resolution.value.set : null));
+  /** The annotator whose types are on offer: the one in use, or the one still missing a type. */
+  const annotator = computed(() =>
+    'annotator' in resolution.value ? resolution.value.annotator : null
   );
+
+  function pickAnnotator(target: Annotator) {
+    Object.assign(settings, chooseAnnotator(target, settings));
+  }
+  function pickLabelSet(target: LabelSet) {
+    Object.assign(settings, chooseLabelSet(target));
+  }
 
   /** Polygons of the chosen label set are smaller than the patch: a grid cannot label them. */
   const polygonsSmallerThanPatch = computed(() => {
@@ -188,12 +208,19 @@ export function usePatchGrid() {
       if (!mask.value) return 'Bu görüntünün doku maskesi yok.';
       if (!tissueUsable.value)
         return 'Doku maskesi reddedilmiş; reddedilen maske patch üretiminde kullanılmaz.';
-    } else if (!sets.value.length) {
-      return 'Bu görüntüde poligonlu annotation yok.';
-    } else if (!labelSet.value) {
-      return settings.labelSetKey
-        ? 'Seçtiğiniz etiket kümesi bu görüntüde yok; buradakilerden birini seçin.'
-        : 'Bir etiket kümesi seçin.';
+    } else {
+      switch (resolution.value.status) {
+        case 'no-annotations':
+          return 'Bu görüntüde poligonlu annotation yok.';
+        case 'choose-annotator':
+          return 'Kimin etiketleriyle çalışacağınızı seçin.';
+        case 'choose-type':
+          return `${resolution.value.annotator.owner} için annotation türünü seçin.`;
+        case 'annotator-absent':
+          return `Bu görüntüde ${settings.ownerName ?? 'seçili annotator'} tarafından çizilmiş poligon yok; dev-ingestor bu görüntüyü atlar.`;
+        case 'type-absent':
+          return `${resolution.value.annotator.owner} bu görüntüde "${settings.annotationTypeName ?? 'seçili tür'}" türünde poligon çizmemiş; dev-ingestor bu görüntüyü atlar.`;
+      }
     }
     return null;
   });
@@ -205,10 +232,12 @@ export function usePatchGrid() {
   const snippet = computed(() =>
     pythonSnippet(
       settings,
-      labelSet.value && {
-        owner: labelSet.value.owner,
-        annotationType: labelSet.value.annotationType,
-      }
+      // The names of the choice, so the snippet is the same on an image that lacks the set.
+      labelSet.value
+        ? { owner: labelSet.value.owner, annotationType: labelSet.value.annotationType }
+        : settings.ownerName && settings.annotationTypeName
+          ? { owner: settings.ownerName, annotationType: settings.annotationTypeName }
+          : null
     )
   );
 
@@ -445,7 +474,11 @@ export function usePatchGrid() {
     mask,
     tissueUsable,
     sets,
+    annotators,
+    annotator,
     labelSet,
+    pickAnnotator,
+    pickLabelSet,
     polygonsSmallerThanPatch,
     slideSize,
     baseMpp,
@@ -467,7 +500,13 @@ export function usePatchGrid() {
     load,
     setSlideSize,
     resetSettings: () =>
-      Object.assign(settings, DEFAULT_SETTINGS, { labelSetKey: settings.labelSetKey }),
+      Object.assign(settings, DEFAULT_SETTINGS, {
+        // Thresholds and target go back to the defaults; whose labels stays as chosen.
+        ownerId: settings.ownerId,
+        ownerName: settings.ownerName,
+        annotationTypeId: settings.annotationTypeId,
+        annotationTypeName: settings.annotationTypeName,
+      }),
   };
 }
 

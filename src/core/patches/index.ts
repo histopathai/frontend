@@ -3,6 +3,7 @@ export * from './geometry';
 export * from './boolean';
 export * from './cells';
 export * from './annotations';
+export * from './selection';
 export * from './grid';
 export * from './center';
 export * from './report';

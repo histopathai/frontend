@@ -62,6 +62,13 @@ def resection():
     ]
     annotations = [ann(f"r{i:03d}", "at-pattern", "Gleason Pattern", owner, "manual", label, poly)
                    for i, (owner, label, poly) in enumerate(regions)]
+    # one annotator with a second annotation type …
+    annotations += [ann("t000", "at-tumor", "Tümör Bölgesi", "u-ayse", "manual", "tümör", blob(9000, 7600, 4300, 200, 41)),
+                    ann("t001", "at-tumor", "Tümör Bölgesi", "u-ayse", "manual", "nekroz", blob(12900, 8800, 700, 80, 42))]
+    # … and labels that came with the dataset, next to the people's
+    annotations += [ann(f"i{k:03d}", "at-score", f"dataset_{k % 3}.json", "imported-placeholder", "imported",
+                        "G4" if k % 2 else "G3", blob(10400 + 330 * (k % 5), 4300 + 330 * (k // 5), 120, 12, 50 + k))
+                    for k in range(20)]
     return {"id": "img-resection", "name": "resection_01.svs", "width": w, "height": h, "mpp": 0.25,
             "label": "40x", "tissue": tissue, "status": "approved", "annotations": annotations,
             "glands": []}
@@ -136,7 +143,7 @@ def write_dzi(slide, folder: Path):
                     for hole in piece["holes"]:
                         draw.polygon(local(hole), fill=(244, 241, 243))
                 for a in slide["annotations"]:
-                    if not slide["glands"]:                         # tumour regions: a denser, darker stroma
+                    if not slide["glands"] and a["annotation_type_id"] == "at-pattern":   # tumour regions: a denser, darker stroma
                         pts = [(p["x"], p["y"]) for p in a["polygon"]]
                         draw.polygon(local(pts), fill=(196, 128, 176))
                 for poly in slide["glands"]:
@@ -195,6 +202,7 @@ if __name__ == "__main__":
     (OUT / "api.json").write_text(json.dumps({
         "images": images, "masks": masks, "annotations": annotations,
         "users": {"u-ayse": "Dr. Ayşe Demir", "u-mehmet": "Dr. Mehmet Kaya"},
-        "annotation_types": {"at-pattern": "Gleason Pattern", "at-score": "Gleason Skorlama"},
+        "annotation_types": {"at-pattern": "Gleason Pattern", "at-score": "Gleason Skorlama",
+                             "at-tumor": "Tümör Bölgesi"},
     }))
     print(f"{OUT / 'api.json'}: {len(images)} images")

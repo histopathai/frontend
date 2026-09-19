@@ -35,7 +35,10 @@ export interface LabelPolygon {
 export interface LabelSet {
   /** `${ownerId}\u0000${annotationTypeId}` — stable across renames. */
   key: string;
+  /** `creator_id` of the annotations — the placeholder id for an imported dataset. */
+  ownerId: string;
   owner: string;
+  annotationTypeId: string;
   annotationType: string;
   resource: string;
   polygons: LabelPolygon[];
@@ -141,7 +144,9 @@ export function labelSets(polygons: LabelPolygon[], baseMpp: number | null): Lab
     for (const p of group) counts.set(p.label, (counts.get(p.label) ?? 0) + 1);
     sets.push({
       key,
+      ownerId: group[0]!.ownerId,
       owner: group[0]!.owner,
+      annotationTypeId: group[0]!.annotationTypeId,
       annotationType: group[0]!.annotationType,
       resource: [...new Set(group.map((p) => p.resource))].sort().join('|'),
       // A fixed order, so that no tie further down depends on the order of the input.
