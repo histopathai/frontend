@@ -28,6 +28,12 @@ const appRoutes: RouteRecordRaw = {
       meta: { capability: 'tissue.access' },
     },
     {
+      path: 'patch-grid',
+      name: 'PatchGrid',
+      component: () => import('@/presentation/views/patches/PatchGridView.vue'),
+      meta: { capability: 'patchGrid.access' },
+    },
+    {
       path: 'istatistikler',
       name: 'Statistics',
       component: () => import('@/presentation/views/dashboard/StatisticsView.vue'),

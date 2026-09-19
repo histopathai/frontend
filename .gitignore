@@ -48,3 +48,5 @@ coverage
 
 # Vitest
 __screenshots__/
+# Patch grid harness: generated slides (python dev-harness/generate_data.py)
+dev-harness/data
