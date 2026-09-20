@@ -3,6 +3,8 @@ import { tissueMaskFromApi } from '@/core/entities/TissueMask';
 import type {
   ITissueMaskRepository,
   SaveTissueMaskRequest,
+  TissueMaskSummary,
+  TissueMaskWorkspaceStats,
 } from '@/core/repositories/ITissueMaskRepository';
 import { ApiClient } from '../api/ApiClient';
 
@@ -45,6 +47,32 @@ export class TissueMaskRepository implements ITissueMaskRepository {
       { reason, expected_revision: expectedRevision }
     );
     return tissueMaskFromApi(response.data);
+  }
+
+  async listByWorkspace(workspaceId: string): Promise<TissueMaskSummary[]> {
+    const limit = 100;
+    const summaries: TissueMaskSummary[] = [];
+    for (let offset = 0; ; offset += limit) {
+      const response = await this.apiClient.get<any>(
+        `/api/v1/proxy/tissue-masks/workspace/${workspaceId}`,
+        { limit, offset }
+      );
+      const items: any[] = Array.isArray(response.data) ? response.data : [];
+      for (const item of items) summaries.push({ imageId: item.image_id, status: item.status });
+      const hasMore = response.pagination?.has_more ?? items.length === limit;
+      if (!hasMore || items.length === 0) return summaries;
+    }
+  }
+
+  async getWorkspaceStats(): Promise<TissueMaskWorkspaceStats[]> {
+    const response = await this.apiClient.get<any>('/api/v1/proxy/tissue-masks/workspace-stats');
+    const items: any[] = Array.isArray(response.data) ? response.data : [];
+    return items.map((item) => ({
+      workspaceId: item.workspace_id,
+      totalImages: item.total_images ?? 0,
+      done: item.done ?? 0,
+      remaining: item.remaining ?? 0,
+    }));
   }
 
   async getPreview(imageId: string): Promise<Blob | null> {

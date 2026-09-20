@@ -12,12 +12,16 @@
         :current-page="currentPage"
         :total-pages="totalPages"
         :has-more="hasMore"
+        :completion-mode="completionMode"
+        :hide-finished="hideFinished"
+        :patient-progress="patientProgress"
+        :is-image-finished="isImageFinished"
+        @update:hide-finished="(value: boolean) => guard(() => setHideFinished(value))"
         @workspace-selected="(ws: Workspace) => guard(() => selectWorkspace(ws))"
         @patient-selected="(p: Patient | null) => guard(() => selectPatient(p))"
         @image-selected="(img: Image) => guard(() => selectImage(img))"
         @clear-selection="guard(clearImageSelection)"
         @page-change="(page: number) => guard(() => setPage(page))"
-        @load-more="loadMorePatients"
       />
     </aside>
 
@@ -149,8 +153,13 @@ const {
   totalPages,
   hasMore,
   setPage,
-  loadMorePatients,
-} = useAnnotatorNavigation();
+  completionMode,
+  hideFinished,
+  setHideFinished,
+  patientProgress,
+  isImageFinished,
+  setMaskStatus,
+} = useAnnotatorNavigation({ completion: 'tissue' });
 
 const editor = useTissueMaskEditor();
 const viewerRef = ref<InstanceType<typeof TissueViewer> | null>(null);
@@ -167,6 +176,14 @@ watch(
   () => selectedImage.value?.id,
   () => editor.load(selectedImage.value),
   { immediate: true }
+);
+
+// Approving, rejecting or editing here changes what the sidebar counts as finished.
+watch(
+  () => editor.mask.value,
+  (mask) => {
+    if (mask) setMaskStatus(mask.imageId, mask.status);
+  }
 );
 
 // --- Unsaved changes ------------------------------------------------------------

@@ -10,21 +10,28 @@
             Çalışma Alanı
           </label>
           <button
-            @click="imageStore.hideCompletedWorkspaces = !imageStore.hideCompletedWorkspaces; emit('clear-selection')"
-            class="flex items-center gap-1 group"
-            title="Tamamlanan veri setlerini gizle"
+            v-if="completionMode !== 'none'"
+            type="button"
+            role="switch"
+            :aria-checked="hideFinished"
+            class="flex items-center gap-1.5 group"
+            :title="hideFinishedTitle"
+            @click="emit('update:hideFinished', !hideFinished)"
           >
-            <span class="text-[8px] font-black text-gray-300 uppercase tracking-tight group-hover:text-indigo-400 transition-colors">Bitenleri Gizle</span>
-            <div
-              class="relative inline-flex h-3 w-6 flex-shrink-0 cursor-pointer rounded-full border-1 border-transparent transition-colors duration-200 ease-in-out focus:outline-none shadow-sm"
-              :class="imageStore.hideCompletedWorkspaces ? 'bg-indigo-600' : 'bg-gray-200'"
+            <span
+              class="text-[8px] font-black uppercase tracking-tight transition-colors"
+              :class="hideFinished ? 'text-indigo-500' : 'text-gray-400 group-hover:text-indigo-400'"
+              >Bitenleri Gizle</span
+            >
+            <span
+              class="relative inline-flex h-3.5 w-7 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out shadow-sm"
+              :class="hideFinished ? 'bg-indigo-600' : 'bg-gray-200'"
             >
               <span
-                class="pointer-events-none inline-block h-2 w-2 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                :class="imageStore.hideCompletedWorkspaces ? 'translate-x-3' : 'translate-x-1'"
-                style="margin-top: 2px"
+                class="pointer-events-none inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                :class="hideFinished ? 'translate-x-3.5' : 'translate-x-0'"
               ></span>
-            </div>
+            </span>
           </button>
         </div>
         <div class="relative group">
@@ -34,7 +41,7 @@
             class="appearance-none block w-full pl-3 pr-8 py-2 text-xs bg-white border border-gray-300 text-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm transition-all cursor-pointer hover:border-indigo-300"
           >
             <option :value="undefined" disabled>Seçiniz...</option>
-            <option v-for="ws in filteredWorkspaces" :key="ws.id" :value="ws.id">
+            <option v-for="ws in workspaces" :key="ws.id" :value="ws.id">
               {{ ws.name }}
             </option>
           </select>
@@ -89,19 +96,6 @@
             </svg>
           </button>
         </div>
-        <div class="mt-3 flex items-center justify-between px-1">
-          <span class="text-[8px] font-black text-gray-400 uppercase tracking-tight">Biten Hastaları Gizle</span>
-          <button
-            @click="imageStore.hideCompleted = !imageStore.hideCompleted; emit('clear-selection')"
-            class="relative inline-flex h-3.5 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none shadow-sm"
-            :class="imageStore.hideCompleted ? 'bg-indigo-600' : 'bg-gray-200'"
-          >
-            <span
-              class="pointer-events-none inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-              :class="imageStore.hideCompleted ? 'translate-x-3.5' : 'translate-x-0'"
-            ></span>
-          </button>
-        </div>
       </div>
     </div>
 
@@ -133,6 +127,7 @@
             "{{ searchQuery }}" bulunamadı.
             <br />
           </span>
+          <span v-else-if="hideFinished">Bitmemiş hasta kalmadı.</span>
           <span v-else>Kayıtlı hasta bulunamadı.</span>
         </div>
 
@@ -186,7 +181,7 @@
                   <span class="text-[9px] text-gray-400 uppercase font-bold tracking-tight">
                     {{ getPatientImageCount(patient) }} GÖRÜNTÜ
                   </span>
-                  <span v-if="getPatientCompletedCount(patient) > 0" class="text-[8px] bg-indigo-50 text-indigo-600 font-black px-1.5 py-0.5 rounded-full border border-indigo-100 shadow-sm uppercase tracking-tighter">
+                  <span v-if="getPatientCompletedCount(patient) > 0" :title="finishedBadgeTitle" class="text-[8px] bg-indigo-50 text-indigo-600 font-black px-1.5 py-0.5 rounded-full border border-indigo-100 shadow-sm uppercase tracking-tighter">
                     {{ getPatientCompletedCount(patient) }} BİTTİ
                   </span>
                 </div>
@@ -222,7 +217,7 @@
             <div v-if="isSelected(patient.id)" class="overflow-hidden bg-gray-50/50 shadow-inner">
               <ul class="py-2 pl-4 pr-2 space-y-1">
                 <li v-if="images.length === 0" class="py-2 pl-9 text-xs text-gray-400 italic">
-                  Görüntü bulunamadı
+                  {{ hideFinished ? 'Bitmemiş görüntü kalmadı' : 'Görüntü bulunamadı' }}
                 </li>
 
                 <li
@@ -259,12 +254,12 @@
                           {{ image.name }}
                         </p>
                         <svg
-                          v-if="image.markedAsCompleted"
+                          v-if="isImageFinished(image)"
                           xmlns="http://www.w3.org/2000/svg"
                           viewBox="0 0 20 20"
                           fill="currentColor"
                           class="w-3.5 h-3.5 text-indigo-500 flex-shrink-0"
-                          title="İşaretleme Tamamlandı"
+                          :title="finishedBadgeTitle"
                         >
                           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
                         </svg>
@@ -296,7 +291,7 @@
         </div>
       </div>
       <!-- Greedy Loading Indicator -->
-      <div v-if="imageStore.hideCompleted && loading && filteredPatients.length > 0" class="py-4 flex justify-center border-t border-gray-50 bg-gray-50/30">
+      <div v-if="hideFinished && loading && filteredPatients.length > 0" class="py-4 flex justify-center border-t border-gray-50 bg-gray-50/30">
         <div class="flex items-center gap-2">
           <div class="animate-spin rounded-full h-3 w-3 border-2 border-indigo-500 border-t-transparent"></div>
           <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Sonraki sayfa taranıyor...</span>
@@ -306,7 +301,7 @@
 
     <!-- Pagination Footer -->
     <div
-      v-if="selectedWorkspaceId && !searchQuery && !imageStore.hideCompleted"
+      v-if="selectedWorkspaceId && !searchQuery && !hideFinished"
       class="border-t border-gray-200 bg-gray-50 p-2 flex items-center justify-between shrink-0"
     >
       <button
@@ -365,10 +360,8 @@ import type { Image } from '@/core/entities/Image';
 
 import { useAnnotationStore } from '@/stores/annotation';
 import { useAuthStore } from '@/stores/auth';
-import { useImageStore } from '@/stores/image';
-import { useWorkspaceStore } from '@/stores/workspace';
 import { ApiClient } from '@/infrastructure/api/ApiClient';
-import { usePatientStore } from '@/stores/patient';
+import type { CompletionMode, Progress } from '@/core/completion';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { AnnotationRepository } from '@/infrastructure/repositories/AnnotationRepository';
 
@@ -384,6 +377,18 @@ const props = defineProps({
   currentPage: { type: Number, default: 1 },
   totalPages: { type: Number, default: 1 },
   hasMore: { type: Boolean, default: false },
+
+  // "Bitenleri Gizle": the lists above arrive already filtered, see useCompletionFilter.
+  completionMode: { type: String as PropType<CompletionMode>, default: 'none' },
+  hideFinished: { type: Boolean, default: false },
+  patientProgress: {
+    type: Function as PropType<(patientId: string) => Progress | undefined>,
+    default: () => undefined,
+  },
+  isImageFinished: {
+    type: Function as PropType<(image: Image) => boolean>,
+    default: () => false,
+  },
 });
 
 const emit = defineEmits([
@@ -392,47 +397,32 @@ const emit = defineEmits([
   'image-selected',
   'clear-selection',
   'page-change',
-  'load-more',
+  'update:hideFinished',
 ]);
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const annotationStore = useAnnotationStore();
 const authStore = useAuthStore();
-const imageStore = useImageStore();
-const workspaceStore = useWorkspaceStore();
-const patientStore = usePatientStore();
 const annotationTypeStore = useAnnotationTypeStore();
 const apiClient = new ApiClient(API_BASE_URL);
 const annotationRepo = new AnnotationRepository(apiClient);
 
 const searchQuery = ref('');
 
-const filteredWorkspaces = computed(() => {
-  let list = props.workspaces;
-  if (imageStore.hideCompletedWorkspaces) {
-    list = list.filter((ws) => !imageStore.isWorkspaceCompleted(ws.id));
-  }
-  return list;
-});
+const hideFinishedTitle = computed(() =>
+  props.completionMode === 'tissue'
+    ? 'Maskesi onaylanan ya da reddedilen görüntüleri, bitmiş hastaları ve veri setlerini gizle'
+    : 'İşaretlemesi tamamlanan görüntüleri, bitmiş hastaları ve veri setlerini gizle'
+);
+
+const finishedBadgeTitle = computed(() =>
+  props.completionMode === 'tissue' ? 'Doku maskesi onaylandı ya da reddedildi' : 'İşaretleme Tamamlandı'
+);
 
 const filteredPatients = computed(() => {
-  let list = props.patients;
-
-  // 1. Filter by completion if toggle is active
-  if (imageStore.hideCompleted) {
-    list = list.filter((p) => {
-      const stats = patientStore.getPatientStats(p.id);
-      if (!stats) return true; // Keep if stats not yet loaded
-      // If a patient has 0 images (e.g. all deleted), treat it as completed (hide it).
-      if (stats.total === 0) return false;
-      return stats.annotated < stats.total;
-    });
-  }
-
-  // 2. Filter by search query
-  if (!searchQuery.value) return list;
+  if (!searchQuery.value) return props.patients;
   const lowerQuery = searchQuery.value.toLocaleLowerCase('tr');
-  return list.filter((p) => p.name?.toLocaleLowerCase('tr').includes(lowerQuery));
+  return props.patients.filter((p) => p.name?.toLocaleLowerCase('tr').includes(lowerQuery));
 });
 
 function isSelected(patientId: string) {
@@ -498,39 +488,13 @@ watch(
   { immediate: true, deep: true }
 );
 
-// Restore Patient stats fetching specifically for image counts
 function getPatientImageCount(patient: Patient) {
-  const stats = patientStore.getPatientStats(patient.id);
-  return stats ? stats.total : (patient.imageCount || 0);
+  return props.patientProgress?.(patient.id)?.images ?? patient.imageCount ?? 0;
 }
 
 function getPatientCompletedCount(patient: Patient) {
-  const stats = patientStore.getPatientStats(patient.id);
-  return stats ? stats.annotated : 0;
+  return props.patientProgress?.(patient.id)?.done ?? 0;
 }
-
-// Restore Patient stats fetching specifically for image counts
-watch(
-  () => props.patients,
-  async (newPatients) => {
-    if (!newPatients || newPatients.length === 0) return;
-    for (const patient of newPatients) {
-      let stats = patientStore.getPatientStats(patient.id);
-      if (!stats) {
-        try {
-          const res = await apiClient.get<any>(`/api/v1/proxy/patients/${patient.id}/images`);
-          const imgs = res.data?.data || res.data || [];
-          const completedCount = imgs.filter((img: any) => img.marked_as_completed).length;
-          patientStore.updatePatientStats(patient.id, imgs.length, completedCount);
-          stats = { total: imgs.length, annotated: completedCount };
-        } catch (e) {
-          console.error('Failed to fetch patient stats:', e);
-        }
-      }
-    }
-  },
-  { immediate: true, deep: true }
-);
 
 // Real-time annotation updates for counts
 watch(
@@ -552,45 +516,6 @@ watch(
     imageStatusMap.value[props.selectedImageId] = { polygons, globals: uniqueGlobals };
   },
   { deep: true }
-);
-
-// Greedy fetching and Frontend Exhaustion Detection for "Hide Completed" filter
-watch(
-  [filteredPatients, () => imageStore.hideCompleted, () => props.hasMore, () => props.loading, () => props.patients],
-  ([newList, hideActive, moreAvailable, isLoading, allPatients]) => {
-    if (hideActive) {
-      // 1. Greedy Load next page if we have few visible patients
-      if (newList.length < 10 && moreAvailable && !isLoading) {
-        emit('load-more');
-      }
-      
-      // 2. Frontend Exhaustion Detection: 
-      // If we have loaded all patients, and there are NO visible patients left 
-      // (meaning they are all completed or the workspace is completely empty), then this workspace is entirely completed!
-      if (!moreAvailable && !isLoading && newList.length === 0) {
-        // We ensure we only mark it if we actually attempted to load (i.e., not just initial empty state)
-        // If patientStore fetched and returned 0 patients, it's empty.
-        if (props.selectedWorkspaceId && !imageStore.isWorkspaceCompleted(props.selectedWorkspaceId)) {
-          console.log('Workspace Exhausted or Empty: Marking as locally completed', props.selectedWorkspaceId);
-          imageStore.markWorkspaceCompleted(props.selectedWorkspaceId);
-        }
-      }
-    }
-  },
-  { immediate: true }
-);
-
-// Background Scanner to clean up completely finished workspaces silently
-let hasScannedWorkspaces = false;
-watch(
-  () => props.workspaces,
-  (newWorkspaces) => {
-    if (!hasScannedWorkspaces && newWorkspaces && newWorkspaces.length > 0) {
-      hasScannedWorkspaces = true;
-      imageStore.scanWorkspacesForCompletion(newWorkspaces, apiClient);
-    }
-  },
-  { immediate: true }
 );
 </script>
 

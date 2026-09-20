@@ -38,3 +38,11 @@ main-service gibi 100'lük sayfalarla); `vite.config.ts` karo proxy'sinin yolunu
 sayfalamayı da sınar). Admin repository'si bellekte sahtedir: onay, askıya alma ve grup değiştirme çalışır,
 hiçbir şey sayfanın dışına çıkmaz. Veri üretmek gerekmez.
 
+
+## Bitenleri Gizle
+
+`http://localhost:5199/dev-harness/finished.html?mode=labeling` (`tissue`, `none`) — gerçek sidebar, gerçek
+gezinme ve store'lar; repository'ler bellekte sahte. Uydurma veri daha önce bozulan durumları taşır: 25 görüntülü
+ve en yeni 20'si bitmiş hasta (API 20'şer sayfalar), baştan sona bitmiş bir hasta sayfası, bitmiş bir veri seti ve
+listede kalması gereken görüntüsüz yeni veri seti. "İşaretleme Tamamlandı" / "Maskeyi onayla" düğmeleri sekmelerin
+yaptığını yapar; sayfa yenilenince veri başa döner. Veri üretmek gerekmez.
