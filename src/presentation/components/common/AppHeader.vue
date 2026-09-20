@@ -190,7 +190,6 @@ function closeDropdown() {
 const navigation: { name: string; routeName: string; capability?: Capability }[] = [
   { name: 'Veri Etiketleyici', routeName: 'Annotator' },
   { name: 'Veri Seti Oluşturucu', routeName: 'WorkspaceList' },
-  { name: 'İstatistik', routeName: 'Statistics' },
   { name: 'Doku Maskeleri', routeName: 'TissueMasks', capability: 'tissue.access' },
   { name: 'Patch Izgarası', routeName: 'PatchGrid', capability: 'patchGrid.access' },
 ];
