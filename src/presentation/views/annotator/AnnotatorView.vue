@@ -12,12 +12,16 @@
         :current-page="currentPage"
         :total-pages="totalPages"
         :has-more="hasMore"
+        :completion-mode="completionMode"
+        :hide-finished="hideFinished"
+        :patient-progress="patientProgress"
+        :is-image-finished="isImageFinished"
+        @update:hide-finished="setHideFinished"
         @workspace-selected="selectWorkspace"
         @patient-selected="selectPatient"
         @image-selected="selectImage"
         @clear-selection="clearImageSelection"
         @page-change="setPage"
-        @load-more="loadMorePatients"
       />
     </aside>
 
@@ -100,8 +104,12 @@ const {
   totalPages,
   hasMore,
   setPage,
-  loadMorePatients,
-} = useAnnotatorNavigation();
+  completionMode,
+  hideFinished,
+  setHideFinished,
+  patientProgress,
+  isImageFinished,
+} = useAnnotatorNavigation({ completion: 'labeling' });
 
 const totalImagesCount = computed(() => currentImages.value.length);
 

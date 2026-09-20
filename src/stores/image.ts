@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed, shallowRef, watch } from 'vue';
+import { ref, computed, shallowRef } from 'vue';
 import { repositories } from '@/services';
 import { useToast } from 'vue-toastification';
 import { useI18n } from 'vue-i18n';
@@ -69,94 +69,6 @@ export const useImageStore = defineStore('image', () => {
   const actionLoading = ref(false);
   const uploadProgress = ref(0);
   const error = ref<string | null>(null);
-  // Explicit default states requested by user
-  const hideCompleted = ref<boolean>(false); // Biten hastaları gizle -> KAPALI
-  const hideCompletedWorkspaces = ref<boolean>(true); // Biten veri setlerini gizle -> AÇIK
-
-  // Watch for changes and persist
-  watch(hideCompleted, (val) => localStorage.setItem('histo_hide_completed', String(val)));
-  watch(hideCompletedWorkspaces, (val) =>
-    localStorage.setItem('histo_hide_completed_ws', String(val))
-  );
-
-  // Frontend-only tracking of completed entities (persisted to localStorage)
-  const LOCAL_STORAGE_WS_KEY = 'histo_completed_workspaces';
-
-  const localCompletedWorkspaces = ref<Set<string>>(
-    new Set(JSON.parse(localStorage.getItem(LOCAL_STORAGE_WS_KEY) || '[]'))
-  );
-
-  const markWorkspaceCompleted = (workspaceId: string) => {
-    localCompletedWorkspaces.value.add(workspaceId);
-    localStorage.setItem(
-      LOCAL_STORAGE_WS_KEY,
-      JSON.stringify(Array.from(localCompletedWorkspaces.value))
-    );
-  };
-
-  const markWorkspaceIncomplete = (workspaceId: string) => {
-    localCompletedWorkspaces.value.delete(workspaceId);
-    localStorage.setItem(
-      LOCAL_STORAGE_WS_KEY,
-      JSON.stringify(Array.from(localCompletedWorkspaces.value))
-    );
-  };
-
-  const isWorkspaceCompleted = (workspaceId: string) => {
-    return localCompletedWorkspaces.value.has(workspaceId);
-  };
-
-  // Smart background scanner to evaluate completion status without crashing the backend
-  const scanWorkspacesForCompletion = async (workspaces: any[], apiClient: any) => {
-    for (const ws of workspaces) {
-      if (isWorkspaceCompleted(ws.id)) continue;
-
-      try {
-        let offset = 0;
-        let limit = 100;
-        let hasMore = true;
-        let hasActiveUncompleted = false;
-        let hasAnyActive = false;
-
-        while (hasMore) {
-          const res = await apiClient.get(`/api/v1/proxy/images/workspace/${ws.id}`, {
-            limit,
-            offset,
-          });
-          let images = res.data?.data || res.data || [];
-          if (!Array.isArray(images) || images.length === 0) break;
-
-          const activeImages = images.filter((img: any) => img.is_deleted !== true);
-          if (activeImages.length > 0) hasAnyActive = true;
-
-          const uncompleted = activeImages.filter((img: any) => !img.marked_as_completed);
-          if (uncompleted.length > 0) {
-            hasActiveUncompleted = true;
-            break; // Stop scanning this workspace immediately! It's not finished.
-          }
-
-          const paginationData = res.data?.pagination || res.pagination;
-          if (paginationData && paginationData.has_more === false) {
-            hasMore = false;
-          } else if (images.length < limit) {
-            hasMore = false;
-          } else {
-            offset += limit;
-          }
-        }
-
-        if (hasAnyActive && !hasActiveUncompleted) {
-          console.log(`Smart Scan: Workspace ${ws.name} is fully completed!`);
-          markWorkspaceCompleted(ws.id);
-        } else if (!hasAnyActive) {
-          console.log(`Smart Scan: Workspace ${ws.name} only has deleted/no images!`);
-          markWorkspaceCompleted(ws.id);
-        }
-      } catch (e) {
-        console.error(`Smart Scan failed for workspace ${ws.id}:`, e);
-      }
-    }
-  };
 
   const pagination = ref<Pagination>({
     limit: 100,
@@ -299,7 +211,6 @@ export const useImageStore = defineStore('image', () => {
       const result: PaginatedResult<Image> = await imageRepo.listByPatient(patientId, {
         pagination: paginationParams,
         sort: [{ field: sort.value.by, direction: sort.value.dir }],
-        filters: hideCompleted.value ? [{ field: 'marked_as_completed', operator: 'eq', value: false }] : undefined,
       });
       const currentList = imagesByPatient.value.get(patientId) || [];
       const newList = append ? [...currentList, ...result.data] : result.data;
@@ -470,11 +381,6 @@ export const useImageStore = defineStore('image', () => {
         workspaceStore.updateWorkspaceInState(Workspace.create(rawData));
       }
 
-      // If hiding completed, remove from current list view
-      if (hideCompleted.value) {
-        removeImageFromState(imageId, updatedImage.parentId);
-      }
-
       toast.success(
         t('image.messages.mark_as_completed_success') || 'Tamamlandı olarak işaretlendi'
       );
@@ -600,11 +506,6 @@ export const useImageStore = defineStore('image', () => {
     getImagesByPatientId,
     processedImages,
     fetchImageById,
-    localCompletedWorkspaces,
-    markWorkspaceCompleted,
-    markWorkspaceIncomplete,
-    isWorkspaceCompleted,
-    scanWorkspacesForCompletion,
     fetchImagesByPatient,
     loadMoreImages,
     uploadImage,
@@ -620,8 +521,6 @@ export const useImageStore = defineStore('image', () => {
     pollImageStatus,
     getImageCount,
     resetError,
-    hideCompleted,
-    hideCompletedWorkspaces,
     markAsCompleted,
   };
 });

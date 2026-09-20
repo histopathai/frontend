@@ -8,15 +8,17 @@ import { storeToRefs } from 'pinia';
 import type { Patient } from '@/core/entities/Patient';
 import type { Image } from '@/core/entities/Image';
 import type { Workspace } from '@/core/entities/Workspace';
+import { nextMatching, prevMatching, type CompletionMode } from '@/core/completion';
+import { useCompletionFilter } from './useCompletionFilter';
 
-export function useAnnotatorNavigation() {
+export function useAnnotatorNavigation(options: { completion?: CompletionMode } = {}) {
   const workspaceStore = useWorkspaceStore();
   const patientStore = usePatientStore();
   const imageStore = useImageStore();
   const annotationTypeStore = useAnnotationTypeStore();
   const annotationStore = useAnnotationStore();
 
-  const { workspaces } = storeToRefs(workspaceStore);
+  const { workspaces: allWorkspaces } = storeToRefs(workspaceStore);
   const { patientsByWorkspace } = storeToRefs(patientStore);
   const { imagesByPatient } = storeToRefs(imageStore);
   const { annotationTypes } = storeToRefs(annotationTypeStore);
@@ -39,33 +41,42 @@ export function useAnnotatorNavigation() {
   const selectedImageId = ref<string | undefined>(localStorage.getItem(STORAGE_KEY_IMG) || undefined);
   const selectedAnnotationTypeId = ref<string | undefined>(undefined);
 
-  const currentPatients = computed((): Patient[] => {
+  const allPatients = computed((): Patient[] => {
     const list = selectedWorkspaceId.value
       ? patientsByWorkspace.value.get(selectedWorkspaceId.value)
       : [];
     return (list || []) as Patient[];
   });
 
-  const currentImages = computed((): Image[] => {
+  const allImages = computed((): Image[] => {
     const list = selectedPatientId.value ? imagesByPatient.value.get(selectedPatientId.value) : [];
     return (list || []) as Image[];
   });
 
+  // With "Bitenleri Gizle" on, the lists everyone else sees leave the finished out.
+  const completion = useCompletionFilter(options.completion ?? 'none', {
+    workspaces: allWorkspaces as any,
+    patients: allPatients,
+    images: allImages,
+    selectedWorkspaceId,
+    selectedPatientId,
+    selectedImageId,
+  });
+  const workspaces = completion.visibleWorkspaces;
+  const currentPatients = completion.visiblePatients;
+  const currentImages = completion.visibleImages;
+
   const selectedPatient = computed((): Patient | null => {
-    return currentPatients.value.find((p) => p.id === selectedPatientId.value) || null;
+    return allPatients.value.find((p) => p.id === selectedPatientId.value) || null;
   });
 
   const selectedImage = computed((): Image | null => {
-    return currentImages.value.find((img) => img.id === selectedImageId.value) || null;
+    return allImages.value.find((img) => img.id === selectedImageId.value) || null;
   });
 
   const selectedImageIndex = computed((): number => {
     if (!selectedImageId.value || currentImages.value.length === 0) return -1;
     return currentImages.value.findIndex((img) => img.id === selectedImageId.value);
-  });
-
-  const selectedPatientIndex = computed((): number => {
-    return currentPatients.value.findIndex((p) => p.id === selectedPatientId.value);
   });
 
   function clearAllStates() {
@@ -100,6 +111,10 @@ export function useAnnotatorNavigation() {
 
   // --- Pagination Logic ---
   const currentPage = ref(Number(localStorage.getItem(STORAGE_KEY_PAGE)) || 1);
+  // While hiding, more patients are appended to the list, which only adds up
+  // from the first page.
+  const pageReset = completion.hideFinished.value && currentPage.value !== 1;
+  if (pageReset) currentPage.value = 1;
   const limit = ref(20);
 
   const totalPages = computed(() => {
@@ -188,37 +203,35 @@ export function useAnnotatorNavigation() {
     selectedImageId.value = image.id;
   }
 
+  // Steps are taken in the full lists: the image just finished is already out
+  // of the filtered one, and its place there would be lost.
   function nextImage() {
-    if (
-      selectedImageIndex.value !== -1 &&
-      selectedImageIndex.value < currentImages.value.length - 1
-    ) {
-      const nextImg = currentImages.value[selectedImageIndex.value + 1];
-      if (nextImg) {
-        selectImage(nextImg);
-      }
-    } else if (selectedPatientIndex.value < currentPatients.value.length - 1) {
-      const nextPatient = currentPatients.value[selectedPatientIndex.value + 1];
-      if (nextPatient) {
-        selectPatient(nextPatient);
-      }
-    } else if (hasMore.value) {
-      loadMorePatients();
-    }
+    const nextImg = nextMatching(allImages.value, selectedImageId.value, completion.isImageVisible);
+    const nextPatient = nextMatching(
+      allPatients.value,
+      selectedPatientId.value,
+      completion.isPatientVisible
+    );
+    if (nextImg) selectImage(nextImg);
+    else if (nextPatient) selectPatient(nextPatient);
+    else if (hasMore.value) loadMorePatients();
   }
 
   function prevImage() {
-    if (selectedImageIndex.value > 0) {
-      const prevImg = currentImages.value[selectedImageIndex.value - 1];
-      if (prevImg) {
-        selectImage(prevImg);
-      }
-    } else if (selectedPatientIndex.value > 0) {
-      const prevPatient = currentPatients.value[selectedPatientIndex.value - 1];
-      if (prevPatient) {
-        selectPatient(prevPatient);
-      }
-    }
+    const prevImg = prevMatching(allImages.value, selectedImageId.value, completion.isImageVisible);
+    const prevPatient = prevMatching(
+      allPatients.value,
+      selectedPatientId.value,
+      completion.isPatientVisible
+    );
+    if (prevImg) selectImage(prevImg);
+    else if (prevPatient) selectPatient(prevPatient);
+  }
+
+  function setHideFinished(value: boolean) {
+    if (completion.hideFinished.value === value) return;
+    completion.hideFinished.value = value;
+    if (value && currentPage.value !== 1) setPage(1);
   }
 
   function searchPatients(query: string) {
@@ -262,7 +275,7 @@ export function useAnnotatorNavigation() {
   });
 
   watch(
-    currentPatients,
+    allPatients,
     (newPatients) => {
       if (newPatients && newPatients.length > 0) {
         if (!selectedPatientId.value) {
@@ -289,9 +302,51 @@ export function useAnnotatorNavigation() {
     { immediate: true }
   );
 
+  // --- "Bitenleri Gizle" ---
+
+  // Keeps the list filled: a page of patients may be finished from top to bottom.
+  watch(
+    [completion.filtering, currentPatients, hasMore, () => patientStore.loading],
+    ([filtering, visible, more, busy]) => {
+      if (filtering && visible.length < 10 && more && !busy) loadMorePatients();
+    },
+    { immediate: true }
+  );
+
+  // A finished image can only be selected from before the switch was on (or from
+  // the last visit); move on to work that is left. One that turns finished while
+  // open stays, see useCompletionFilter.
+  watch(
+    [
+      completion.filtering,
+      completion.ready,
+      currentImages,
+      currentPatients,
+      selectedImageId,
+      () => imageStore.loading,
+    ],
+    () => {
+      const patientId = selectedPatientId.value;
+      if (!completion.filtering.value || !completion.ready.value || !patientId) return;
+      if (imageStore.loading || !imagesByPatient.value.has(patientId)) return;
+      if (selectedImage.value && completion.isImageVisible(selectedImage.value)) return;
+
+      const firstImage = currentImages.value[0];
+      if (firstImage) return selectImage(firstImage);
+
+      const withWork =
+        nextMatching(allPatients.value, patientId, completion.hasWorkLeft) ??
+        allPatients.value.find(completion.hasWorkLeft);
+      if (withWork) return selectPatient(withWork);
+      // Wait for the patients still being counted before giving up.
+      if (allPatients.value.some((p) => !completion.patientProgress(p.id))) return;
+      if (selectedImageId.value) clearImageSelection();
+    }
+  );
+
   let isWorkspacesInitialized = false;
   watch(
-    workspaces,
+    allWorkspaces,
     (newWorkspaces) => {
       if (isWorkspacesInitialized) return;
       if (newWorkspaces && newWorkspaces.length > 0) {
@@ -311,7 +366,7 @@ export function useAnnotatorNavigation() {
             
             // Check if patients for this workspace are already loaded
             const patientsLoaded = patientStore.patientsByWorkspace.has(workspace.id);
-            if (!patientsLoaded) {
+            if (!patientsLoaded || pageReset) {
               loadPatientsPage();
             }
             
@@ -357,6 +412,13 @@ export function useAnnotatorNavigation() {
     prevImage,
     searchPatients,
     loadMorePatients,
+
+    completionMode: completion.mode,
+    hideFinished: completion.hideFinished,
+    setHideFinished,
+    patientProgress: completion.patientProgress,
+    isImageFinished: completion.isImageFinished,
+    setMaskStatus: completion.setMaskStatus,
 
     // Pagination exports
     currentPage,

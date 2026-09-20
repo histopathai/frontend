@@ -17,7 +17,6 @@
         @image-selected="selectImage"
         @clear-selection="clearImageSelection"
         @page-change="setPage"
-        @load-more="loadMorePatients"
       />
     </aside>
 
@@ -57,7 +56,6 @@ const {
   totalPages,
   hasMore,
   setPage,
-  loadMorePatients,
 } = useAnnotatorNavigation();
 </script>
 
