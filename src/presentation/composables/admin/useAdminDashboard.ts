@@ -13,7 +13,7 @@ export function useAdminDashboard() {
   const workspaceStore = useWorkspaceStore();
 
   const { users, loading: adminLoading } = storeToRefs(adminStore);
-  const { workspaces, loading: workspaceLoading } = storeToRefs(workspaceStore);
+  const { allWorkspaces: workspaces, allLoading: workspaceLoading } = storeToRefs(workspaceStore);
 
   const totalPatients = ref(0);
   const totalImages = ref(0);
@@ -23,9 +23,7 @@ export function useAdminDashboard() {
       adminStore.fetchAllUsers({ limit: 100, offset: 0 });
     }
 
-    if (!workspaces.value || workspaces.value.length === 0) {
-      workspaceStore.fetchWorkspaces({ limit: 100, offset: 0 });
-    }
+    workspaceStore.fetchAllWorkspaces().catch(() => {});
 
     try {
       const [pCount, iCount] = await Promise.all([

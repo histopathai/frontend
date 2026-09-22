@@ -135,7 +135,7 @@ const activeTab = ref<TabKey>('progress');
 
 const workspaceStore = useWorkspaceStore();
 const annotationTypeStore = useAnnotationTypeStore();
-const { workspaces } = storeToRefs(workspaceStore);
+const { allWorkspaces: workspaces } = storeToRefs(workspaceStore);
 const { annotationTypes } = storeToRefs(annotationTypeStore);
 
 const selectedWorkspaceId = ref<string | undefined>(undefined);
@@ -179,6 +179,6 @@ watch(
 );
 
 onMounted(() => {
-  if (workspaces.value.length === 0) workspaceStore.fetchWorkspaces();
+  workspaceStore.fetchAllWorkspaces().catch(() => {});
 });
 </script>
