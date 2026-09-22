@@ -133,21 +133,46 @@ export interface Axis {
 }
 
 /**
- * Grid positions along one axis whose square touches [lo, hi] and lies fully on
- * the slide. The grid is anchored at the slide's (0, 0) and each start is
- * rounded on its own, so it never drifts.
+ * Grid positions along one axis whose square touches [lo, hi] and lies on the
+ * slide. The grid steps from the slide's (0, 0) by `stride0`, each start
+ * rounded on its own so it never drifts. A step that would stick out of the
+ * slide is not dropped but snapped flush to the slide edge instead (`index`
+ * -1 there) — otherwise, whenever the slide is not an exact number of strides
+ * wide, up to one whole stride at the far end of the axis would carry no
+ * candidate square at all (not low coverage — none). Mirrors dev-ingestor's
+ * `_lattice`; see its CHANGELOG "Fixed" entry for the real-core numbers.
  */
 export function latticeAxis(lo: number, hi: number, limit: number, spec: PatchSpec): Axis {
   const { size0, stride0 } = spec;
+  const last = Math.ceil(hi / stride0);
   const index: number[] = [];
   const start: number[] = [];
-  const last = Math.ceil(hi / stride0);
-  for (let i = Math.floor((lo - size0) / stride0) + 1; i < last; i++) {
-    const s = roundHalfEven(i * stride0);
-    if (s >= 0 && s + size0 <= limit) {
-      index.push(i);
+  const onLattice = new Set<number>();
+  if (limit >= size0) {
+    for (let i = Math.floor((lo - size0) / stride0) + 1; i < last; i++) {
+      const s = roundHalfEven(i * stride0);
+      if (s >= 0 && s + size0 <= limit) {
+        index.push(i);
+        start.push(s);
+        onLattice.add(s);
+      }
+    }
+    const snapped = new Set<number>();
+    for (let i = Math.floor((lo - size0) / stride0) + 1; i < last; i++) {
+      const s = roundHalfEven(i * stride0);
+      if (!(s >= 0 && s + size0 <= limit)) {
+        const clamped = Math.min(Math.max(s, 0), limit - size0);
+        if (!onLattice.has(clamped)) snapped.add(clamped);
+      }
+    }
+    for (const s of snapped) {
+      index.push(-1);
       start.push(s);
     }
   }
-  return { index: Int32Array.from(index), start: Int32Array.from(start) };
+  const order = index.map((_, k) => k).sort((a, b) => start[a]! - start[b]!);
+  return {
+    index: Int32Array.from(order.map((k) => index[k]!)),
+    start: Int32Array.from(order.map((k) => start[k]!)),
+  };
 }

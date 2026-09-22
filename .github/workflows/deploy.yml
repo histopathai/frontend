@@ -3,9 +3,6 @@ name: Deploy to Firebase Hosting
 on:
   push:
     branches: [main, dev]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/deploy.yml'
   workflow_dispatch:
     inputs:
       environment:

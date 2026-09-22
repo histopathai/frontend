@@ -11,8 +11,9 @@ export interface SlideSize {
 /**
  * Every grid square that has any area inside `tissue`, with its coverage
  * = area(tissue ∩ square) / area(square). Coverage is geometry, not pixels: gaps
- * that the mask does not carve out still count. Squares that stick out of the
- * slide are dropped. Row-major, like dev-ingestor's table.
+ * that the mask does not carve out still count. A grid step that would stick
+ * out of the slide is snapped flush to the slide edge instead of dropped (see
+ * `latticeAxis`). Row-major, like dev-ingestor's table.
  */
 export function gridCells(tissue: Region, spec: PatchSpec, slide: SlideSize): PatchCells {
   const bounds = regionBounds(tissue);
