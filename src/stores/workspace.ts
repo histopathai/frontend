@@ -41,6 +41,10 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   // ===========================
 
   const workspaces = shallowRef<Workspace[]>([]);
+  // Every workspace, for pickers. `workspaces` above is only the page the list view shows.
+  const allWorkspaces = shallowRef<Workspace[]>([]);
+  const allLoading = ref(false);
+  let allRequest: Promise<Workspace[]> | null = null;
   const currentWorkspace = ref<Workspace | null>(null);
   const loading = ref(false);
   const actionLoading = ref(false);
@@ -97,6 +101,11 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         ...workspaces.value.slice(index + 1),
       ];
     }
+    if (allWorkspaces.value.some((w) => w.id === updatedWorkspace.id)) {
+      allWorkspaces.value = allWorkspaces.value.map((w) =>
+        w.id === updatedWorkspace.id ? updatedWorkspace : w
+      );
+    }
 
     if (currentWorkspace.value?.id === updatedWorkspace.id) {
       currentWorkspace.value = updatedWorkspace;
@@ -105,6 +114,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
   const removeWorkspaceFromState = (workspaceId: string): void => {
     workspaces.value = workspaces.value.filter((w) => w.id !== workspaceId);
+    allWorkspaces.value = allWorkspaces.value.filter((w) => w.id !== workspaceId);
 
     if (currentWorkspace.value?.id === workspaceId) {
       currentWorkspace.value = null;
@@ -179,6 +189,39 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   };
 
+  // main-service caps `limit` at 100, so page until a short page comes back.
+  const ALL_PAGE_SIZE = 100;
+
+  // Callers that ask while a load is running share it.
+  const fetchAllWorkspaces = (options: FetchOptions = {}): Promise<Workspace[]> => {
+    const { showToast: showErrorToast = true } = options;
+    if (allRequest) return allRequest;
+
+    allLoading.value = true;
+    allRequest = (async () => {
+      try {
+        const collected: Workspace[] = [];
+        for (let offset = 0; ; offset += ALL_PAGE_SIZE) {
+          const result = await repositories.workspace.list({
+            pagination: { limit: ALL_PAGE_SIZE, offset, hasMore: false },
+            sort: [{ field: sort.value.by, direction: sort.value.dir }],
+          });
+          collected.push(...result.data);
+          if (result.data.length < ALL_PAGE_SIZE) break;
+        }
+        allWorkspaces.value = collected;
+        return collected;
+      } catch (err: any) {
+        handleError(err, t('workspace.messages.fetch_error'), showErrorToast);
+        throw err;
+      } finally {
+        allRequest = null;
+        allLoading.value = false;
+      }
+    })();
+    return allRequest;
+  };
+
   const loadMore = async (): Promise<void> => {
     if (!hasMore.value || loading.value) return;
 
@@ -198,6 +241,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     try {
       const newWorkspace = await repositories.workspace.create(data);
       workspaces.value = [newWorkspace, ...workspaces.value];
+      allWorkspaces.value = [newWorkspace, ...allWorkspaces.value];
 
       toast.success(t('workspace.messages.create_success'));
       return newWorkspace;
@@ -270,6 +314,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
       // Remove all deleted workspaces from state
       workspaces.value = workspaces.value.filter((w) => !workspaceIds.includes(w.id));
+      allWorkspaces.value = allWorkspaces.value.filter((w) => !workspaceIds.includes(w.id));
 
       toast.success(t('workspace.messages.delete_success'));
       return true;
@@ -295,6 +340,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
   const clearWorkspaces = (): void => {
     workspaces.value = [];
+    allWorkspaces.value = [];
     currentWorkspace.value = null;
     error.value = null;
     pagination.value = {
@@ -320,6 +366,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   return {
     // State
     workspaces,
+    allWorkspaces,
+    allLoading,
     currentWorkspace,
     loading,
     actionLoading,
@@ -337,6 +385,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
     // Actions - Fetch
     fetchWorkspaces,
+    fetchAllWorkspaces,
     fetchWorkspaceById,
     loadMore,
 

@@ -18,14 +18,14 @@ export function useAnnotatorNavigation(options: { completion?: CompletionMode } 
   const annotationTypeStore = useAnnotationTypeStore();
   const annotationStore = useAnnotationStore();
 
-  const { workspaces: allWorkspaces } = storeToRefs(workspaceStore);
+  const { allWorkspaces } = storeToRefs(workspaceStore);
   const { patientsByWorkspace } = storeToRefs(patientStore);
   const { imagesByPatient } = storeToRefs(imageStore);
   const { annotationTypes } = storeToRefs(annotationTypeStore);
 
   const loading = computed(
     () =>
-      workspaceStore.loading ||
+      workspaceStore.allLoading ||
       patientStore.loading ||
       imageStore.loading ||
       annotationTypeStore.loading
@@ -385,7 +385,7 @@ export function useAnnotatorNavigation(options: { completion?: CompletionMode } 
     { immediate: true }
   );
 
-  workspaceStore.fetchWorkspaces();
+  workspaceStore.fetchAllWorkspaces().catch(() => {});
 
   return {
     loading,

@@ -51,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { usePatientStore } from '@/stores/patient';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useI18n } from 'vue-i18n';
@@ -76,8 +76,12 @@ const loading = computed(() => patientStore.isActionLoading);
 const isBatch = computed(() => props.patientIds.length > 0);
 
 const availableWorkspaces = computed(() =>
-  workspaceStore.workspaces.filter((w) => w.id !== props.currentWorkspaceId)
+  workspaceStore.allWorkspaces.filter((w) => w.id !== props.currentWorkspaceId)
 );
+
+onMounted(() => {
+  workspaceStore.fetchAllWorkspaces().catch(() => {});
+});
 
 async function handleTransfer() {
   if (!selectedWorkspaceId.value) return;
