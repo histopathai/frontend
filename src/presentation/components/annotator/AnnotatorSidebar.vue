@@ -457,13 +457,26 @@ function getThumbnailUrl(image: any): string {
 // Annotation Stats Logic (Restored for Lokal/Global counts)
 const imageStatusMap = ref<Record<string, { polygons: number; globals: number }>>({});
 
+// Firing one request per image at once (Promise.all with no limit) could blow
+// past dozens of images into hundreds of simultaneous requests on a large
+// patient, tripping the backend's per-IP rate limit and, worse, racing the
+// same session hard enough to expire it mid-browse. Four at a time keeps this
+// bounded regardless of how many images a patient has.
+async function inBatches<T>(items: T[], size: number, run: (item: T) => Promise<void>) {
+  const queue = [...items];
+  const workers = Array.from({ length: Math.min(size, queue.length) }, async () => {
+    for (let item = queue.shift(); item !== undefined; item = queue.shift()) await run(item);
+  });
+  await Promise.all(workers);
+}
+
 watch(
   [() => props.images, () => props.selectedWorkspaceId, () => authStore.token, () => annotationTypeStore.annotationTypes.length],
   async ([newImages, wsId, token]) => {
     if (!newImages || newImages.length === 0 || !token) return;
 
     const newMap: Record<string, any> = { ...imageStatusMap.value };
-    const promises = newImages.map(async (img) => {
+    await inBatches(newImages, 4, async (img) => {
       try {
         const result = await annotationRepo.listByImage(img.id);
         const annotations = result.data || [];
@@ -482,7 +495,6 @@ watch(
       }
     });
 
-    await Promise.all(promises);
     imageStatusMap.value = newMap;
   },
   { immediate: true, deep: true }
