@@ -8,6 +8,7 @@ import { AnnotationTypeRepository } from '@/infrastructure/repositories/Annotati
 import { AnnotationReviewRepository } from './infrastructure/repositories/AnnotationReviewRepository';
 import { AdminRepository } from './infrastructure/repositories/AdminRepository';
 import { TissueMaskRepository } from './infrastructure/repositories/TissueMaskRepository';
+import { BlindTestRepository } from './infrastructure/repositories/BlindTestRepository';
 
 const apiClient = new ApiClient(import.meta.env.VITE_API_BASE_URL);
 
@@ -21,4 +22,5 @@ export const repositories = {
   annotationType: new AnnotationTypeRepository(apiClient),
   annotationReview: new AnnotationReviewRepository(apiClient),
   tissueMask: new TissueMaskRepository(apiClient),
+  blindTest: new BlindTestRepository(apiClient),
 };

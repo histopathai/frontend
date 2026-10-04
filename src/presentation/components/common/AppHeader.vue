@@ -192,6 +192,7 @@ const navigation: { name: string; routeName: string; capability?: Capability }[]
   { name: 'Veri Seti Oluşturucu', routeName: 'WorkspaceList' },
   { name: 'Doku Maskeleri', routeName: 'TissueMasks', capability: 'tissue.access' },
   { name: 'Patch Izgarası', routeName: 'PatchGrid', capability: 'patchGrid.access' },
+  { name: 'Kör Test', routeName: 'BlindTest' },
 ];
 
 const visibleNavigation = computed(() =>

@@ -34,6 +34,11 @@ const appRoutes: RouteRecordRaw = {
       meta: { capability: 'patchGrid.access' },
     },
     {
+      path: 'kor-test',
+      name: 'BlindTest',
+      component: () => import('@/presentation/views/blindtest/BlindTestView.vue'),
+    },
+    {
       path: 'istatistikler',
       name: 'Statistics',
       component: () => import('@/presentation/views/dashboard/StatisticsView.vue'),
