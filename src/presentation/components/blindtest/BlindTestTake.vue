@@ -32,11 +32,10 @@
         devam edebilirsiniz. Teşekkürler.
       </p>
       <p v-else class="mt-3 text-sm text-gray-500">
-        Her görsel için gerçek mi sentetik mi olduğuna karar verin. Görsele tıklayarak
-        büyütebilirsiniz (büyük görünümde <kbd>G</kbd> gerçek, <kbd>S</kbd> sentetik,
-        <kbd>←</kbd>/<kbd>→</kbd> gezinme). Cevaplar anında kaydedilir; tamamlayana kadar
-        değiştirebilirsiniz. Bir görsele neden gerçek ya da sentetik dediğinizi "Not" ile
-        açıklayabilirsiniz; notlar test tamamlandıktan sonra da eklenip düzenlenebilir.
+        Her görsel için gerçek mi sentetik mi olduğuna karar verin. Cevaplar anında kaydedilir;
+        tamamlayana kadar değiştirebilirsiniz. Bir görsele neden gerçek ya da sentetik dediğinizi
+        "Not ekle" ile açıklayabilirsiniz; notlar test tamamlandıktan sonra da eklenip
+        düzenlenebilir.
       </p>
     </div>
 
@@ -51,9 +50,9 @@
           class="overflow-hidden rounded-lg border bg-white shadow-sm"
           :class="answers[item.id] ? 'border-gray-200' : 'border-amber-300'"
         >
-          <button
-            class="relative block aspect-square w-full bg-gray-100"
-            @click="openZoom(item.index)"
+          <div
+            class="relative mx-auto flex aspect-square w-full max-w-[256px] select-none items-center justify-center bg-gray-100"
+            @contextmenu.prevent
           >
             <img
               v-if="urls[item.id]"
@@ -73,7 +72,7 @@
               title="Bu görsel için notunuz var"
               >not</span
             >
-          </button>
+          </div>
           <div class="grid grid-cols-2 gap-1 p-1">
             <button
               v-for="opt in OPTIONS"
@@ -94,7 +93,7 @@
             class="w-full border-t border-gray-100 px-2 py-1 text-left text-xs hover:bg-gray-50"
             :class="notes[item.id] ? 'text-amber-700' : 'text-gray-500'"
             :title="notes[item.id] || 'Bu görsel için not yazın'"
-            @click="openZoom(item.index, true)"
+            @click="openNote(item)"
           >
             <span class="block truncate">{{
               notes[item.id] ? `Not: ${notes[item.id]}` : '+ Not ekle'
@@ -107,86 +106,62 @@
       </p>
     </div>
 
-    <!-- Büyük görünüm -->
-    <div
-      v-if="zoomIndex !== null"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-      @click.self="closeZoom"
-    >
-      <div class="flex max-h-full flex-col items-center gap-3">
-        <div class="flex w-full items-center justify-between text-sm text-white">
-          <span>{{ zoomIndex + 1 }} / {{ total }}</span>
-          <button class="rounded px-2 py-1 hover:bg-white/10" @click="closeZoom">
-            Kapat (Esc)
-          </button>
-        </div>
-        <img
-          v-if="urls[zoomId!]"
-          :src="urls[zoomId!]"
-          class="max-h-[60vh] w-[min(60vh,90vw)] rounded bg-white object-contain"
-          draggable="false"
-        />
-        <div class="flex items-center gap-2">
-          <button
-            class="rounded bg-white/10 px-3 py-2 text-white hover:bg-white/20"
-            @click="step(-1)"
-          >
-            ←
-          </button>
-          <button
-            v-for="opt in OPTIONS"
-            :key="opt.value"
-            class="min-w-28 rounded px-4 py-2 font-medium disabled:cursor-not-allowed"
-            :class="
-              answers[zoomId!] === opt.value
-                ? 'bg-indigo-500 text-white'
-                : 'bg-white text-gray-800 hover:bg-gray-100'
-            "
-            :disabled="completed"
-            @click="choose(zoomId!, opt.value, true)"
-          >
-            {{ opt.label }} ({{ opt.key.toUpperCase() }})
-          </button>
-          <button
-            class="rounded bg-white/10 px-3 py-2 text-white hover:bg-white/20"
-            @click="step(1)"
-          >
-            →
-          </button>
-        </div>
-        <div class="w-[min(60vh,90vw)] rounded bg-white p-2">
-          <label class="mb-1 flex items-center justify-between text-xs text-gray-600">
-            <span>Not — neden gerçek / sentetik? (isteğe bağlı)</span>
-            <span class="tabular-nums" :class="draft.length > NOTE_MAX ? 'text-red-600' : ''">
-              {{ draft.length }} / {{ NOTE_MAX }}
-            </span>
-          </label>
-          <textarea
-            ref="noteBox"
-            v-model="draft"
-            rows="3"
-            :maxlength="NOTE_MAX"
-            class="w-full resize-y rounded border-gray-300 text-sm"
-            placeholder="Ör. çekirdek kromatini fazla düzgün, hücre sınırları bulanık…"
+    <!-- Not penceresi -->
+    <div v-if="noteFor" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div class="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl" @keydown="onNoteKey">
+        <div class="flex items-start gap-3">
+          <img
+            v-if="urls[noteFor.id]"
+            :src="urls[noteFor.id]"
+            class="h-24 w-24 flex-shrink-0 select-none rounded object-cover"
+            draggable="false"
+            @contextmenu.prevent
           />
-          <div class="mt-1 flex items-center justify-between text-xs">
-            <span class="text-gray-500">
-              {{
-                noteSaving
-                  ? 'Kaydediliyor…'
-                  : draftDirty
-                    ? 'Kaydedilmedi — geçince otomatik kaydedilir'
-                    : notes[zoomId!]
-                      ? 'Kaydedildi'
-                      : ''
-              }}
-            </span>
+          <div class="min-w-0">
+            <h3 class="text-base font-semibold text-gray-900">
+              Görsel {{ noteFor.index + 1 }} — not
+            </h3>
+            <p class="text-sm text-gray-500">
+              Bu görsele neden {{ answerText(answers[noteFor.id]) }} dediğinizi açıklayın (isteğe
+              bağlı).
+            </p>
+          </div>
+        </div>
+        <textarea
+          ref="noteBox"
+          v-model="draft"
+          rows="5"
+          :maxlength="NOTE_MAX"
+          class="mt-3 w-full resize-y rounded border-gray-300 text-sm"
+          placeholder="Ör. çekirdek kromatini fazla düzgün, hücre sınırları bulanık…"
+        />
+        <div class="mt-1 text-right text-xs tabular-nums text-gray-500">
+          {{ draft.length }} / {{ NOTE_MAX }}
+        </div>
+        <div class="mt-3 flex items-center justify-between">
+          <button
+            v-if="notes[noteFor.id]"
+            class="text-sm text-red-600 hover:underline disabled:opacity-50"
+            :disabled="noteSaving"
+            @click="saveNote('')"
+          >
+            Notu sil
+          </button>
+          <span v-else />
+          <div class="flex gap-2">
             <button
-              class="rounded bg-indigo-600 px-3 py-1 font-medium text-white hover:bg-indigo-700 disabled:bg-gray-300"
-              :disabled="!draftDirty || noteSaving"
-              @click="saveDraft()"
+              class="rounded-md px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              :disabled="noteSaving"
+              @click="noteFor = null"
             >
-              Notu kaydet
+              Vazgeç (Esc)
+            </button>
+            <button
+              class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-gray-300"
+              :disabled="noteSaving || draft.trim() === (notes[noteFor.id] ?? '')"
+              @click="saveNote(draft)"
+            >
+              {{ noteSaving ? 'Kaydediliyor…' : 'Kaydet (Ctrl+Enter)' }}
             </button>
           </div>
         </div>
@@ -224,7 +199,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { useToast } from 'vue-toastification';
 import { useBlindTestImages } from '@/presentation/composables/blindtest/useBlindTestImages';
 import { repositories } from '@/services';
@@ -234,9 +209,9 @@ import type { BlindTest, BlindTestLabel } from '@/core/repositories/IBlindTestRe
 const props = defineProps<{ test: BlindTest }>();
 const emit = defineEmits<{ (e: 'progress', answered: number, completed: boolean): void }>();
 
-const OPTIONS: { value: BlindTestLabel; label: string; key: string }[] = [
-  { value: 'real', label: 'Gerçek', key: 'g' },
-  { value: 'synthetic', label: 'Sentetik', key: 's' },
+const OPTIONS: { value: BlindTestLabel; label: string }[] = [
+  { value: 'real', label: 'Gerçek' },
+  { value: 'synthetic', label: 'Sentetik' },
 ];
 
 const toast = useToast();
@@ -246,12 +221,11 @@ const answers = reactive<Record<string, BlindTestLabel>>({});
 const saving = reactive<Record<string, boolean>>({});
 const notes = reactive<Record<string, string>>({});
 const draft = ref('');
-const draftFor = ref<string | null>(null);
+const noteFor = ref<{ id: string; index: number } | null>(null);
 const noteSaving = ref(false);
 const noteBox = ref<HTMLTextAreaElement | null>(null);
 const completedAt = ref<string | null>(null);
 const onlyUnanswered = ref(false);
-const zoomIndex = ref<number | null>(null);
 const showConfirm = ref(false);
 const completing = ref(false);
 
@@ -266,12 +240,6 @@ const items = computed(() => props.test.imageIds.map((id, index) => ({ id, index
 const visible = computed(() =>
   onlyUnanswered.value ? items.value.filter((i) => !answers[i.id]) : items.value
 );
-const zoomId = computed(() =>
-  zoomIndex.value === null ? null : props.test.imageIds[zoomIndex.value]
-);
-const draftDirty = computed(
-  () => draftFor.value !== null && draft.value.trim() !== (notes[draftFor.value] ?? '')
-);
 
 function reset() {
   clear();
@@ -279,21 +247,19 @@ function reset() {
   Object.assign(answers, props.test.answers);
   for (const k of Object.keys(notes)) delete notes[k];
   Object.assign(notes, props.test.notes);
-  draftFor.value = null;
+  noteFor.value = null;
   completedAt.value = props.test.completedAt;
-  zoomIndex.value = null;
   load(props.test.id, props.test.imageIds);
 }
 
 watch(() => props.test, reset, { immediate: true });
 watch([answeredCount, completed], () => emit('progress', answeredCount.value, completed.value));
 
-async function choose(imageId: string, label: BlindTestLabel, advance = false) {
+async function choose(imageId: string, label: BlindTestLabel) {
   if (completed.value || saving[imageId]) return;
   const previous = answers[imageId];
-  answers[imageId] = label;
-  if (advance) step(1);
   if (previous === label) return;
+  answers[imageId] = label;
   saving[imageId] = true;
   try {
     await repositories.blindTest.answer(props.test.id, imageId, label);
@@ -320,16 +286,27 @@ async function complete() {
   }
 }
 
-/** Saves the note being edited; failures keep the draft so nothing typed is lost. */
-async function saveDraft() {
-  const imageId = draftFor.value;
-  if (!imageId || !draftDirty.value || noteSaving.value) return;
-  const text = draft.value.trim();
+function answerText(label?: BlindTestLabel) {
+  return label === 'real' ? 'gerçek' : label === 'synthetic' ? 'sentetik' : 'gerçek ya da sentetik';
+}
+
+function openNote(item: { id: string; index: number }) {
+  noteFor.value = item;
+  draft.value = notes[item.id] ?? '';
+  nextTick(() => noteBox.value?.focus());
+}
+
+/** Saves the note (empty removes it); on failure the window stays open so nothing typed is lost. */
+async function saveNote(text: string) {
+  const item = noteFor.value;
+  if (!item || noteSaving.value) return;
+  text = text.trim();
   noteSaving.value = true;
   try {
-    await repositories.blindTest.note(props.test.id, imageId, text);
-    if (text) notes[imageId] = text;
-    else delete notes[imageId];
+    await repositories.blindTest.note(props.test.id, item.id, text);
+    if (text) notes[item.id] = text;
+    else delete notes[item.id];
+    noteFor.value = null;
   } catch (e: any) {
     toast.error(e?.message || 'Not kaydedilemedi');
   } finally {
@@ -337,45 +314,8 @@ async function saveDraft() {
   }
 }
 
-// The note box follows the image on screen; a dirty note is saved before moving on.
-watch(zoomId, async (id) => {
-  if (draftDirty.value) await saveDraft();
-  draftFor.value = id ?? null;
-  draft.value = id ? (notes[id] ?? '') : '';
-});
-
-function openZoom(index: number, focusNote = false) {
-  zoomIndex.value = index;
-  if (focusNote) nextTick(() => noteBox.value?.focus());
+function onNoteKey(e: KeyboardEvent) {
+  if (e.key === 'Escape' && !noteSaving.value) noteFor.value = null;
+  else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveNote(draft.value);
 }
-
-function closeZoom() {
-  zoomIndex.value = null;
-}
-
-function step(delta: number) {
-  if (zoomIndex.value === null) return;
-  const next = zoomIndex.value + delta;
-  if (next >= 0 && next < total.value) zoomIndex.value = next;
-}
-
-function onKey(e: KeyboardEvent) {
-  if (zoomIndex.value === null) return;
-  const typing = (e.target as HTMLElement | null)?.closest('textarea, input');
-  if (typing) {
-    if (e.key === 'Escape') (e.target as HTMLElement).blur();
-    return; // G / S / arrows are text while writing a note
-  }
-  const key = e.key.toLowerCase();
-  if (key === 'escape') closeZoom();
-  else if (key === 'arrowleft') step(-1);
-  else if (key === 'arrowright') step(1);
-  else {
-    const opt = OPTIONS.find((o) => o.key === key);
-    if (opt && zoomId.value) choose(zoomId.value, opt.value, true);
-  }
-}
-
-onMounted(() => window.addEventListener('keydown', onKey));
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 </script>
