@@ -86,6 +86,47 @@
         </div>
       </section>
 
+      <!-- Yorumlama -->
+      <details
+        open
+        class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-gray-700"
+      >
+        <summary class="cursor-pointer font-semibold text-gray-800">
+          Bu değerler nasıl yorumlanır?
+        </summary>
+        <div class="mt-2 space-y-2">
+          <p>
+            <strong>Doğru ayırt etme (doğruluk):</strong> cevapların gerçek etiketle uyuşma oranı.
+            <strong>%50 şans düzeyidir</strong> — yazı-tura atan biri de ortalama %50 tutturur.
+            Doğruluk %50'ye yakınsa uzman gerçek ile sentetiği <em>ayırt edemiyor</em> demektir;
+            hedeflenen sonuç budur. %50'nin belirgin üstü, sentetik görüntülerin tanınabildiğini
+            gösterir. %50'nin belirgin altı ise sistematik ters karar demektir (ör. sentetikleri
+            gerçeklerden daha "gerçek" bulmak) — bu da görüntülerin ayırt edilebildiğini, ama ters
+            yönde, gösterir.
+          </p>
+          <p>
+            <strong>p değeri:</strong> kişi gerçekte ayırt edemiyor olsaydı (gerçek doğruluk %50),
+            yalnızca şans eseri bu kadar ya da daha uç bir doğruluk çıkma olasılığı (iki yönlü binom
+            testi). <strong>p &lt; 0.05</strong>: sonuç şansla açıklanamaz; doğruluk %50'nin
+            üstündeyse ayırt edebiliyor, altındaysa sistematik yanılıyor. <strong>p ≥ 0.05</strong>:
+            şanstan ayırt edilemiyor. Bu "kesinlikle ayırt edemiyor" demek değildir; az cevapla
+            (yarım kalmış testler) test zayıftır. Örnek: 200 cevapta p &lt; 0.05 için en az 115
+            doğru (%57,5) ya da en fazla 85 doğru (%42,5) gerekir; 100 cevapta %61 / %39.
+          </p>
+          <p>
+            <strong>Sentetik → gerçek oranı:</strong> sentetik görüntülerin "gerçek" sanılma payı.
+            %50 civarı sentetiklerin gerçeklerden ayrılamadığını, yüksek değer modelin özellikle
+            inandırıcı olduğunu, düşük değer sentetiklerin kolayca yakalandığını gösterir.
+            Karışıklık matrisi aynı cevapları dört hücreye ayırır (doğru etiket → verilen cevap).
+          </p>
+          <p class="text-xs text-gray-500">
+            Havuzlanmış sonuç tüm tamamlanmış testlerin cevaplarını birleştirir; kişiler arası
+            farkları değil grubun genel ayırt etme gücünü gösterir. Kişi bazında yorum için
+            Katılımcılar tablosuna bakın.
+          </p>
+        </div>
+      </details>
+
       <!-- Katılımcılar -->
       <section>
         <h3 class="mb-2 text-sm font-semibold text-gray-700">Katılımcılar</h3>
