@@ -9,13 +9,22 @@
           </p>
         </div>
         <div class="flex gap-2">
-          <button class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50" @click="exportUsers">
+          <button
+            class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
+            @click="exportUsers"
+          >
             Katılımcılar CSV
           </button>
-          <button class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50" @click="exportImages">
+          <button
+            class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
+            @click="exportImages"
+          >
             Görseller CSV
           </button>
-          <button class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50" @click="$emit('refresh')">
+          <button
+            class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
+            @click="$emit('refresh')"
+          >
             Yenile
           </button>
         </div>
@@ -26,43 +35,52 @@
       <!-- Özet -->
       <section>
         <h3 class="mb-2 text-sm font-semibold text-gray-700">
-          Havuzlanmış sonuç (tamamlayan {{ completedCount }} katılımcı, {{ results.pooled.answered }} cevap)
+          Havuzlanmış sonuç (tamamlayan {{ completedCount }} katılımcı,
+          {{ results.pooled.answered }} cevap)
         </h3>
         <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <div class="rounded-lg border border-gray-200 bg-white p-4">
             <div class="text-xs text-gray-500">Doğru ayırt etme</div>
-            <div class="text-2xl font-semibold tabular-nums">{{ pct(results.pooled.accuracy) }}</div>
+            <div class="text-2xl font-semibold tabular-nums">
+              {{ pct(results.pooled.accuracy) }}
+            </div>
             <div class="text-xs text-gray-500">şans düzeyi %50</div>
           </div>
           <div class="rounded-lg border border-gray-200 bg-white p-4">
             <div class="text-xs text-gray-500">p (şansa karşı, iki yönlü binom)</div>
             <div class="text-2xl font-semibold tabular-nums">{{ pval(results.pooled.pValue) }}</div>
             <div class="text-xs text-gray-500">
-              {{ results.pooled.pValue < 0.05 ? 'şanstan anlamlı farklı' : 'şanstan ayırt edilemiyor' }}
+              {{
+                results.pooled.pValue < 0.05 ? 'şanstan anlamlı farklı' : 'şanstan ayırt edilemiyor'
+              }}
             </div>
           </div>
           <div class="rounded-lg border border-gray-200 bg-white p-4">
             <div class="text-xs text-gray-500">Sentetiklerin "gerçek" sanılma oranı</div>
-            <div class="text-2xl font-semibold tabular-nums">{{ pct(results.pooled.syntheticCalledReal) }}</div>
+            <div class="text-2xl font-semibold tabular-nums">
+              {{ pct(results.pooled.syntheticCalledReal) }}
+            </div>
           </div>
           <div class="rounded-lg border border-gray-200 bg-white p-4">
             <div class="text-xs text-gray-500">Karışıklık matrisi (satır: doğru, sütun: cevap)</div>
             <table class="mt-1 text-sm tabular-nums">
-              <tr class="text-xs text-gray-500">
-                <td></td>
-                <td class="px-2">gerçek</td>
-                <td class="px-2">sentetik</td>
-              </tr>
-              <tr>
-                <td class="pr-2 text-xs text-gray-500">gerçek</td>
-                <td class="px-2">{{ results.pooled.confusion.realAsReal }}</td>
-                <td class="px-2">{{ results.pooled.confusion.realAsSynthetic }}</td>
-              </tr>
-              <tr>
-                <td class="pr-2 text-xs text-gray-500">sentetik</td>
-                <td class="px-2">{{ results.pooled.confusion.syntheticAsReal }}</td>
-                <td class="px-2">{{ results.pooled.confusion.syntheticAsSynthetic }}</td>
-              </tr>
+              <tbody>
+                <tr class="text-xs text-gray-500">
+                  <td></td>
+                  <td class="px-2">gerçek</td>
+                  <td class="px-2">sentetik</td>
+                </tr>
+                <tr>
+                  <td class="pr-2 text-xs text-gray-500">gerçek</td>
+                  <td class="px-2">{{ results.pooled.confusion.realAsReal }}</td>
+                  <td class="px-2">{{ results.pooled.confusion.realAsSynthetic }}</td>
+                </tr>
+                <tr>
+                  <td class="pr-2 text-xs text-gray-500">sentetik</td>
+                  <td class="px-2">{{ results.pooled.confusion.syntheticAsReal }}</td>
+                  <td class="px-2">{{ results.pooled.confusion.syntheticAsSynthetic }}</td>
+                </tr>
+              </tbody>
             </table>
           </div>
         </div>
@@ -94,21 +112,33 @@
                   <div class="font-mono text-xs text-gray-400">{{ u.userId }}</div>
                 </td>
                 <td class="px-3 py-2">{{ u.userRole }}</td>
-                <td class="px-3 py-2 text-right tabular-nums">{{ u.score.answered }} / {{ total }}</td>
+                <td class="px-3 py-2 text-right tabular-nums">
+                  {{ u.score.answered }} / {{ total }}
+                </td>
                 <td class="px-3 py-2 text-right tabular-nums">{{ pct(u.score.accuracy) }}</td>
                 <td class="px-3 py-2 text-right tabular-nums">{{ pval(u.score.pValue) }}</td>
-                <td class="px-3 py-2 text-right tabular-nums">{{ pct(u.score.syntheticCalledReal) }}</td>
+                <td class="px-3 py-2 text-right tabular-nums">
+                  {{ pct(u.score.syntheticCalledReal) }}
+                </td>
                 <td class="px-3 py-2">
                   <span
                     class="rounded px-2 py-0.5 text-xs"
-                    :class="u.completedAt ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'"
+                    :class="
+                      u.completedAt ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                    "
                   >
-                    {{ u.completedAt ? `tamamladı ${date(u.completedAt)}` : `devam ediyor (${date(u.updatedAt)})` }}
+                    {{
+                      u.completedAt
+                        ? `tamamladı ${date(u.completedAt)}`
+                        : `devam ediyor (${date(u.updatedAt)})`
+                    }}
                   </span>
                 </td>
               </tr>
               <tr v-if="!results.users.length">
-                <td colspan="7" class="px-3 py-6 text-center text-gray-500">Henüz katılımcı yok.</td>
+                <td colspan="7" class="px-3 py-6 text-center text-gray-500">
+                  Henüz katılımcı yok.
+                </td>
               </tr>
             </tbody>
           </table>
@@ -141,12 +171,20 @@
             :title="sourceText(img)"
           >
             <div class="aspect-square bg-gray-100">
-              <img v-if="urls[img.imageId]" :src="urls[img.imageId]" class="h-full w-full object-cover" />
+              <img
+                v-if="urls[img.imageId]"
+                :src="urls[img.imageId]"
+                class="h-full w-full object-cover"
+              />
             </div>
             <div class="flex items-center justify-between px-1.5 py-1 text-xs">
               <span
                 class="rounded px-1.5 py-0.5 font-medium"
-                :class="img.label === 'real' ? 'bg-sky-100 text-sky-800' : 'bg-fuchsia-100 text-fuchsia-800'"
+                :class="
+                  img.label === 'real'
+                    ? 'bg-sky-100 text-sky-800'
+                    : 'bg-fuchsia-100 text-fuchsia-800'
+                "
               >
                 {{ img.label === 'real' ? 'gerçek' : 'sentetik' }}
               </span>
@@ -164,7 +202,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useBlindTestImages } from '@/presentation/composables/blindtest/useBlindTestImages';
-import type { BlindTestImageResult, BlindTestResults } from '@/core/repositories/IBlindTestRepository';
+import type {
+  BlindTestImageResult,
+  BlindTestResults,
+} from '@/core/repositories/IBlindTestRepository';
 import type { User } from '@/core/entities/User';
 
 const props = defineProps<{ results: BlindTestResults; users: Record<string, User> }>();
@@ -183,7 +224,9 @@ function fooled(img: BlindTestImageResult) {
 }
 
 const shownImages = computed(() => {
-  let list = props.results.images.filter((i) => labelFilter.value === 'all' || i.label === labelFilter.value);
+  let list = props.results.images.filter(
+    (i) => labelFilter.value === 'all' || i.label === labelFilter.value
+  );
   if (sortBy.value === 'fooled') list = [...list].sort((a, b) => fooled(b) - fooled(a));
   return list;
 });
@@ -202,19 +245,24 @@ watch(
 
 function userLabel(userId: string) {
   const u = props.users[userId];
-  return u ? { name: u.displayName || u.email, email: u.email } : { name: '(kullanıcı bulunamadı)', email: '' };
+  return u
+    ? { name: u.displayName || u.email, email: u.email }
+    : { name: '(kullanıcı bulunamadı)', email: '' };
 }
 
 const pct = (x: number) => `%${(100 * (x || 0)).toFixed(1)}`;
 const pval = (p: number) => (p < 0.001 ? '< 0.001' : p.toFixed(3));
-const date = (s: string) => new Date(s).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' });
+const date = (s: string) =>
+  new Date(s).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' });
 const sourceText = (img: BlindTestImageResult) =>
   Object.entries(img.source)
     .map(([k, v]) => `${k}: ${v}`)
     .join('\n');
 
 function download(name: string, rows: (string | number)[][]) {
-  const csv = rows.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  const csv = rows
+    .map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\n');
   const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
   const a = Object.assign(document.createElement('a'), { href: url, download: name });
   a.click();
@@ -222,24 +270,63 @@ function download(name: string, rows: (string | number)[][]) {
 }
 
 function exportUsers() {
-  const header = ['user_id', 'name', 'email', 'role', 'answered', 'correct', 'accuracy', 'p_value',
-    'synthetic_called_real', 'real_as_real', 'real_as_synthetic', 'synthetic_as_real', 'synthetic_as_synthetic',
-    'started_at', 'completed_at'];
+  const header = [
+    'user_id',
+    'name',
+    'email',
+    'role',
+    'answered',
+    'correct',
+    'accuracy',
+    'p_value',
+    'synthetic_called_real',
+    'real_as_real',
+    'real_as_synthetic',
+    'synthetic_as_real',
+    'synthetic_as_synthetic',
+    'started_at',
+    'completed_at',
+  ];
   const rows = props.results.users.map((u) => {
     const c = u.score.confusion;
     const user = props.users[u.userId];
-    return [u.userId, user?.displayName ?? '', user?.email ?? '', u.userRole, u.score.answered, u.score.correct,
-      u.score.accuracy, u.score.pValue, u.score.syntheticCalledReal, c.realAsReal, c.realAsSynthetic,
-      c.syntheticAsReal, c.syntheticAsSynthetic, u.startedAt, u.completedAt ?? ''];
+    return [
+      u.userId,
+      user?.displayName ?? '',
+      user?.email ?? '',
+      u.userRole,
+      u.score.answered,
+      u.score.correct,
+      u.score.accuracy,
+      u.score.pValue,
+      u.score.syntheticCalledReal,
+      c.realAsReal,
+      c.realAsSynthetic,
+      c.syntheticAsReal,
+      c.syntheticAsSynthetic,
+      u.startedAt,
+      u.completedAt ?? '',
+    ];
   });
   download(`${props.results.id}_participants.csv`, [header, ...rows]);
 }
 
 function exportImages() {
   const keys = ['dataset', 'image_id', 'patch_id', 'cond_patch_id', 'seed'];
-  const header = ['image_id', 'label', 'voted_real', 'voted_synthetic', ...keys.map((k) => `source_${k}`)];
-  const rows = props.results.images.map((i) => [i.imageId, i.label, i.votedReal, i.votedSynthetic,
-    ...keys.map((k) => i.source[k] ?? '')]);
+  const header = [
+    'image_id',
+    'label',
+    'voted_real',
+    'voted_synthetic',
+    ...keys.map((k) => `source_${k}`),
+  ];
+  const rows = props.results.images.map((i) => [
+    i.imageId,
+    i.label,
+    i.votedReal,
+    i.votedSynthetic,
+    ...keys.map((k) => i.source[k] ?? ''),
+  ]);
   download(`${props.results.id}_images.csv`, [header, ...rows]);
 }
 </script>
