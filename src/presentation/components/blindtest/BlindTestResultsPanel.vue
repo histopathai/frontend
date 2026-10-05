@@ -38,7 +38,7 @@
           Havuzlanmış sonuç (tamamlayan {{ completedCount }} katılımcı,
           {{ results.pooled.answered }} cevap)
         </h3>
-        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
           <div class="rounded-lg border border-gray-200 bg-white p-4">
             <div class="text-xs text-gray-500">Doğru ayırt etme</div>
             <div class="text-2xl font-semibold tabular-nums">
@@ -52,6 +52,22 @@
             <div class="text-xs text-gray-500">
               {{
                 results.pooled.pValue < 0.05 ? 'şanstan anlamlı farklı' : 'şanstan ayırt edilemiyor'
+              }}
+            </div>
+          </div>
+          <div class="rounded-lg border border-gray-200 bg-white p-4">
+            <div class="text-xs text-gray-500">κ — cevaplar ile gerçek etiket (Cohen)</div>
+            <div class="text-2xl font-semibold tabular-nums">{{ kfmt(pooledKappa) }}</div>
+            <div class="text-xs text-gray-500">{{ kappaLabel(pooledKappa) }}; 0 = şans düzeyi</div>
+          </div>
+          <div class="rounded-lg border border-gray-200 bg-white p-4">
+            <div class="text-xs text-gray-500">κ — katılımcılar arası uyum (Fleiss)</div>
+            <div class="text-2xl font-semibold tabular-nums">{{ kfmt(fleiss.kappa) }}</div>
+            <div class="text-xs text-gray-500">
+              {{
+                fleiss.kappa === null
+                  ? 'en az 2 tamamlanmış test gerekir'
+                  : `${kappaLabel(fleiss.kappa)}; ${fleiss.raters} kişi, ${fleiss.images} görsel`
               }}
             </div>
           </div>
@@ -119,6 +135,19 @@
             inandırıcı olduğunu, düşük değer sentetiklerin kolayca yakalandığını gösterir.
             Karışıklık matrisi aynı cevapları dört hücreye ayırır (doğru etiket → verilen cevap).
           </p>
+          <p>
+            <strong>κ (kappa):</strong> şansın ötesindeki uyumu ölçer;
+            <strong>0 = şans düzeyi</strong>, 1 = tam uyum, eksi değer = sistematik ters uyum. Yorum
+            (Landis &amp; Koch): 0–0,20 çok zayıf, 0,21–0,40 zayıf, 0,41–0,60 orta, 0,61–0,80 iyi,
+            0,81–1 neredeyse tam. <em>Cevaplar ile gerçek etiket</em> arasındaki κ (Cohen)
+            doğruluğun şansa göre düzeltilmiş hâlidir; setler dengeli (yarı gerçek, yarı sentetik)
+            olduğundan tamamlanmış bir testte κ = 2 × doğruluk − 1'dir — bu testte hedeflenen κ ≈
+            0'dır. <em>Katılımcılar arası</em> κ (Fleiss) gerçek etiketten bağımsızdır: patologların
+            hangi görüntüyü gerçek / sentetik bulduklarında birbirleriyle ne kadar hemfikir
+            olduklarını gösterir. Doğruluk ~%50 iken katılımcılar arası κ yüksekse, patologlar ortak
+            bir görsel ipucuna göre karar veriyor ama bu ipucu gerçek–sentetik ayrımıyla örtüşmüyor
+            demektir. Yalnızca tamamlanmış testlerden hesaplanır.
+          </p>
           <p class="text-xs text-gray-500">
             Havuzlanmış sonuç tüm tamamlanmış testlerin cevaplarını birleştirir; kişiler arası
             farkları değil grubun genel ayırt etme gücünü gösterir. Kişi bazında yorum için
@@ -144,6 +173,7 @@
                 <th rowspan="2" class="px-3 py-2 text-right align-bottom">Doğru</th>
                 <th rowspan="2" class="px-3 py-2 text-right align-bottom">Doğruluk</th>
                 <th rowspan="2" class="px-3 py-2 text-right align-bottom">p</th>
+                <th rowspan="2" class="px-3 py-2 text-right align-bottom">κ (gerçeğe karşı)</th>
                 <th colspan="4" class="border-x border-gray-200 px-3 pt-2 text-center">
                   Karışıklık matrisi (doğru → cevap)
                 </th>
@@ -177,6 +207,12 @@
                 <td class="px-3 py-2 text-right tabular-nums">{{ u.score.correct }}</td>
                 <td class="px-3 py-2 text-right tabular-nums">{{ pct(u.score.accuracy) }}</td>
                 <td class="px-3 py-2 text-right tabular-nums">{{ pval(u.score.pValue) }}</td>
+                <td
+                  class="px-3 py-2 text-right tabular-nums"
+                  :title="kappaLabel(cohenKappa(u.score.confusion))"
+                >
+                  {{ kfmt(cohenKappa(u.score.confusion)) }}
+                </td>
                 <td class="border-l border-gray-100 px-3 py-2 text-right tabular-nums">
                   {{ u.score.confusion.realAsReal }}
                 </td>
@@ -206,7 +242,7 @@
                 </td>
               </tr>
               <tr v-if="!results.users.length">
-                <td colspan="14" class="px-3 py-6 text-center text-gray-500">
+                <td colspan="15" class="px-3 py-6 text-center text-gray-500">
                   Henüz katılımcı yok.
                 </td>
               </tr>
@@ -277,6 +313,7 @@ import type {
   BlindTestResults,
 } from '@/core/repositories/IBlindTestRepository';
 import type { User } from '@/core/entities/User';
+import { cohenKappa, fleissKappa, kappaLabel } from '@/core/blindtest/kappa';
 
 const props = defineProps<{ results: BlindTestResults; users: Record<string, User> }>();
 defineEmits<{ (e: 'refresh'): void }>();
@@ -286,6 +323,11 @@ const labelFilter = ref<'all' | 'real' | 'synthetic'>('all');
 const sortBy = ref<'order' | 'fooled'>('order');
 
 const total = computed(() => props.results.images.length);
+const pooledKappa = computed(() => cohenKappa(props.results.pooled.confusion));
+const fleiss = computed(() =>
+  fleissKappa(props.results.images.map((i) => ({ real: i.votedReal, synthetic: i.votedSynthetic })))
+);
+const kfmt = (k: number | null) => (k === null ? '—' : k.toFixed(3));
 const completedCount = computed(() => props.results.users.filter((u) => u.completedAt).length);
 
 /** How often an image was taken for the other kind. */
@@ -349,6 +391,7 @@ function exportUsers() {
     'correct',
     'accuracy',
     'p_value',
+    'cohen_kappa',
     'synthetic_called_real',
     'real_as_real',
     'real_as_synthetic',
@@ -369,6 +412,7 @@ function exportUsers() {
       u.score.correct,
       u.score.accuracy,
       u.score.pValue,
+      cohenKappa(u.score.confusion) ?? '',
       u.score.syntheticCalledReal,
       c.realAsReal,
       c.realAsSynthetic,
