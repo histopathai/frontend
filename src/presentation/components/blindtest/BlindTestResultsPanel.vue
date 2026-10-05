@@ -87,8 +87,11 @@
             <tbody class="divide-y divide-gray-100">
               <tr v-for="u in results.users" :key="u.userId">
                 <td class="px-3 py-2">
-                  <div>{{ userLabel(u.userId).name }}</div>
-                  <div class="text-xs text-gray-500">{{ userLabel(u.userId).detail }}</div>
+                  <div class="font-medium text-gray-900">{{ userLabel(u.userId).name }}</div>
+                  <div v-if="userLabel(u.userId).email" class="text-xs text-gray-500">
+                    {{ userLabel(u.userId).email }}
+                  </div>
+                  <div class="font-mono text-xs text-gray-400">{{ u.userId }}</div>
                 </td>
                 <td class="px-3 py-2">{{ u.userRole }}</td>
                 <td class="px-3 py-2 text-right tabular-nums">{{ u.score.answered }} / {{ total }}</td>
@@ -199,7 +202,7 @@ watch(
 
 function userLabel(userId: string) {
   const u = props.users[userId];
-  return u ? { name: u.displayName || u.email, detail: u.email } : { name: userId, detail: '' };
+  return u ? { name: u.displayName || u.email, email: u.email } : { name: '(kullanıcı bulunamadı)', email: '' };
 }
 
 const pct = (x: number) => `%${(100 * (x || 0)).toFixed(1)}`;

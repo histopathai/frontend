@@ -93,14 +93,15 @@ async function loadList() {
   }
 }
 
-async function loadUsers() {
-  if (Object.keys(users.value).length) return;
-  try {
-    const page = await repositories.admin.getAllUsers({ limit: 1000, offset: 0 });
-    users.value = Object.fromEntries(page.data.map((u) => [u.userId, u]));
-  } catch {
-    // isimler olmadan da sonuçlar gösterilir (kullanıcı kimliğiyle)
-  }
+/** Katılımcıların ad / e-postası, kimlik başına bir istekle (admin kullanıcı listesi sayfa başına en fazla 100 döner). */
+async function loadUsers(ids: string[]) {
+  const missing = [...new Set(ids)].filter((id) => !users.value[id]);
+  const found = await Promise.allSettled(missing.map((id) => repositories.admin.getUser(id)));
+  const next = { ...users.value };
+  found.forEach((r, i) => {
+    if (r.status === 'fulfilled') next[missing[i]!] = r.value;
+  });
+  users.value = next; // bulunamayan (ör. silinmiş) kullanıcı kimliğiyle gösterilir
 }
 
 async function select(id: string, next: 'take' | 'results') {
@@ -111,7 +112,8 @@ async function select(id: string, next: 'take' | 'results') {
     if (next === 'take') {
       current.value = await repositories.blindTest.get(id);
     } else {
-      const [r] = await Promise.all([repositories.blindTest.results(id), loadUsers()]);
+      const r = await repositories.blindTest.results(id);
+      await loadUsers(r.users.map((u) => u.userId));
       results.value = r;
     }
   } catch (e: any) {
