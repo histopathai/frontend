@@ -89,17 +89,35 @@
       <!-- Katılımcılar -->
       <section>
         <h3 class="mb-2 text-sm font-semibold text-gray-700">Katılımcılar</h3>
+        <p class="mb-2 text-xs text-gray-500">
+          Her satır o kullanıcının kendi cevaplarından hesaplanır; yarım kalan testler de kendi
+          satırında görünür (havuzlanmış sonuca yalnızca tamamlananlar girer).
+        </p>
         <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-          <table class="min-w-full text-sm">
-            <thead class="bg-gray-50 text-left text-xs text-gray-500">
+          <table class="min-w-full whitespace-nowrap text-sm">
+            <thead class="bg-gray-50 text-xs text-gray-500">
               <tr>
-                <th class="px-3 py-2">Kullanıcı</th>
-                <th class="px-3 py-2">Rol</th>
-                <th class="px-3 py-2 text-right">Cevap</th>
-                <th class="px-3 py-2 text-right">Doğruluk</th>
-                <th class="px-3 py-2 text-right">p</th>
-                <th class="px-3 py-2 text-right">Sentetik → gerçek</th>
-                <th class="px-3 py-2">Durum</th>
+                <th rowspan="2" class="px-3 py-2 text-left align-bottom">Kullanıcı</th>
+                <th rowspan="2" class="px-3 py-2 text-left align-bottom">Rol</th>
+                <th rowspan="2" class="px-3 py-2 text-right align-bottom">Cevap</th>
+                <th rowspan="2" class="px-3 py-2 text-right align-bottom">Doğru</th>
+                <th rowspan="2" class="px-3 py-2 text-right align-bottom">Doğruluk</th>
+                <th rowspan="2" class="px-3 py-2 text-right align-bottom">p</th>
+                <th colspan="4" class="border-x border-gray-200 px-3 pt-2 text-center">
+                  Karışıklık matrisi (doğru → cevap)
+                </th>
+                <th rowspan="2" class="px-3 py-2 text-right align-bottom">
+                  Sentetik → gerçek oranı
+                </th>
+                <th rowspan="2" class="px-3 py-2 text-left align-bottom">Başladı</th>
+                <th rowspan="2" class="px-3 py-2 text-left align-bottom">Son cevap</th>
+                <th rowspan="2" class="px-3 py-2 text-left align-bottom">Durum</th>
+              </tr>
+              <tr>
+                <th class="border-l border-gray-200 px-3 pb-2 text-right">gerçek → gerçek</th>
+                <th class="px-3 pb-2 text-right">gerçek → sentetik</th>
+                <th class="px-3 pb-2 text-right">sentetik → gerçek</th>
+                <th class="border-r border-gray-200 px-3 pb-2 text-right">sentetik → sentetik</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -115,11 +133,26 @@
                 <td class="px-3 py-2 text-right tabular-nums">
                   {{ u.score.answered }} / {{ total }}
                 </td>
+                <td class="px-3 py-2 text-right tabular-nums">{{ u.score.correct }}</td>
                 <td class="px-3 py-2 text-right tabular-nums">{{ pct(u.score.accuracy) }}</td>
                 <td class="px-3 py-2 text-right tabular-nums">{{ pval(u.score.pValue) }}</td>
+                <td class="border-l border-gray-100 px-3 py-2 text-right tabular-nums">
+                  {{ u.score.confusion.realAsReal }}
+                </td>
+                <td class="px-3 py-2 text-right tabular-nums">
+                  {{ u.score.confusion.realAsSynthetic }}
+                </td>
+                <td class="px-3 py-2 text-right tabular-nums">
+                  {{ u.score.confusion.syntheticAsReal }}
+                </td>
+                <td class="border-r border-gray-100 px-3 py-2 text-right tabular-nums">
+                  {{ u.score.confusion.syntheticAsSynthetic }}
+                </td>
                 <td class="px-3 py-2 text-right tabular-nums">
                   {{ pct(u.score.syntheticCalledReal) }}
                 </td>
+                <td class="px-3 py-2 tabular-nums">{{ date(u.startedAt) }}</td>
+                <td class="px-3 py-2 tabular-nums">{{ date(u.updatedAt) }}</td>
                 <td class="px-3 py-2">
                   <span
                     class="rounded px-2 py-0.5 text-xs"
@@ -127,16 +160,12 @@
                       u.completedAt ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
                     "
                   >
-                    {{
-                      u.completedAt
-                        ? `tamamladı ${date(u.completedAt)}`
-                        : `devam ediyor (${date(u.updatedAt)})`
-                    }}
+                    {{ u.completedAt ? `tamamladı ${date(u.completedAt)}` : 'devam ediyor' }}
                   </span>
                 </td>
               </tr>
               <tr v-if="!results.users.length">
-                <td colspan="7" class="px-3 py-6 text-center text-gray-500">
+                <td colspan="14" class="px-3 py-6 text-center text-gray-500">
                   Henüz katılımcı yok.
                 </td>
               </tr>
