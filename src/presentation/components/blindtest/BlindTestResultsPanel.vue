@@ -23,6 +23,12 @@
           </button>
           <button
             class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
+            @click="exportNotes"
+          >
+            Notlar CSV ({{ noteCount }})
+          </button>
+          <button
+            class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
             @click="$emit('refresh')"
           >
             Yenile
@@ -255,9 +261,14 @@
       <section>
         <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h3 class="text-sm font-semibold text-gray-700">
-            Görseller (oylar yalnızca tamamlanmış testlerden)
+            Görseller (oylar yalnızca tamamlanmış testlerden; notlar tüm katılımcılardan — ayrıntı
+            ve notlar için görsele tıklayın)
           </h3>
           <div class="flex items-center gap-2 text-sm">
+            <label class="flex items-center gap-1 text-gray-600">
+              <input v-model="onlyNoted" type="checkbox" class="rounded border-gray-300" />
+              Yalnızca notlu
+            </label>
             <select v-model="labelFilter" class="rounded-md border-gray-300 py-1 text-sm">
               <option value="all">Tümü</option>
               <option value="real">Gerçek</option>
@@ -270,13 +281,19 @@
           </div>
         </div>
         <div class="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-          <div
+          <button
             v-for="img in shownImages"
             :key="img.imageId"
-            class="overflow-hidden rounded-md border border-gray-200 bg-white"
+            class="overflow-hidden rounded-md border border-gray-200 bg-white text-left hover:ring-2 hover:ring-indigo-300"
             :title="sourceText(img)"
+            @click="detail = img"
           >
-            <div class="aspect-square bg-gray-100">
+            <div class="relative aspect-square bg-gray-100">
+              <span
+                v-if="img.notes.length"
+                class="absolute right-1 top-1 rounded bg-amber-400 px-1.5 text-xs font-medium text-gray-900"
+                >{{ img.notes.length }} not</span
+              >
               <img
                 v-if="urls[img.imageId]"
                 :src="urls[img.imageId]"
@@ -298,9 +315,94 @@
                 {{ img.votedReal }}G · {{ img.votedSynthetic }}S
               </span>
             </div>
-          </div>
+          </button>
         </div>
       </section>
+    </div>
+
+    <!-- Görsel ayrıntısı ve notlar -->
+    <div
+      v-if="detail"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      @click.self="detail = null"
+    >
+      <div
+        class="flex max-h-[90vh] w-full max-w-4xl gap-5 overflow-hidden rounded-lg bg-white p-5 shadow-xl"
+      >
+        <div class="w-72 flex-shrink-0 space-y-2 text-sm">
+          <img
+            v-if="urls[detail.imageId]"
+            :src="urls[detail.imageId]"
+            class="aspect-square w-full rounded object-cover"
+          />
+          <div>
+            <span
+              class="rounded px-1.5 py-0.5 text-xs font-medium"
+              :class="
+                detail.label === 'real'
+                  ? 'bg-sky-100 text-sky-800'
+                  : 'bg-fuchsia-100 text-fuchsia-800'
+              "
+            >
+              {{ detail.label === 'real' ? 'gerçek' : 'sentetik' }}
+            </span>
+            <span class="ml-2 tabular-nums text-gray-600">
+              oylar: {{ detail.votedReal }} gerçek · {{ detail.votedSynthetic }} sentetik
+            </span>
+          </div>
+          <dl class="text-xs text-gray-500">
+            <template v-for="(v, k) in detail.source" :key="k">
+              <dt class="inline font-medium">{{ k }}:</dt>
+              <dd class="mb-0.5 ml-1 inline break-all font-mono">{{ v }}</dd>
+              <br />
+            </template>
+          </dl>
+          <div class="font-mono text-xs text-gray-400">{{ detail.imageId }}</div>
+        </div>
+        <div class="flex min-w-0 flex-1 flex-col">
+          <div class="mb-2 flex items-center justify-between">
+            <h4 class="font-semibold text-gray-900">Notlar ({{ detail.notes.length }})</h4>
+            <button
+              class="rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
+              @click="detail = null"
+            >
+              Kapat
+            </button>
+          </div>
+          <p v-if="!detail.notes.length" class="text-sm text-gray-500">
+            Bu görsel için not yazılmamış.
+          </p>
+          <ul class="flex-1 space-y-3 overflow-y-auto pr-1">
+            <li
+              v-for="n in detail.notes"
+              :key="n.userId"
+              class="rounded-md border border-gray-200 p-3"
+            >
+              <div class="flex flex-wrap items-center gap-2 text-xs">
+                <span class="font-medium text-gray-900">{{ userLabel(n.userId).name }}</span>
+                <span
+                  class="rounded px-1.5 py-0.5"
+                  :class="
+                    !n.answer
+                      ? 'bg-gray-100 text-gray-600'
+                      : n.answer === detail.label
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                  "
+                >
+                  cevap: {{ n.answer ? (n.answer === 'real' ? 'gerçek' : 'sentetik') : 'yok' }}
+                  {{ n.answer ? (n.answer === detail.label ? '(doğru)' : '(yanlış)') : '' }}
+                </span>
+                <span class="text-gray-500">{{
+                  n.completed ? 'test tamamlandı' : 'test devam ediyor'
+                }}</span>
+                <span class="ml-auto text-gray-400">{{ date(n.updatedAt) }}</span>
+              </div>
+              <p class="mt-2 whitespace-pre-wrap text-sm text-gray-800">{{ n.note }}</p>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -321,6 +423,9 @@ defineEmits<{ (e: 'refresh'): void }>();
 const { urls, load, clear } = useBlindTestImages();
 const labelFilter = ref<'all' | 'real' | 'synthetic'>('all');
 const sortBy = ref<'order' | 'fooled'>('order');
+const onlyNoted = ref(false);
+const detail = ref<BlindTestImageResult | null>(null);
+const noteCount = computed(() => props.results.images.reduce((s, i) => s + i.notes.length, 0));
 
 const total = computed(() => props.results.images.length);
 const pooledKappa = computed(() => cohenKappa(props.results.pooled.confusion));
@@ -337,7 +442,9 @@ function fooled(img: BlindTestImageResult) {
 
 const shownImages = computed(() => {
   let list = props.results.images.filter(
-    (i) => labelFilter.value === 'all' || i.label === labelFilter.value
+    (i) =>
+      (labelFilter.value === 'all' || i.label === labelFilter.value) &&
+      (!onlyNoted.value || i.notes.length > 0)
   );
   if (sortBy.value === 'fooled') list = [...list].sort((a, b) => fooled(b) - fooled(a));
   return list;
@@ -423,6 +530,41 @@ function exportUsers() {
     ];
   });
   download(`${props.results.id}_participants.csv`, [header, ...rows]);
+}
+
+function exportNotes() {
+  const header = [
+    'image_id',
+    'label',
+    'dataset',
+    'user_id',
+    'name',
+    'email',
+    'answer',
+    'answer_correct',
+    'test_completed',
+    'note',
+    'updated_at',
+  ];
+  const rows = props.results.images.flatMap((i) =>
+    i.notes.map((n) => {
+      const user = props.users[n.userId];
+      return [
+        i.imageId,
+        i.label,
+        i.source.dataset ?? '',
+        n.userId,
+        user?.displayName ?? '',
+        user?.email ?? '',
+        n.answer,
+        n.answer ? String(n.answer === i.label) : '',
+        String(n.completed),
+        n.note,
+        n.updatedAt,
+      ];
+    })
+  );
+  download(`${props.results.id}_notes.csv`, [header, ...rows]);
 }
 
 function exportImages() {
