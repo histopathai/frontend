@@ -10,9 +10,14 @@ export interface BlindTestSummary {
   completed: boolean;
 }
 
+/** Notes are at most this many characters (main-service port.BlindTestNoteMaxLen). */
+export const BLIND_TEST_NOTE_MAX = 2000;
+
 export interface BlindTestProgress {
   /** image id -> the participant's answer */
   answers: Record<string, BlindTestLabel>;
+  /** image id -> the participant's note (why real / synthetic); writable even after completion */
+  notes: Record<string, string>;
   completedAt: string | null;
 }
 
@@ -49,12 +54,23 @@ export interface BlindTestUserResult {
   score: BlindTestScore;
 }
 
+export interface BlindTestImageNote {
+  userId: string;
+  /** The author's answer to this image; empty if not answered. */
+  answer: BlindTestLabel | '';
+  /** Whether the author's test is completed. */
+  completed: boolean;
+  note: string;
+  updatedAt: string;
+}
+
 export interface BlindTestImageResult {
   imageId: string;
   label: BlindTestLabel;
   source: Record<string, string>;
   votedReal: number;
   votedSynthetic: number;
+  notes: BlindTestImageNote[];
 }
 
 /** Admins only: carries the answer key. */
@@ -73,6 +89,8 @@ export interface IBlindTestRepository {
   get(id: string): Promise<BlindTest>;
   answer(id: string, imageId: string, label: BlindTestLabel): Promise<BlindTestProgress>;
   complete(id: string): Promise<BlindTestProgress>;
+  /** Writes the caller's note on an image; empty text removes it. */
+  note(id: string, imageId: string, text: string): Promise<BlindTestProgress>;
   image(id: string, imageId: string): Promise<Blob>;
   results(id: string): Promise<BlindTestResults>;
 }

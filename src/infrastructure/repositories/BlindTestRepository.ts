@@ -12,7 +12,7 @@ import { ApiClient } from '../api/ApiClient';
 const BASE = '/api/v1/proxy/blind-tests';
 
 function progressFromApi(d: any): BlindTestProgress {
-  return { answers: d.answers ?? {}, completedAt: d.completed_at ?? null };
+  return { answers: d.answers ?? {}, notes: d.notes ?? {}, completedAt: d.completed_at ?? null };
 }
 
 function scoreFromApi(s: any): BlindTestScore {
@@ -62,6 +62,13 @@ export class BlindTestRepository implements IBlindTestRepository {
     return progressFromApi(response.data);
   }
 
+  async note(id: string, imageId: string, text: string): Promise<BlindTestProgress> {
+    const response = await this.apiClient.put<any>(`${BASE}/${id}/notes/${imageId}`, {
+      note: text,
+    });
+    return progressFromApi(response.data);
+  }
+
   async image(id: string, imageId: string): Promise<Blob> {
     return this.apiClient.getBlob(`${BASE}/${id}/images/${imageId}`);
   }
@@ -89,6 +96,13 @@ export class BlindTestRepository implements IBlindTestRepository {
         source: i.source ?? {},
         votedReal: i.voted_real,
         votedSynthetic: i.voted_synthetic,
+        notes: (i.notes ?? []).map((n: any) => ({
+          userId: n.user_id,
+          answer: n.answer ?? '',
+          completed: !!n.completed,
+          note: n.note,
+          updatedAt: n.updated_at,
+        })),
       })),
     };
   }
