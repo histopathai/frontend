@@ -29,6 +29,13 @@
           </button>
           <button
             class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
+            title="Her satır: bir katılımcının, kendi sırasındaki bir görsele cevabı"
+            @click="exportAnswers"
+          >
+            Cevaplar CSV
+          </button>
+          <button
+            class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
             @click="$emit('refresh')"
           >
             Yenile
@@ -277,7 +284,41 @@
             <select v-model="sortBy" class="rounded-md border-gray-300 py-1 text-sm">
               <option value="order">Set sırası</option>
               <option value="fooled">En çok yanıltan önce</option>
+              <option value="participant" :disabled="!results.users.length">
+                Katılımcının sırası
+              </option>
             </select>
+            <select
+              v-if="sortBy === 'participant'"
+              v-model="orderOf"
+              class="max-w-56 rounded-md border-gray-300 py-1 text-sm"
+            >
+              <option v-for="u in results.users" :key="u.userId" :value="u.userId">
+                {{ userLabel(u.userId).name }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <div v-if="participant" class="mb-3 rounded-lg border border-gray-200 bg-white p-3 text-sm">
+          <div class="text-gray-700">
+            <strong>{{ userLabel(participant.userId).name }}</strong> görselleri bu sırayla gördü
+            ({{ participant.score.answered }} / {{ total }} cevaplı,
+            {{ participant.completedAt ? 'test tamamlandı' : 'test devam ediyor' }}). Kartlarda sıra
+            numarası ve bu kişinin cevabı var.
+          </div>
+          <div class="mt-2 text-xs text-gray-500">
+            Sıraya göre doğruluk (20'şer görsel; testin sonuna doğru değişiyorsa yorgunluk ya da
+            öğrenme etkisi olabilir):
+          </div>
+          <div class="mt-1 flex flex-wrap gap-1.5">
+            <span
+              v-for="b in participantBlocks"
+              :key="b.from"
+              class="rounded bg-gray-100 px-2 py-0.5 text-xs tabular-nums text-gray-700"
+              :title="`${b.correct} / ${b.answered} doğru`"
+            >
+              {{ b.from }}–{{ b.to }}: {{ b.accuracy === null ? '—' : pct(b.accuracy) }}
+            </span>
           </div>
         </div>
         <div class="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
@@ -289,6 +330,11 @@
             @click="detail = img"
           >
             <div class="relative aspect-square bg-gray-100">
+              <span
+                v-if="participant"
+                class="absolute left-1 top-1 rounded bg-black/60 px-1.5 text-xs text-white"
+                >#{{ position[img.imageId] }}</span
+              >
               <span
                 v-if="img.notes.length"
                 class="absolute right-1 top-1 rounded bg-amber-400 px-1.5 text-xs font-medium text-gray-900"
@@ -314,6 +360,35 @@
               <span class="tabular-nums text-gray-600" title="gerçek / sentetik oyu">
                 {{ img.votedReal }}G · {{ img.votedSynthetic }}S
               </span>
+            </div>
+            <div
+              v-if="participant"
+              class="flex items-center justify-between border-t border-gray-100 px-1.5 py-1 text-xs"
+            >
+              <span
+                class="rounded px-1.5 py-0.5"
+                :class="
+                  !participant.answers[img.imageId]
+                    ? 'bg-gray-100 text-gray-500'
+                    : participant.answers[img.imageId] === img.label
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-red-100 text-red-800'
+                "
+              >
+                {{
+                  !participant.answers[img.imageId]
+                    ? 'cevapsız'
+                    : `${participant.answers[img.imageId] === 'real' ? 'gerçek' : 'sentetik'} ${
+                        participant.answers[img.imageId] === img.label ? '✓' : '✗'
+                      }`
+                }}
+              </span>
+              <span
+                v-if="img.notes.some((n) => n.userId === participant!.userId)"
+                class="text-amber-700"
+                title="Bu kişinin notu var"
+                >not</span
+              >
             </div>
           </button>
         </div>
@@ -417,13 +492,15 @@ import type {
 } from '@/core/repositories/IBlindTestRepository';
 import type { User } from '@/core/entities/User';
 import { cohenKappa, fleissKappa, kappaLabel } from '@/core/blindtest/kappa';
+import { orderBlocks } from '@/core/blindtest/orderEffect';
 
 const props = defineProps<{ results: BlindTestResults; users: Record<string, User> }>();
 defineEmits<{ (e: 'refresh'): void }>();
 
 const { urls, load, clear } = useBlindTestImages();
 const labelFilter = ref<'all' | 'real' | 'synthetic'>('all');
-const sortBy = ref<'order' | 'fooled'>('order');
+const sortBy = ref<'order' | 'fooled' | 'participant'>('order');
+const orderOf = ref('');
 const onlyNoted = ref(false);
 const detail = ref<BlindTestImageResult | null>(null);
 const noteCount = computed(() => props.results.images.reduce((s, i) => s + i.notes.length, 0));
@@ -441,6 +518,27 @@ function fooled(img: BlindTestImageResult) {
   return img.label === 'real' ? img.votedSynthetic : img.votedReal;
 }
 
+/** The participant whose order the grid follows ("Katılımcının sırası"). */
+const participant = computed(() =>
+  sortBy.value === 'participant'
+    ? (props.results.users.find((u) => u.userId === orderOf.value) ??
+      props.results.users[0] ??
+      null)
+    : null
+);
+/** 1-based position of each image in that participant's order. */
+const position = computed<Record<string, number>>(() =>
+  Object.fromEntries((participant.value?.order ?? []).map((id, i) => [id, i + 1]))
+);
+const truth = computed(() =>
+  Object.fromEntries(props.results.images.map((i) => [i.imageId, i.label]))
+);
+const participantBlocks = computed(() =>
+  participant.value
+    ? orderBlocks(participant.value.order, participant.value.answers, truth.value)
+    : []
+);
+
 const shownImages = computed(() => {
   let list = props.results.images.filter(
     (i) =>
@@ -448,7 +546,15 @@ const shownImages = computed(() => {
       (!onlyNoted.value || i.notes.length > 0)
   );
   if (sortBy.value === 'fooled') list = [...list].sort((a, b) => fooled(b) - fooled(a));
+  if (participant.value) {
+    const pos = position.value;
+    list = [...list].sort((a, b) => (pos[a.imageId] ?? 1e9) - (pos[b.imageId] ?? 1e9));
+  }
   return list;
+});
+
+watch(sortBy, (v) => {
+  if (v === 'participant' && !orderOf.value) orderOf.value = props.results.users[0]?.userId ?? '';
 });
 
 watch(
@@ -541,6 +647,38 @@ function exportUsers() {
     ];
   });
   download(`${props.results.id}_participants.csv`, [header, ...rows]);
+}
+
+/** Long format for order-effect analysis: one row per participant and image, in their own order. */
+function exportAnswers() {
+  const header = [
+    'user_id',
+    'name',
+    'role',
+    'test_completed',
+    'position',
+    'image_id',
+    'label',
+    'answer',
+    'answer_correct',
+  ];
+  const rows = props.results.users.flatMap((u) =>
+    u.order.map((imageId, i) => {
+      const answer = u.answers[imageId] ?? '';
+      return [
+        u.userId,
+        userLabel(u.userId).name,
+        roleText(u.userRole),
+        String(!!u.completedAt),
+        i + 1,
+        imageId,
+        truth.value[imageId] ?? '',
+        answer,
+        answer ? String(answer === truth.value[imageId]) : '',
+      ];
+    })
+  );
+  download(`${props.results.id}_answers.csv`, [header, ...rows]);
 }
 
 function exportNotes() {

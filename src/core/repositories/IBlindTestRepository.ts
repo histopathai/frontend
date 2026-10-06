@@ -56,6 +56,10 @@ export interface BlindTestUserResult {
   userRole: string;
   /** Set for people who joined through an invitation link. */
   guest: BlindTestGuestProfile | null;
+  /** The order this participant was shown the images in. */
+  order: string[];
+  /** This participant's answer per image. */
+  answers: Record<string, BlindTestLabel>;
   startedAt: string;
   updatedAt: string;
   completedAt: string | null;

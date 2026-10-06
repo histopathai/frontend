@@ -102,6 +102,8 @@ export class BlindTestRepository implements IBlindTestRepository {
         userId: u.user_id,
         userRole: u.user_role,
         guest: u.guest ? { name: u.guest.name } : null,
+        order: u.order ?? [],
+        answers: u.answers ?? {},
         startedAt: u.started_at,
         updatedAt: u.updated_at,
         completedAt: u.completed_at ?? null,
