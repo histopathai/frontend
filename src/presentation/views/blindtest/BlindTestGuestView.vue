@@ -1,16 +1,22 @@
 <template>
-  <div class="flex h-screen flex-col bg-gray-50">
+  <!-- dvh: telefonda tarayıcı çubukları açılıp kapanırken alt kısım ekran dışında kalmasın -->
+  <div class="flex h-screen flex-col bg-gray-50" style="height: 100dvh">
     <header
-      class="flex h-[49px] flex-shrink-0 items-center gap-4 border-b border-gray-200 bg-white px-6"
+      class="flex h-[49px] flex-shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 sm:gap-4 sm:px-6"
     >
       <span class="text-lg font-bold text-indigo-600">HistopathAI</span>
-      <span class="text-sm text-gray-500">Kör Test</span>
+      <span class="hidden text-sm text-gray-500 sm:inline">Kör Test</span>
       <template v-if="session">
-        <span class="ml-auto text-sm text-gray-700"
-          >Katılımcı: <strong>{{ session.name }}</strong></span
+        <span class="ml-auto min-w-0 truncate text-sm text-gray-700"
+          ><span class="hidden sm:inline">Katılımcı: </span
+          ><strong>{{ session.name }}</strong></span
         >
-        <button class="text-sm text-gray-500 hover:underline" @click="forget">
-          Bu cihazda çıkış yap
+        <button
+          class="flex-shrink-0 whitespace-nowrap text-sm text-gray-500 hover:underline"
+          @click="forget"
+        >
+          <span class="sm:hidden">Çıkış</span>
+          <span class="hidden sm:inline">Bu cihazda çıkış yap</span>
         </button>
       </template>
     </header>
@@ -25,7 +31,7 @@
 
       <BlindTestTake v-else-if="state === 'test' && test && api" :test="test" :api="api" />
 
-      <div v-else class="flex h-full items-start justify-center overflow-y-auto p-6">
+      <div v-else class="flex h-full items-start justify-center overflow-y-auto p-4 sm:p-6">
         <div class="w-full max-w-lg space-y-4">
           <div
             v-if="state === 'invalid'"

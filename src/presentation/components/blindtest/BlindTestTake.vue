@@ -1,7 +1,8 @@
 <template>
-  <div class="flex h-full flex-col">
+  <!-- Dar ekranda (telefon) bütün sayfa kayar ve ilerleme çubuğu üstte sabit kalır; geniş ekranda yalnızca ızgara kayar -->
+  <div class="flex h-full flex-col overflow-y-auto sm:overflow-hidden">
     <!-- Başlık ve ilerleme -->
-    <div class="border-b border-gray-200 bg-white px-6 py-4">
+    <div class="border-b border-gray-200 bg-white px-4 py-3 sm:px-6 sm:py-4">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 class="text-lg font-semibold text-gray-900">{{ test.name }}</h2>
@@ -13,7 +14,7 @@
             Yalnızca cevaplanmamışlar
           </label>
           <button
-            class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+            class="hidden rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-gray-300 sm:block"
             :disabled="!canComplete || completing"
             @click="showConfirm = true"
           >
@@ -21,7 +22,7 @@
           </button>
         </div>
       </div>
-      <div class="mt-3 flex items-center gap-3">
+      <div class="mt-3 hidden items-center gap-3 sm:flex">
         <div class="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
           <div class="h-full bg-indigo-500 transition-all" :style="{ width: `${percent}%` }" />
         </div>
@@ -39,10 +40,28 @@
       </p>
     </div>
 
+    <!-- Telefonda sabit ilerleme çubuğu -->
+    <div
+      class="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-200 bg-white/95 px-4 py-2 backdrop-blur sm:hidden"
+    >
+      <div class="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
+        <div class="h-full bg-indigo-500 transition-all" :style="{ width: `${percent}%` }" />
+      </div>
+      <span class="text-sm tabular-nums text-gray-600">{{ answeredCount }} / {{ total }}</span>
+      <button
+        class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white disabled:bg-gray-300"
+        :disabled="!canComplete || completing"
+        @click="showConfirm = true"
+      >
+        {{ completed ? 'Tamamlandı' : 'Tamamla' }}
+      </button>
+    </div>
+
     <!-- Izgara -->
-    <div class="flex-1 overflow-y-auto bg-gray-50 p-6">
-      <!-- Görseller ekranda birebir: bir görüntü pikseli = bir ekran pikseli (büyütme / küçültme yok) -->
-      <div class="flex flex-wrap gap-4">
+    <div ref="grid" class="flex-shrink-0 bg-gray-50 p-4 sm:flex-1 sm:overflow-y-auto sm:p-6">
+      <!-- Fareyle birebir (bir görüntü pikseli = bir ekran pikseli); dokunmatik ekranda tam sayı katıyla büyütülür
+           (her görüntü pikseli n × n ekran pikseli) — yeniden örnekleme yok, gerçek ve sentetik aynı çizilir -->
+      <div class="flex flex-wrap justify-center gap-4 sm:justify-start">
         <div
           v-for="item in visible"
           :key="item.id"
@@ -79,7 +98,7 @@
             <button
               v-for="opt in OPTIONS"
               :key="opt.value"
-              class="rounded py-1.5 font-medium transition-colors disabled:cursor-not-allowed"
+              class="rounded py-2.5 font-medium transition-colors disabled:cursor-not-allowed sm:py-1.5"
               :class="[
                 tile < 170 ? 'px-1 text-xs' : 'px-2 text-sm',
                 answers[item.id] === opt.value
@@ -93,7 +112,7 @@
             </button>
           </div>
           <button
-            class="w-full border-t border-gray-100 px-2 py-1 text-left text-xs hover:bg-gray-50"
+            class="w-full border-t border-gray-100 px-2 py-2.5 text-left text-xs hover:bg-gray-50 sm:py-1"
             :class="notes[item.id] ? 'text-amber-700' : 'text-gray-500'"
             :title="notes[item.id] || 'Bu görsel için not yazın'"
             @click="openNote(item)"
@@ -110,7 +129,11 @@
     </div>
 
     <!-- Not penceresi -->
-    <div v-if="noteFor" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <!-- Telefonda üstte: ortada kalırsa açılan klavye pencerenin altını örter -->
+    <div
+      v-if="noteFor"
+      class="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 sm:items-center"
+    >
       <div class="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl" @keydown="onNoteKey">
         <div class="flex items-start gap-3">
           <img
@@ -157,14 +180,15 @@
               :disabled="noteSaving"
               @click="noteFor = null"
             >
-              Vazgeç (Esc)
+              Vazgeç<span class="hidden sm:inline"> (Esc)</span>
             </button>
             <button
               class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-gray-300"
               :disabled="noteSaving || draft.trim() === (notes[noteFor.id] ?? '')"
               @click="saveNote(draft)"
             >
-              {{ noteSaving ? 'Kaydediliyor…' : 'Kaydet (Ctrl+Enter)' }}
+              <template v-if="noteSaving">Kaydediliyor…</template>
+              <template v-else>Kaydet<span class="hidden sm:inline"> (Ctrl+Enter)</span></template>
             </button>
           </div>
         </div>
@@ -202,7 +226,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { blindTestTileSize } from '@/core/blindtest/tileSize';
 import { useToast } from 'vue-toastification';
 import { useBlindTestImages } from '@/presentation/composables/blindtest/useBlindTestImages';
 import { useDevicePixelRatio } from '@/presentation/composables/blindtest/useDevicePixelRatio';
@@ -220,8 +245,24 @@ const props = defineProps<{ test: BlindTest; api?: BlindTestParticipantApi }>();
 /** Image size in image pixels (the sets are 256 × 256). */
 const IMAGE_PX = 256;
 const pixelRatio = useDevicePixelRatio();
-/** CSS size that puts IMAGE_PX image pixels on IMAGE_PX screen pixels (128 on a 2× Retina screen). */
-const tile = computed(() => IMAGE_PX / pixelRatio.value);
+const touch =
+  typeof window !== 'undefined' && 'matchMedia' in window
+    ? window.matchMedia('(pointer: coarse)').matches
+    : false;
+/** Width the grid has for tiles (inside its padding), kept current as the screen turns or resizes. */
+const grid = ref<HTMLElement | null>(null);
+const gridWidth = ref(typeof window === 'undefined' ? 1024 : window.innerWidth - 32);
+let resize: ResizeObserver | null = null;
+onMounted(() => {
+  if (!grid.value || typeof ResizeObserver === 'undefined') return;
+  resize = new ResizeObserver(([entry]) => {
+    if (entry) gridWidth.value = entry.contentRect.width;
+  });
+  resize.observe(grid.value);
+});
+onBeforeUnmount(() => resize?.disconnect());
+/** CSS tile size: 1:1 with a mouse (128 on a 2× Retina screen), a whole-number enlargement on a touch screen. */
+const tile = computed(() => blindTestTileSize(IMAGE_PX, pixelRatio.value, gridWidth.value, touch));
 const emit = defineEmits<{ (e: 'progress', answered: number, completed: boolean): void }>();
 
 const OPTIONS: { value: BlindTestLabel; label: string }[] = [
@@ -345,8 +386,9 @@ function onNoteKey(e: KeyboardEvent) {
 </script>
 
 <style scoped>
-/* Exactly one screen pixel per image pixel; should a sub-pixel offset still make the browser resample, take the
-   nearest pixel instead of smoothing — no blur is added on screen. */
+/* A whole number of screen pixels per image pixel (exactly one with a mouse); enlarged images become sharp
+   n × n blocks, and should a sub-pixel offset still make the browser resample, it takes the nearest pixel
+   instead of smoothing — no blur is added on screen. */
 .native-pixels {
   image-rendering: pixelated;
 }
