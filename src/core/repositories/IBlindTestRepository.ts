@@ -47,9 +47,8 @@ export interface BlindTestScore {
 
 /** Who joined through an invitation link (no platform account). */
 export interface BlindTestGuestProfile {
+  /** In capitals, Turkish letters in ASCII ("AYSE YILMAZ"). */
   name: string;
-  institution: string;
-  experienceYears: number | null;
 }
 
 export interface BlindTestUserResult {
@@ -151,8 +150,6 @@ export interface BlindTestInviteInfo {
 export interface BlindTestJoin {
   name: string;
   pin: string;
-  institution?: string;
-  experienceYears?: number | null;
   consent: boolean;
 }
 

@@ -468,17 +468,10 @@ const guests = computed(() =>
   Object.fromEntries(props.results.users.filter((u) => u.guest).map((u) => [u.userId, u.guest!]))
 );
 
-/** Name and a second line: e-mail for platform users; institution and experience for invited guests. */
+/** Name and a second line: e-mail for platform users; "davet linkiyle" for invited guests. */
 function userLabel(userId: string) {
   const g = guests.value[userId];
-  if (g) {
-    const detail = [
-      'davet linkiyle',
-      g.institution,
-      g.experienceYears !== null ? `${g.experienceYears} yıl deneyim` : '',
-    ];
-    return { name: g.name, email: detail.filter(Boolean).join(' · ') };
-  }
+  if (g) return { name: g.name, email: 'davet linkiyle' };
   const u = props.users[userId];
   return u
     ? { name: u.displayName || u.email, email: u.email }
@@ -511,8 +504,6 @@ function exportUsers() {
     'user_id',
     'name',
     'email',
-    'institution',
-    'experience_years',
     'role',
     'answered',
     'correct',
@@ -534,8 +525,6 @@ function exportUsers() {
       u.userId,
       u.guest?.name ?? user?.displayName ?? '',
       user?.email ?? '',
-      u.guest?.institution ?? '',
-      u.guest?.experienceYears ?? '',
       roleText(u.userRole),
       u.score.answered,
       u.score.correct,

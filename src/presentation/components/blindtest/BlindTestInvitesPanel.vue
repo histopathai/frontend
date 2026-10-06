@@ -3,12 +3,11 @@
     <div class="border-b border-gray-200 bg-white px-6 py-4">
       <h2 class="text-lg font-semibold text-gray-900">{{ setName }} — davet linkleri</h2>
       <p class="mt-1 max-w-3xl text-sm text-gray-500">
-        Tek bir linki patologlarla paylaşın: hesap açmadan adlarını (ve isterlerse kurum ile deneyim
-        yıllarını) yazıp kendi belirledikleri 4 haneli PIN ile teste başlarlar. Aynı linkle
-        istedikleri zaman kaldıkları yerden devam ederler — aynı tarayıcıda doğrudan, başka bir
-        cihazda adları ve PIN'leriyle. Link, girdiğiniz kişi sayısına ulaşınca yeni katılım almaz;
-        kapattığınızda kimse (katılmış olanlar da) devam edemez. Katılımcılar sonuçlarda "davetli"
-        olarak, verdikleri adla görünür.
+        Tek bir linki patologlarla paylaşın: hesap açmadan adlarını yazıp kendi belirledikleri 4
+        haneli PIN ile teste başlarlar. Aynı linkle istedikleri zaman kaldıkları yerden devam
+        ederler — aynı tarayıcıda doğrudan, başka bir cihazda adları ve PIN'leriyle. Link,
+        girdiğiniz kişi sayısına ulaşınca yeni katılım almaz; kapattığınızda kimse (katılmış olanlar
+        da) devam edemez. Katılımcılar sonuçlarda "davetli" olarak, verdikleri adla görünür.
       </p>
     </div>
 

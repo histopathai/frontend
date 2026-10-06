@@ -45,15 +45,8 @@ export class BlindTestGuestRepository implements IBlindTestGuestRepository {
   }
 
   async join(j: BlindTestJoin): Promise<BlindTestGuestSession> {
-    const d = (
-      await this.http.post('/join', {
-        name: j.name,
-        pin: j.pin,
-        institution: j.institution || undefined,
-        experience_years: j.experienceYears ?? undefined,
-        consent: j.consent,
-      })
-    ).data.data;
+    const d = (await this.http.post('/join', { name: j.name, pin: j.pin, consent: j.consent })).data
+      .data;
     return { sessionToken: d.session_token, name: d.name };
   }
 

@@ -101,13 +101,7 @@ export class BlindTestRepository implements IBlindTestRepository {
       users: (d.users ?? []).map((u: any) => ({
         userId: u.user_id,
         userRole: u.user_role,
-        guest: u.guest
-          ? {
-              name: u.guest.name,
-              institution: u.guest.institution ?? '',
-              experienceYears: u.guest.experience_years ?? null,
-            }
-          : null,
+        guest: u.guest ? { name: u.guest.name } : null,
         startedAt: u.started_at,
         updatedAt: u.updated_at,
         completedAt: u.completed_at ?? null,

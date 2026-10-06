@@ -106,33 +106,19 @@
                   <label class="block text-sm">
                     <span class="text-gray-700">Ad Soyad *</span>
                     <input
-                      v-model="form.name"
+                      :value="form.name"
+                      autocapitalize="characters"
+                      spellcheck="false"
+                      @input="onName"
                       required
                       maxlength="80"
                       autocomplete="name"
                       class="mt-1 w-full rounded-md border-gray-300"
                     />
                     <span class="text-xs text-gray-500"
-                      >Sonuçlarda bu adla görünürsünüz; devam ederken de bu adı yazacaksınız.</span
+                      >Büyük harfle ve Türkçe karakterler olmadan kaydedilir (ör. AYSE YILMAZ).
+                      Sonuçlarda bu adla görünürsünüz; devam ederken de bu adı yazacaksınız.</span
                     >
-                  </label>
-                  <label class="block text-sm">
-                    <span class="text-gray-700">Kurum</span>
-                    <input
-                      v-model="form.institution"
-                      maxlength="120"
-                      class="mt-1 w-full rounded-md border-gray-300"
-                    />
-                  </label>
-                  <label class="block text-sm">
-                    <span class="text-gray-700">Patolojide deneyim (yıl)</span>
-                    <input
-                      v-model.number="form.experience"
-                      type="number"
-                      min="0"
-                      max="70"
-                      class="mt-1 w-32 rounded-md border-gray-300"
-                    />
                   </label>
                   <div class="grid grid-cols-2 gap-3">
                     <label class="block text-sm">
@@ -172,9 +158,9 @@
                       class="mt-0.5 rounded border-gray-300"
                     />
                     <span>
-                      Adımın, kurumumun, deneyim yılımın, cevaplarımın ve notlarımın yalnızca bu
-                      araştırma kapsamında (sentetik histopatoloji görüntülerinin gerçekçiliğinin
-                      değerlendirilmesi) kaydedilip kullanılmasını kabul ediyorum.
+                      Adımın, cevaplarımın ve notlarımın yalnızca bu araştırma kapsamında (sentetik
+                      histopatoloji görüntülerinin gerçekçiliğinin değerlendirilmesi) kaydedilip
+                      kullanılmasını kabul ediyorum.
                     </span>
                   </label>
                   <p v-if="error" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -195,7 +181,10 @@
                 <label class="block text-sm">
                   <span class="text-gray-700">Ad Soyad</span>
                   <input
-                    v-model="form.name"
+                    :value="form.name"
+                    autocapitalize="characters"
+                    spellcheck="false"
+                    @input="onName"
                     required
                     maxlength="80"
                     autocomplete="name"
@@ -238,6 +227,7 @@
 import { onMounted, reactive, ref } from 'vue';
 import BlindTestTake from '@/presentation/components/blindtest/BlindTestTake.vue';
 import { repositories } from '@/services';
+import { guestNameInput } from '@/core/blindtest/guestName';
 import type {
   BlindTest,
   BlindTestGuestError,
@@ -260,12 +250,19 @@ const sending = ref(false);
 const error = ref('');
 const form = reactive({
   name: '',
-  institution: '',
-  experience: null as number | null,
   pin: '',
   pin2: '',
   consent: false,
 });
+
+/** Writes the name in capitals without Turkish letters as it is typed, keeping the cursor in place. */
+function onName(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const at = input.selectionStart;
+  form.name = guestNameInput(input.value);
+  input.value = form.name;
+  if (at !== null) input.setSelectionRange(at, at);
+}
 
 function saved(): { token: string; name: string } | null {
   try {
@@ -292,10 +289,6 @@ function message(e: BlindTestGuestError): string {
       return 'PIN 4 rakamdan oluşmalı.';
     case 'consent_required':
       return 'Devam etmek için onay kutusunu işaretleyin.';
-    case 'experience_invalid':
-      return 'Deneyim yılı 0 ile 70 arasında olmalı.';
-    case 'institution_invalid':
-      return 'Kurum adı en fazla 120 karakter olabilir.';
     case 'name_taken':
       return "Bu adla daha önce katılım yapılmış. Siz iseniz PIN'inizi girerek devam edin.";
     case 'invite_full':
@@ -368,9 +361,6 @@ async function join() {
     const s = await repo.join({
       name: form.name,
       pin: form.pin,
-      institution: form.institution,
-      experienceYears:
-        form.experience === null || (form.experience as any) === '' ? null : form.experience,
       consent: form.consent,
     });
     const stored = { token: s.sessionToken, name: s.name };
