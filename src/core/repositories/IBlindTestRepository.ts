@@ -136,9 +136,9 @@ export interface IBlindTestRepository {
 
 // ── Invited guests (public, no platform account) ─────────────────────────────
 
+/** What a guest learns before joining: the neutral set name, never its description. */
 export interface BlindTestInviteInfo {
   setName: string;
-  description: string;
   images: number;
   participants: number;
   max: number;

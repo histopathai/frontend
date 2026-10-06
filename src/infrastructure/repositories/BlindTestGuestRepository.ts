@@ -34,7 +34,6 @@ export class BlindTestGuestRepository implements IBlindTestGuestRepository {
     const d = (await this.http.get('')).data.data;
     return {
       setName: d.set_name,
-      description: d.description,
       images: d.images,
       participants: d.participants,
       max: d.max,

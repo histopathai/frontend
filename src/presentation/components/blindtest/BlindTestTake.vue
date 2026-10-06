@@ -5,7 +5,7 @@
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 class="text-lg font-semibold text-gray-900">{{ test.name }}</h2>
-          <p class="text-sm text-gray-500">{{ test.description }}</p>
+          <p v-if="test.description" class="text-sm text-gray-500">{{ test.description }}</p>
         </div>
         <div class="flex items-center gap-3">
           <label class="flex items-center gap-2 text-sm text-gray-600">

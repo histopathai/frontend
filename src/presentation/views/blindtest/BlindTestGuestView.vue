@@ -313,7 +313,8 @@ function message(e: BlindTestGuestError): string {
 async function open(s: { token: string; name: string }) {
   const loaded = await repo.test(s.token);
   session.value = s;
-  test.value = loaded.test;
+  // Guests see the neutral set name only: a description may name the model (main-service drops it too).
+  test.value = { ...loaded.test, description: '' };
   api.value = loaded.api;
   state.value = 'test';
 }
