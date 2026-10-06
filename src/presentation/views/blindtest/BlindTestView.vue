@@ -4,12 +4,15 @@
       <div class="border-b border-gray-200 px-4 py-3">
         <h1 class="text-base font-semibold text-gray-900">Kör Test</h1>
         <p class="mt-1 text-xs text-gray-500">
-          Görsellerin bir kısmı gerçek doku patch'leri, bir kısmı üretken modelle üretilmiş sentetik görüntülerdir.
+          Görsellerin bir kısmı gerçek doku patch'leri, bir kısmı üretken modelle üretilmiş sentetik
+          görüntülerdir.
         </p>
       </div>
       <div class="flex-1 overflow-y-auto p-2">
         <p v-if="loading" class="px-2 py-4 text-sm text-gray-500">Yükleniyor…</p>
-        <p v-else-if="!tests.length" class="px-2 py-4 text-sm text-gray-500">Açık bir kör test yok.</p>
+        <p v-else-if="!tests.length" class="px-2 py-4 text-sm text-gray-500">
+          Açık bir kör test yok.
+        </p>
         <div
           v-for="t in tests"
           :key="t.id"
@@ -28,20 +31,38 @@
             </div>
             <p class="mt-1 text-xs text-gray-500">{{ t.description }}</p>
           </button>
-          <button
-            v-if="isAdmin"
-            class="mt-2 text-xs font-medium text-indigo-600 hover:underline"
-            @click="select(t.id, 'results')"
-          >
-            Sonuçlar (admin)
-          </button>
+          <div v-if="isAdmin" class="mt-2 flex gap-3">
+            <button
+              class="text-xs font-medium text-indigo-600 hover:underline"
+              @click="select(t.id, 'results')"
+            >
+              Sonuçlar (admin)
+            </button>
+            <button
+              class="text-xs font-medium text-indigo-600 hover:underline"
+              @click="select(t.id, 'invites')"
+            >
+              Davet linkleri
+            </button>
+          </div>
         </div>
       </div>
     </aside>
 
     <main class="min-w-0 flex-1">
-      <div v-if="busy" class="flex h-full items-center justify-center text-sm text-gray-500">Yükleniyor…</div>
-      <BlindTestTake v-else-if="mode === 'take' && current" :test="current" @progress="onProgress" />
+      <div v-if="busy" class="flex h-full items-center justify-center text-sm text-gray-500">
+        Yükleniyor…
+      </div>
+      <BlindTestTake
+        v-else-if="mode === 'take' && current"
+        :test="current"
+        @progress="onProgress"
+      />
+      <BlindTestInvitesPanel
+        v-else-if="mode === 'invites' && selectedId"
+        :set-id="selectedId"
+        :set-name="tests.find((t) => t.id === selectedId)?.name ?? ''"
+      />
       <BlindTestResultsPanel
         v-else-if="mode === 'results' && results"
         :results="results"
@@ -60,6 +81,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useToast } from 'vue-toastification';
 import BlindTestTake from '@/presentation/components/blindtest/BlindTestTake.vue';
 import BlindTestResultsPanel from '@/presentation/components/blindtest/BlindTestResultsPanel.vue';
+import BlindTestInvitesPanel from '@/presentation/components/blindtest/BlindTestInvitesPanel.vue';
 import { repositories } from '@/services';
 import { useAuthStore } from '@/stores/auth';
 import type { User } from '@/core/entities/User';
@@ -77,7 +99,7 @@ const tests = ref<BlindTestSummary[]>([]);
 const loading = ref(true);
 const busy = ref(false);
 const selectedId = ref<string | null>(null);
-const mode = ref<'take' | 'results'>('take');
+const mode = ref<'take' | 'results' | 'invites'>('take');
 const current = ref<BlindTest | null>(null);
 const results = ref<BlindTestResults | null>(null);
 const users = ref<Record<string, User>>({});
@@ -104,16 +126,18 @@ async function loadUsers(ids: string[]) {
   users.value = next; // bulunamayan (ör. silinmiş) kullanıcı kimliğiyle gösterilir
 }
 
-async function select(id: string, next: 'take' | 'results') {
+async function select(id: string, next: 'take' | 'results' | 'invites') {
   selectedId.value = id;
   mode.value = next;
   busy.value = true;
   try {
-    if (next === 'take') {
+    if (next === 'invites') {
+      // the panel loads its own links
+    } else if (next === 'take') {
       current.value = await repositories.blindTest.get(id);
     } else {
       const r = await repositories.blindTest.results(id);
-      await loadUsers(r.users.map((u) => u.userId));
+      await loadUsers(r.users.filter((u) => !u.guest).map((u) => u.userId)); // guests carry their own name
       results.value = r;
     }
   } catch (e: any) {

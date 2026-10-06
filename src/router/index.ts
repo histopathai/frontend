@@ -4,6 +4,7 @@ import type { Capability } from '@/core/auth/permissions';
 import appRoutes from './routes/app.routes';
 import authRoutes from './routes/auth.routes';
 import adminRoutes from './routes/admin.routes';
+import guestRoutes from './routes/guest.routes';
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -16,7 +17,7 @@ declare module 'vue-router' {
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [appRoutes, authRoutes, adminRoutes],
+  routes: [guestRoutes, appRoutes, authRoutes, adminRoutes],
 });
 
 // Global Navigation Guard

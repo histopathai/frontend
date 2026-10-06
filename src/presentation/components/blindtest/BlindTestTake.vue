@@ -5,7 +5,7 @@
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 class="text-lg font-semibold text-gray-900">{{ test.name }}</h2>
-          <p class="text-sm text-gray-500">{{ test.description }}</p>
+          <p v-if="test.description" class="text-sm text-gray-500">{{ test.description }}</p>
         </div>
         <div class="flex items-center gap-3">
           <label class="flex items-center gap-2 text-sm text-gray-600">
@@ -41,24 +41,26 @@
 
     <!-- Izgara -->
     <div class="flex-1 overflow-y-auto bg-gray-50 p-6">
-      <div
-        class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
-      >
+      <!-- Görseller ekranda birebir: bir görüntü pikseli = bir ekran pikseli (büyütme / küçültme yok) -->
+      <div class="flex flex-wrap gap-4">
         <div
           v-for="item in visible"
           :key="item.id"
           class="overflow-hidden rounded-lg border bg-white shadow-sm"
           :class="answers[item.id] ? 'border-gray-200' : 'border-amber-300'"
+          :style="{ width: `${tile}px` }"
         >
           <div
-            class="relative mx-auto flex aspect-square w-full max-w-[256px] select-none items-center justify-center bg-gray-100"
+            class="relative flex select-none items-center justify-center bg-gray-100"
+            :style="{ width: `${tile}px`, height: `${tile}px` }"
             @contextmenu.prevent
           >
             <img
               v-if="urls[item.id]"
               :src="urls[item.id]"
               :alt="`Görsel ${item.index + 1}`"
-              class="h-full w-full object-cover"
+              class="native-pixels block"
+              :style="{ width: `${tile}px`, height: `${tile}px` }"
               draggable="false"
             />
             <span v-else-if="failed[item.id]" class="text-xs text-red-600">Yüklenemedi</span>
@@ -77,12 +79,13 @@
             <button
               v-for="opt in OPTIONS"
               :key="opt.value"
-              class="rounded px-2 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed"
-              :class="
+              class="rounded py-1.5 font-medium transition-colors disabled:cursor-not-allowed"
+              :class="[
+                tile < 170 ? 'px-1 text-xs' : 'px-2 text-sm',
                 answers[item.id] === opt.value
                   ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:hover:bg-gray-100'
-              "
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:hover:bg-gray-100',
+              ]"
               :disabled="completed || saving[item.id]"
               @click="choose(item.id, opt.value)"
             >
@@ -202,11 +205,23 @@
 import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { useToast } from 'vue-toastification';
 import { useBlindTestImages } from '@/presentation/composables/blindtest/useBlindTestImages';
+import { useDevicePixelRatio } from '@/presentation/composables/blindtest/useDevicePixelRatio';
 import { repositories } from '@/services';
 import { BLIND_TEST_NOTE_MAX as NOTE_MAX } from '@/core/repositories/IBlindTestRepository';
-import type { BlindTest, BlindTestLabel } from '@/core/repositories/IBlindTestRepository';
+import type {
+  BlindTest,
+  BlindTestLabel,
+  BlindTestParticipantApi,
+} from '@/core/repositories/IBlindTestRepository';
 
-const props = defineProps<{ test: BlindTest }>();
+/** api: how answers, notes and images go to the server; the user's routes when not given (guests pass theirs). */
+const props = defineProps<{ test: BlindTest; api?: BlindTestParticipantApi }>();
+
+/** Image size in image pixels (the sets are 256 × 256). */
+const IMAGE_PX = 256;
+const pixelRatio = useDevicePixelRatio();
+/** CSS size that puts IMAGE_PX image pixels on IMAGE_PX screen pixels (128 on a 2× Retina screen). */
+const tile = computed(() => IMAGE_PX / pixelRatio.value);
 const emit = defineEmits<{ (e: 'progress', answered: number, completed: boolean): void }>();
 
 const OPTIONS: { value: BlindTestLabel; label: string }[] = [
@@ -215,6 +230,15 @@ const OPTIONS: { value: BlindTestLabel; label: string }[] = [
 ];
 
 const toast = useToast();
+const api = computed<BlindTestParticipantApi>(
+  () =>
+    props.api ?? {
+      answer: (imageId, label) => repositories.blindTest.answer(props.test.id, imageId, label),
+      note: (imageId, text) => repositories.blindTest.note(props.test.id, imageId, text),
+      complete: () => repositories.blindTest.complete(props.test.id),
+      image: (imageId) => repositories.blindTest.image(props.test.id, imageId),
+    }
+);
 const { urls, failed, load, clear } = useBlindTestImages();
 
 const answers = reactive<Record<string, BlindTestLabel>>({});
@@ -249,7 +273,7 @@ function reset() {
   Object.assign(notes, props.test.notes);
   noteFor.value = null;
   completedAt.value = props.test.completedAt;
-  load(props.test.id, props.test.imageIds);
+  load(props.test.imageIds, (imageId) => api.value.image(imageId));
 }
 
 watch(() => props.test, reset, { immediate: true });
@@ -262,7 +286,7 @@ async function choose(imageId: string, label: BlindTestLabel) {
   answers[imageId] = label;
   saving[imageId] = true;
   try {
-    await repositories.blindTest.answer(props.test.id, imageId, label);
+    await api.value.answer(imageId, label);
   } catch (e: any) {
     if (previous) answers[imageId] = previous;
     else delete answers[imageId];
@@ -276,7 +300,7 @@ async function complete() {
   showConfirm.value = false;
   completing.value = true;
   try {
-    const progress = await repositories.blindTest.complete(props.test.id);
+    const progress = await api.value.complete();
     completedAt.value = progress.completedAt;
     toast.success('Test tamamlandı');
   } catch (e: any) {
@@ -303,7 +327,7 @@ async function saveNote(text: string) {
   text = text.trim();
   noteSaving.value = true;
   try {
-    await repositories.blindTest.note(props.test.id, item.id, text);
+    await api.value.note(item.id, text);
     if (text) notes[item.id] = text;
     else delete notes[item.id];
     noteFor.value = null;
@@ -319,3 +343,11 @@ function onNoteKey(e: KeyboardEvent) {
   else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveNote(draft.value);
 }
 </script>
+
+<style scoped>
+/* Exactly one screen pixel per image pixel; should a sub-pixel offset still make the browser resample, take the
+   nearest pixel instead of smoothing — no blur is added on screen. */
+.native-pixels {
+  image-rendering: pixelated;
+}
+</style>
