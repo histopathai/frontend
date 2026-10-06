@@ -1,4 +1,5 @@
 import type {
+  BlindTestInvite,
   BlindTest,
   BlindTestLabel,
   BlindTestProgress,
@@ -11,7 +12,29 @@ import { ApiClient } from '../api/ApiClient';
 
 const BASE = '/api/v1/proxy/blind-tests';
 
-function progressFromApi(d: any): BlindTestProgress {
+export function inviteFromApi(d: any): BlindTestInvite {
+  return {
+    id: d.id,
+    token: d.token,
+    maxParticipants: d.max_participants,
+    participants: d.participants ?? 0,
+    expiresAt: d.expires_at ?? null,
+    active: !!d.active,
+    createdAt: d.created_at,
+  };
+}
+
+export function testFromApi(d: any): BlindTest {
+  return {
+    id: d.id,
+    name: d.name,
+    description: d.description,
+    imageIds: d.image_ids ?? [],
+    ...progressFromApi(d),
+  };
+}
+
+export function progressFromApi(d: any): BlindTestProgress {
   return { answers: d.answers ?? {}, notes: d.notes ?? {}, completedAt: d.completed_at ?? null };
 }
 
@@ -42,14 +65,7 @@ export class BlindTestRepository implements IBlindTestRepository {
 
   async get(id: string): Promise<BlindTest> {
     const response = await this.apiClient.get<any>(`${BASE}/${id}`);
-    const d = response.data;
-    return {
-      id: d.id,
-      name: d.name,
-      description: d.description,
-      imageIds: d.image_ids ?? [],
-      ...progressFromApi(d),
-    };
+    return testFromApi(response.data);
   }
 
   async answer(id: string, imageId: string, label: BlindTestLabel): Promise<BlindTestProgress> {
@@ -85,6 +101,13 @@ export class BlindTestRepository implements IBlindTestRepository {
       users: (d.users ?? []).map((u: any) => ({
         userId: u.user_id,
         userRole: u.user_role,
+        guest: u.guest
+          ? {
+              name: u.guest.name,
+              institution: u.guest.institution ?? '',
+              experienceYears: u.guest.experience_years ?? null,
+            }
+          : null,
         startedAt: u.started_at,
         updatedAt: u.updated_at,
         completedAt: u.completed_at ?? null,
@@ -105,5 +128,34 @@ export class BlindTestRepository implements IBlindTestRepository {
         })),
       })),
     };
+  }
+
+  async listInvites(id: string): Promise<BlindTestInvite[]> {
+    const response = await this.apiClient.get<any>(`${BASE}/${id}/invites`);
+    return (response.data ?? []).map(inviteFromApi);
+  }
+
+  async createInvite(
+    id: string,
+    maxParticipants: number,
+    expiresAt?: string | null
+  ): Promise<BlindTestInvite> {
+    const response = await this.apiClient.post<any>(`${BASE}/${id}/invites`, {
+      max_participants: maxParticipants,
+      ...(expiresAt ? { expires_at: expiresAt } : {}),
+    });
+    return inviteFromApi(response.data);
+  }
+
+  async updateInvite(
+    id: string,
+    inviteId: string,
+    change: { active?: boolean; maxParticipants?: number }
+  ): Promise<BlindTestInvite> {
+    const response = await this.apiClient.put<any>(`${BASE}/${id}/invites/${inviteId}`, {
+      ...(change.active !== undefined ? { active: change.active } : {}),
+      ...(change.maxParticipants !== undefined ? { max_participants: change.maxParticipants } : {}),
+    });
+    return inviteFromApi(response.data);
   }
 }

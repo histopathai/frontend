@@ -1,33 +1,33 @@
 import { onBeforeUnmount, reactive } from 'vue';
-import { repositories } from '@/services';
 
 const CONCURRENCY = 6;
 
 /**
- * Loads the images of a blind test as object URLs (the image route needs the
- * auth header, so a plain <img src> cannot fetch it). A few requests at a time,
- * in the order asked; the URLs are released when the component goes away.
+ * Loads the images of a blind test as object URLs (the image routes need an
+ * auth header, so a plain <img src> cannot fetch them). A few requests at a
+ * time, in the order asked; the URLs are released when the component goes away.
+ * fetchImage is how an image is fetched: the user's or a guest's route.
  */
 export function useBlindTestImages() {
   const urls = reactive<Record<string, string>>({});
   const failed = reactive<Record<string, boolean>>({});
-  let queue: { testId: string; imageId: string }[] = [];
+  let queue: string[] = [];
+  let fetchImage: (imageId: string) => Promise<Blob> = () => Promise.reject(new Error('no loader'));
   let running = 0;
   let generation = 0;
 
   function pump() {
     while (running < CONCURRENCY && queue.length) {
-      const job = queue.shift()!;
-      if (urls[job.imageId]) continue;
+      const imageId = queue.shift()!;
+      if (urls[imageId]) continue;
       running++;
       const gen = generation;
-      repositories.blindTest
-        .image(job.testId, job.imageId)
+      fetchImage(imageId)
         .then((blob) => {
-          if (gen === generation) urls[job.imageId] = URL.createObjectURL(blob);
+          if (gen === generation) urls[imageId] = URL.createObjectURL(blob);
         })
         .catch(() => {
-          if (gen === generation) failed[job.imageId] = true;
+          if (gen === generation) failed[imageId] = true;
         })
         .finally(() => {
           running--;
@@ -36,15 +36,16 @@ export function useBlindTestImages() {
     }
   }
 
-  /** Loads the images of a test, first ids first. */
-  function load(testId: string, imageIds: string[]) {
-    queue = imageIds.filter((id) => !urls[id]).map((imageId) => ({ testId, imageId }));
+  /** Loads the images, first ids first, with fetch. */
+  function load(imageIds: string[], fetch: (imageId: string) => Promise<Blob>) {
+    fetchImage = fetch;
+    queue = imageIds.filter((id) => !urls[id]);
     pump();
   }
 
-  function retry(testId: string, imageId: string) {
+  function retry(imageId: string) {
     delete failed[imageId];
-    queue.unshift({ testId, imageId });
+    queue.unshift(imageId);
     pump();
   }
 

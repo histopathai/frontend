@@ -206,7 +206,7 @@
                   </div>
                   <div class="font-mono text-xs text-gray-400">{{ u.userId }}</div>
                 </td>
-                <td class="px-3 py-2">{{ u.userRole }}</td>
+                <td class="px-3 py-2">{{ roleText(u.userRole) }}</td>
                 <td class="px-3 py-2 text-right tabular-nums">
                   {{ u.score.answered }} / {{ total }}
                 </td>
@@ -410,6 +410,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useBlindTestImages } from '@/presentation/composables/blindtest/useBlindTestImages';
+import { repositories } from '@/services';
 import type {
   BlindTestImageResult,
   BlindTestResults,
@@ -454,20 +455,37 @@ watch(
   () => props.results.id,
   () => {
     clear();
+    const id = props.results.id;
     load(
-      props.results.id,
-      props.results.images.map((i) => i.imageId)
+      props.results.images.map((i) => i.imageId),
+      (imageId) => repositories.blindTest.image(id, imageId)
     );
   },
   { immediate: true }
 );
 
+const guests = computed(() =>
+  Object.fromEntries(props.results.users.filter((u) => u.guest).map((u) => [u.userId, u.guest!]))
+);
+
+/** Name and a second line: e-mail for platform users; institution and experience for invited guests. */
 function userLabel(userId: string) {
+  const g = guests.value[userId];
+  if (g) {
+    const detail = [
+      'davet linkiyle',
+      g.institution,
+      g.experienceYears !== null ? `${g.experienceYears} yıl deneyim` : '',
+    ];
+    return { name: g.name, email: detail.filter(Boolean).join(' · ') };
+  }
   const u = props.users[userId];
   return u
     ? { name: u.displayName || u.email, email: u.email }
     : { name: '(kullanıcı bulunamadı)', email: '' };
 }
+
+const roleText = (role: string) => (role === 'guest' ? 'davetli' : role);
 
 const pct = (x: number) => `%${(100 * (x || 0)).toFixed(1)}`;
 const pval = (p: number) => (p < 0.001 ? '< 0.001' : p.toFixed(3));
@@ -493,6 +511,8 @@ function exportUsers() {
     'user_id',
     'name',
     'email',
+    'institution',
+    'experience_years',
     'role',
     'answered',
     'correct',
@@ -512,9 +532,11 @@ function exportUsers() {
     const user = props.users[u.userId];
     return [
       u.userId,
-      user?.displayName ?? '',
+      u.guest?.name ?? user?.displayName ?? '',
       user?.email ?? '',
-      u.userRole,
+      u.guest?.institution ?? '',
+      u.guest?.experienceYears ?? '',
+      roleText(u.userRole),
       u.score.answered,
       u.score.correct,
       u.score.accuracy,
@@ -554,7 +576,7 @@ function exportNotes() {
         i.label,
         i.source.dataset ?? '',
         n.userId,
-        user?.displayName ?? '',
+        guests.value[n.userId]?.name ?? user?.displayName ?? '',
         user?.email ?? '',
         n.answer,
         n.answer ? String(n.answer === i.label) : '',

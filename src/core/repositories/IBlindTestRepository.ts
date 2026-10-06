@@ -45,9 +45,18 @@ export interface BlindTestScore {
   };
 }
 
+/** Who joined through an invitation link (no platform account). */
+export interface BlindTestGuestProfile {
+  name: string;
+  institution: string;
+  experienceYears: number | null;
+}
+
 export interface BlindTestUserResult {
   userId: string;
   userRole: string;
+  /** Set for people who joined through an invitation link. */
+  guest: BlindTestGuestProfile | null;
   startedAt: string;
   updatedAt: string;
   completedAt: string | null;
@@ -84,6 +93,25 @@ export interface BlindTestResults {
   images: BlindTestImageResult[];
 }
 
+/** A shared invitation link to a set (admins). The link is /kor-test/katil/{token}. */
+export interface BlindTestInvite {
+  id: string;
+  token: string;
+  maxParticipants: number;
+  participants: number;
+  expiresAt: string | null;
+  active: boolean;
+  createdAt: string;
+}
+
+/** What a participant's test screen needs; the same for users and invited guests. */
+export interface BlindTestParticipantApi {
+  answer(imageId: string, label: BlindTestLabel): Promise<BlindTestProgress>;
+  note(imageId: string, text: string): Promise<BlindTestProgress>;
+  complete(): Promise<BlindTestProgress>;
+  image(imageId: string): Promise<Blob>;
+}
+
 export interface IBlindTestRepository {
   list(): Promise<BlindTestSummary[]>;
   get(id: string): Promise<BlindTest>;
@@ -93,4 +121,58 @@ export interface IBlindTestRepository {
   note(id: string, imageId: string, text: string): Promise<BlindTestProgress>;
   image(id: string, imageId: string): Promise<Blob>;
   results(id: string): Promise<BlindTestResults>;
+
+  listInvites(id: string): Promise<BlindTestInvite[]>;
+  createInvite(
+    id: string,
+    maxParticipants: number,
+    expiresAt?: string | null
+  ): Promise<BlindTestInvite>;
+  updateInvite(
+    id: string,
+    inviteId: string,
+    change: { active?: boolean; maxParticipants?: number }
+  ): Promise<BlindTestInvite>;
+}
+
+// ── Invited guests (public, no platform account) ─────────────────────────────
+
+export interface BlindTestInviteInfo {
+  setName: string;
+  description: string;
+  images: number;
+  participants: number;
+  max: number;
+  joinable: boolean;
+  closed: boolean;
+  expired: boolean;
+}
+
+export interface BlindTestJoin {
+  name: string;
+  pin: string;
+  institution?: string;
+  experienceYears?: number | null;
+  consent: boolean;
+}
+
+export interface BlindTestGuestSession {
+  sessionToken: string;
+  name: string;
+}
+
+/** Errors of the guest routes carry main-service's details.code (name_taken, invite_full, …). */
+export interface BlindTestGuestError {
+  status: number;
+  code: string;
+  message: string;
+  details: Record<string, any>;
+}
+
+export interface IBlindTestGuestRepository {
+  info(): Promise<BlindTestInviteInfo>;
+  join(join: BlindTestJoin): Promise<BlindTestGuestSession>;
+  resume(name: string, pin: string): Promise<BlindTestGuestSession>;
+  /** The test of the session's person; the returned api answers as them. */
+  test(session: string): Promise<{ test: BlindTest; api: BlindTestParticipantApi }>;
 }
