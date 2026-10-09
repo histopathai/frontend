@@ -6,6 +6,7 @@
  */
 export type RecheckReasonCode =
   | 'subtype'
+  | 'subtype_missing'
   | 'polygon'
   | 'polygon_missing'
   | 'global_label_missing'
@@ -16,12 +17,14 @@ export type RecheckReasonCode =
 export type RecheckStatus = 'open' | 'done';
 
 /** What the expert concluded when finishing. */
-export type RecheckOutcome = 'corrected' | 'no_change' | 'undecided';
+export type RecheckOutcome = 'corrected' | 'no_change' | 'undecided' | 'unsuitable';
 
 export const RECHECK_OUTCOMES: { code: RecheckOutcome; label: string; needsNote: boolean }[] = [
   { code: 'corrected', label: 'Etiketler düzeltildi', needsNote: false },
   { code: 'no_change', label: 'Değişiklik gerekmedi, mevcut etiket doğru', needsNote: true },
   { code: 'undecided', label: 'Karar verilemedi', needsNote: true },
+  /** The expert's way to take an image out of the study; its labels stay as they are. No note needed. */
+  { code: 'unsuitable', label: 'Çalışmaya uygun değil', needsNote: false },
 ];
 
 /** Short form for badges. */
@@ -29,6 +32,7 @@ export function outcomeShortLabel(outcome: RecheckOutcome | null): string {
   if (outcome === 'corrected') return 'Düzeltildi';
   if (outcome === 'no_change') return 'Değişiklik gerekmedi';
   if (outcome === 'undecided') return 'Karar verilemedi';
+  if (outcome === 'unsuitable') return 'Uygun değil';
   return 'Tamamlandı';
 }
 
@@ -62,6 +66,7 @@ export interface RecheckRequest {
  */
 export const RECHECK_REASONS: { code: Exclude<RecheckReasonCode, 'dataset'>; label: string }[] = [
   { code: 'subtype', label: 'Alt tip yeniden incelenmeli' },
+  { code: 'subtype_missing', label: 'Alt tip eksik' },
   { code: 'polygon', label: 'Poligon yeniden incelenmeli' },
   { code: 'polygon_missing', label: 'Poligon eksik' },
   { code: 'global_label_missing', label: 'Global etiket eksik' },
@@ -97,7 +102,7 @@ export function recheckFromApi(d: any): RecheckRequest {
     updatedAt: d.updated_at ?? '',
     completedBy: d.completed_by || null,
     completedAt: d.completed_at ?? null,
-    outcome: ['corrected', 'no_change', 'undecided'].includes(d.outcome) ? d.outcome : null,
+    outcome: ['corrected', 'no_change', 'undecided', 'unsuitable'].includes(d.outcome) ? d.outcome : null,
     completionNote: d.completion_note ?? '',
   };
 }
@@ -149,4 +154,29 @@ export function groupRechecks(
         ...new Set(list.flatMap((r) => r.reasons.filter((x) => x.code === 'dataset').map((x) => x.note))),
       ],
     }));
+}
+
+export interface RecheckPatientGroup {
+  patientId: string;
+  patientName: string;
+  requests: RecheckRequest[];
+  done: number;
+}
+
+/** A workspace's requests by patient (as Veri Etiketleyici lists them), names in numeric order. */
+export function groupByPatient(requests: RecheckRequest[]): RecheckPatientGroup[] {
+  const byPatient = new Map<string, RecheckRequest[]>();
+  for (const r of requests) {
+    const key = r.patientId || `image:${r.imageId}`;
+    if (!byPatient.has(key)) byPatient.set(key, []);
+    byPatient.get(key)!.push(r);
+  }
+  return [...byPatient.entries()]
+    .map(([patientId, list]) => ({
+      patientId,
+      patientName: list[0]!.patientName || list[0]!.imageName,
+      requests: [...list].sort((a, b) => byName(a.imageName, b.imageName)),
+      done: list.filter((r) => r.status === 'done').length,
+    }))
+    .sort((a, b) => byName(a.patientName, b.patientName));
 }

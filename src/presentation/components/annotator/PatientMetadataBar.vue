@@ -214,16 +214,41 @@
           </span>
         </button>
 
+        <!-- "Çalışmaya uygun değil": on, or taken back with a confirm -->
+        <button
+          v-if="image && (!readOnly || image.unsuitable)"
+          @click="onUnsuitableClick"
+          :disabled="readOnly"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold uppercase tracking-tight border shadow-sm flex-shrink-0"
+          :class="
+            image.unsuitable
+              ? 'text-white bg-gray-600 border-gray-600 hover:bg-gray-700'
+              : 'text-gray-600 bg-white border-gray-200 hover:bg-gray-50 active:scale-95'
+          "
+          :title="
+            image.unsuitable
+              ? `Çalışmaya uygun değil${image.unsuitableNote ? ': ' + image.unsuitableNote : ''}${readOnly ? '' : ' — geri almak için tıklayın'}`
+              : 'Görüntüyü çalışmanın dışında say; etiketler silinmez'
+          "
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
+          </svg>
+          <span>UYGUN DEĞİL</span>
+        </button>
+
+        <!-- "İşaretleme Tamamlandı": on, or taken back with a confirm -->
         <button
           v-if="image && (!readOnly || image.markedAsCompleted)"
-          @click="handleMarkAsCompleted"
-          :disabled="image.markedAsCompleted"
+          @click="onCompletedClick"
+          :disabled="readOnly && image.markedAsCompleted"
           class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg transition-all text-[10px] font-bold uppercase tracking-tight border shadow-sm flex-shrink-0"
           :class="
             image.markedAsCompleted
-              ? 'text-gray-400 bg-gray-50 border-gray-100 cursor-not-allowed'
+              ? 'text-indigo-400 bg-indigo-50/50 border-indigo-100 hover:bg-indigo-50'
               : 'text-indigo-600 bg-white border-indigo-100 hover:bg-indigo-50 active:scale-95'
           "
+          :title="image.markedAsCompleted && !readOnly ? 'Tamamlandı işaretini geri almak için tıklayın' : ''"
         >
           <svg v-if="image.markedAsCompleted" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5">
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
@@ -233,6 +258,26 @@
           </svg>
           <span>{{ image.markedAsCompleted ? 'TAMAMLANDI' : 'İŞARETLEME TAMAMLANDI' }}</span>
         </button>
+
+        <UnsuitableModal
+          :is-open="isUnsuitableOpen"
+          :image-name="image?.name ?? ''"
+          :submit="markUnsuitable"
+          @close="isUnsuitableOpen = false"
+        />
+        <ConfirmModal
+          :is-open="!!undoing"
+          :title="undoing === 'completed' ? 'Tamamlandı işaretini geri al' : 'Uygun değil işaretini geri al'"
+          :message="
+            undoing === 'completed'
+              ? 'Görüntü yeniden bitmemiş sayılır; etiketleri değişmez.'
+              : 'Görüntü yeniden çalışmaya dahil edilir; etiketleri değişmez.'
+          "
+          confirm-label="Geri al"
+          tone="neutral"
+          @confirm="confirmUndo"
+          @cancel="undoing = null"
+        />
       </div>
     </div>
 
@@ -342,6 +387,8 @@ import { useToast } from 'vue-toastification';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { useImageStore } from '@/stores/image';
 import { useAuthStore } from '@/stores/auth';
+import UnsuitableModal from '@/presentation/components/annotator/UnsuitableModal.vue';
+import ConfirmModal from '@/presentation/components/common/ConfirmModal.vue';
 
 const props = defineProps<{
   image: Image | null;
@@ -548,6 +595,41 @@ function togglePopover(popover: string) {
 
 function formatIndex(index: number) {
   return index + 1;
+}
+
+const isUnsuitableOpen = ref(false);
+/** Which mark a confirm is taking back. */
+const undoing = ref<'completed' | 'unsuitable' | null>(null);
+
+function onCompletedClick() {
+  if (!props.image) return;
+  if (props.image.markedAsCompleted) {
+    if (!readOnly.value) undoing.value = 'completed';
+    return;
+  }
+  handleMarkAsCompleted();
+}
+
+function onUnsuitableClick() {
+  if (!props.image || readOnly.value) return;
+  if (props.image.unsuitable) undoing.value = 'unsuitable';
+  else isUnsuitableOpen.value = true;
+}
+
+/** Marks the image out of the study and moves on, as "İşaretleme Tamamlandı" does. */
+async function markUnsuitable(note: string): Promise<boolean> {
+  if (!props.image) return false;
+  const ok = await imageStore.setUnsuitable(props.image.id, true, note);
+  if (ok) emit('next');
+  return ok;
+}
+
+async function confirmUndo() {
+  const what = undoing.value;
+  undoing.value = null;
+  if (!props.image || !what) return;
+  if (what === 'completed') await imageStore.setCompleted(props.image.id, false);
+  else await imageStore.setUnsuitable(props.image.id, false);
 }
 
 async function handleMarkAsCompleted() {

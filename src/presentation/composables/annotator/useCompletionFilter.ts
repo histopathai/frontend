@@ -7,6 +7,7 @@ import type { Workspace } from '@/core/entities/Workspace';
 import type { TissueMaskStatus } from '@/core/entities/TissueMask';
 import {
   isImageFinished as imageFinished,
+  isLabelingDone,
   isProgressFinished,
   progressOf,
   type CompletionMode,
@@ -176,7 +177,7 @@ export function useCompletionFilter(mode: CompletionMode, sources: Sources) {
 
   /** Stops at the first image with work left, so an unfinished dataset costs one request. */
   async function isLabelingFinished(workspaceId: string): Promise<boolean> {
-    const unfinished = (page: Image[]) => page.some((img) => !img.markedAsCompleted);
+    const unfinished = (page: Image[]) => page.some((img) => !isLabelingDone(img));
     const images = await allPages(
       (offset) =>
         repositories.image.listByWorkspace(workspaceId, { pagination: { limit: PAGE, offset } }),

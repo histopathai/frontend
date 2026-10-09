@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  RECHECK_OUTCOMES,
+  groupByPatient,
   groupRechecks,
   outcomeShortLabel,
   ownReasons,
@@ -16,6 +18,7 @@ describe('reasonSentence', () => {
   it('shows the fixed sentence of a reason', () => {
     expect(reasonSentence({ code: 'subtype', note: 'ignored' })).toBe('Alt tip yeniden incelenmeli');
     expect(reasonSentence({ code: 'polygon_missing', note: '' })).toBe('Poligon eksik');
+    expect(reasonSentence({ code: 'subtype_missing', note: '' })).toBe('Alt tip eksik');
   });
 
   it('shows the dataset reason as a fixed sentence (its note goes over the group)', () => {
@@ -53,6 +56,9 @@ describe('recheckFromApi', () => {
     expect(r.completionNote).toBe('IDC ile uyumlu');
     expect(recheckFromApi({ image_id: 'i1', outcome: 'maybe' }).outcome).toBeNull();
     expect(outcomeShortLabel('undecided')).toBe('Karar verilemedi');
+    expect(outcomeShortLabel('unsuitable')).toBe('Uygun değil');
+    expect(RECHECK_OUTCOMES.filter((o) => o.needsNote).map((o) => o.code)).toEqual(['no_change', 'undecided']);
+    expect(recheckFromApi({ image_id: 'i1', outcome: 'unsuitable' }).outcome).toBe('unsuitable');
     expect(outcomeShortLabel(null)).toBe('Tamamlandı');
   });
 
@@ -116,5 +122,23 @@ describe('dataset reasons', () => {
   it("lists only an image's own reasons under it", () => {
     const r = withDataset('a', 'w1', 'n', [{ code: 'polygon', note: '' }]);
     expect(ownReasons(r).map((x) => x.code)).toEqual(['polygon']);
+  });
+});
+
+describe('groupByPatient', () => {
+  const r = (imageId: string, patientId: string, patientName: string, status: 'open' | 'done' = 'open') =>
+    recheckFromApi({ image_id: imageId, image_name: `${imageId}.svs`, patient_id: patientId, patient_name: patientName, status });
+
+  it('groups images under their patient, patients in numeric order', () => {
+    const groups = groupByPatient([r('b', 'p2', '140'), r('a', 'p1', '24'), r('c', 'p2', '140', 'done')]);
+    expect(groups.map((g) => g.patientName)).toEqual(['24', '140']);
+    expect(groups[1]!.requests.map((x) => x.imageId)).toEqual(['b', 'c']);
+    expect(groups[1]!.done).toBe(1);
+  });
+
+  it('gives an image without a patient its own row, named after the image', () => {
+    const groups = groupByPatient([r('x', '', '')]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.patientName).toBe('x.svs');
   });
 });

@@ -6,18 +6,26 @@ import { useWorkspaceStore } from '@/stores/workspace';
 import { usePatientStore } from '@/stores/patient';
 import { useAnnotationStore } from '@/stores/annotation';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
-import { groupRechecks, type RecheckOutcome, type RecheckRequest } from '@/core/recheck';
+import { useImageStore } from '@/stores/image';
+import {
+  groupByPatient,
+  groupRechecks,
+  type RecheckOutcome,
+  type RecheckRequest,
+} from '@/core/recheck';
 import type { Image } from '@/core/entities/Image';
 import type { Patient } from '@/core/entities/Patient';
 
 const STORAGE_KEY_IMG = 'recheck_selected_image_id';
+const STORAGE_KEY_WS = 'recheck_selected_workspace_id';
 const STORAGE_KEY_HIDE = 'histo_hide_finished_recheck';
 
 /**
  * Ek Kontrol: the list comes from the recheck requests, not from paging
- * through every patient; an image opened here gets the same workspace,
- * annotation types and patient in the stores as in Veri Etiketleyici, so the
- * viewer and the metadata bar work unchanged.
+ * through every patient. Like Veri Etiketleyici it shows one workspace at a
+ * time, its patients and their images; an image opened here gets the same
+ * workspace, annotation types and patient in the stores, so the viewer and
+ * the metadata bar work unchanged.
  */
 export function useRecheckNavigation() {
   const toast = useToast();
@@ -25,6 +33,7 @@ export function useRecheckNavigation() {
   const patientStore = usePatientStore();
   const annotationStore = useAnnotationStore();
   const annotationTypeStore = useAnnotationTypeStore();
+  const imageStore = useImageStore();
   const { allWorkspaces } = storeToRefs(workspaceStore);
 
   const requests = ref<RecheckRequest[]>([]);
@@ -44,18 +53,28 @@ export function useRecheckNavigation() {
   /** A request finished while open stays listed until the user moves on. */
   const pinnedId = ref<string | undefined>(undefined);
 
+  const selectedWsId = ref<string | undefined>(localStorage.getItem(STORAGE_KEY_WS) || undefined);
+  watch(selectedWsId, (id) =>
+    id ? localStorage.setItem(STORAGE_KEY_WS, id) : localStorage.removeItem(STORAGE_KEY_WS)
+  );
+  /** Patient whose images are open in the list. */
+  const expandedPatientId = ref<string | undefined>(undefined);
+
   const workspaceName = (wsId: string) =>
     allWorkspaces.value.find((w) => w.id === wsId)?.name ?? wsId;
 
-  const groups = computed(() =>
-    groupRechecks(
-      requests.value,
-      allWorkspaces.value.map((w) => w.id),
-      hideDone.value,
-      pinnedId.value
-    )
+  const workspaceOrder = computed(() => allWorkspaces.value.map((w) => w.id));
+  /** Every workspace with a request, with its counts, for the dropdown. */
+  const workspaceGroups = computed(() => groupRechecks(requests.value, workspaceOrder.value, false));
+  /** The selected workspace as listed (done ones out with "Bitenleri Gizle"). */
+  const currentGroup = computed(
+    () =>
+      groupRechecks(requests.value, workspaceOrder.value, hideDone.value, pinnedId.value).find(
+        (g) => g.wsId === selectedWsId.value
+      ) ?? null
   );
-  const visible = computed(() => groups.value.flatMap((g) => g.requests));
+  const patients = computed(() => groupByPatient(currentGroup.value?.requests ?? []));
+  const visible = computed(() => patients.value.flatMap((p) => p.requests));
   const selectedRequest = computed(
     () => requests.value.find((r) => r.imageId === selectedImageId.value) ?? null
   );
@@ -82,6 +101,8 @@ export function useRecheckNavigation() {
     if (request.imageId === selectedImageId.value && selectedImage.value) return;
     const run = ++opening;
     pinnedId.value = undefined;
+    selectedWsId.value = request.wsId;
+    expandedPatientId.value = request.patientId || `image:${request.imageId}`;
     selectedImageId.value = request.imageId;
     annotationStore.clearAnnotations();
     selectedImage.value = null;
@@ -107,6 +128,9 @@ export function useRecheckNavigation() {
       ]);
       if (run !== opening) return;
       patientStore.setCurrentPatient(patient);
+      // The store's current image: the metadata bar's actions (İşaretleme Tamamlandı,
+      // Uygun değil) find the owner there and write their result back to it.
+      imageStore.setCurrentImage(image);
       selectedPatient.value = patient;
       selectedImage.value = image;
     } catch (e: any) {
@@ -114,6 +138,28 @@ export function useRecheckNavigation() {
     } finally {
       if (run === opening) loadingImage.value = false;
     }
+  }
+
+  // An action of the metadata bar updated the open image: show the new copy.
+  watch(
+    () => imageStore.currentImage,
+    (image) => {
+      if (image && image.id === selectedImageId.value && image !== selectedImage.value) {
+        selectedImage.value = image as Image;
+      }
+    }
+  );
+
+  function selectWorkspace(wsId: string) {
+    if (wsId === selectedWsId.value) return;
+    selectedWsId.value = wsId;
+    selectedImage.value = null;
+    selectedImageId.value = undefined;
+    expandedPatientId.value = undefined;
+  }
+
+  function togglePatient(patientId: string) {
+    expandedPatientId.value = expandedPatientId.value === patientId ? undefined : patientId;
   }
 
   function step(delta: number) {
@@ -175,7 +221,14 @@ export function useRecheckNavigation() {
     }
   }
 
-  // First visit or the last image is gone: open the first one in the list.
+  // A workspace to show: the stored one, the stored image's, or the first with work left.
+  watch(workspaceGroups, (groups) => {
+    if (groups.length === 0 || groups.some((g) => g.wsId === selectedWsId.value)) return;
+    const stored = requests.value.find((r) => r.imageId === selectedImageId.value);
+    selectedWsId.value = stored?.wsId ?? (groups.find((g) => g.open > 0) ?? groups[0]!).wsId;
+  });
+
+  // First visit, another workspace, or the last image is gone: open the first one in the list.
   watch(visible, (list) => {
     if (loadingList.value || list.length === 0) return;
     if (selectedImage.value && selectedRequest.value) return;
@@ -189,8 +242,14 @@ export function useRecheckNavigation() {
   return {
     requests,
     allWorkspaces,
-    groups,
+    workspaceGroups,
+    currentGroup,
+    patients,
     visible,
+    selectedWsId,
+    expandedPatientId,
+    selectWorkspace,
+    togglePatient,
     openCount,
     loadingList,
     loadingImage,

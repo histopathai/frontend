@@ -8,6 +8,7 @@ import { Workspace } from '@/core/entities/Workspace';
 import { useWorkspaceStore } from './workspace';
 import { useAuthStore } from './auth';
 import { usePatientStore } from './patient';
+import { isLabelingDone } from '@/core/completion';
 import type {
   CreateNewImageRequest,
   ImageUploadPayload,
@@ -331,70 +332,101 @@ export const useImageStore = defineStore('image', () => {
     }
   };
 
-  const markAsCompleted = async (imageId: string): Promise<boolean> => {
+  /**
+   * The store's copy of an image: in a loaded list, or the one open on its own
+   * (Ek Kontrol opens images without loading their patient's list).
+   */
+  const knownImage = (imageId: string): Image | undefined =>
+    (getImageById.value(imageId) ||
+      Array.from(imagesByPatient.value.values()).flat().find((img) => img.id === imageId) ||
+      (currentImage.value?.id === imageId ? currentImage.value : undefined)) as Image | undefined;
+
+  /** The owner to send on update: the backend writes creator_id as given. */
+  const ownerOf = (imageId: string): string | undefined => {
     const authStore = useAuthStore();
-
-    if (!authStore.user?.userId) {
-      toast.error('Oturum bilgisi bulunamadı. Lütfen tekrar giriş yapın.');
-      return false;
-    }
-
     // Görüntünün mevcut sahibini KORU. Backend, update'te creator_id'yi zorunlu tutup
     // gönderilen değeri koşulsuz yazdığından, o an giriş yapmış kullanıcıyı göndermek
     // (özellikle review yapan uzman farklı biriyse) görüntü sahipliğini sessizce bozar.
     // Bu yüzden mevcut creatorId'yi kullan; bulunamazsa son çare olarak mevcut kullanıcı.
-    const existingImage =
-      getImageById.value(imageId) ||
-      Array.from(imagesByPatient.value.values()).flat().find((img) => img.id === imageId);
-    const ownerId = existingImage?.creatorId || authStore.user.userId;
+    return knownImage(imageId)?.creatorId || authStore.user?.userId;
+  };
+
+  /** Counts the image as finished (+1) or not (-1) in the patient and workspace stats. */
+  const shiftCompletedStats = (image: Image, delta: 1 | -1) => {
+    const patientStore = usePatientStore();
+    const currentStats = patientStore.getPatientStats(image.parentId);
+    if (currentStats) {
+      patientStore.updatePatientStats(
+        image.parentId,
+        currentStats.total,
+        Math.max(0, currentStats.annotated + delta)
+      );
+    }
+    const workspaceStore = useWorkspaceStore();
+    const ws = workspaceStore.getWorkspaceById(
+      image.wsId || workspaceStore.currentWorkspace?.id || ''
+    );
+    if (ws) {
+      const rawData = (ws as any).toJSON();
+      rawData.completed_image_count = Math.max(0, (ws.completedImageCount || 0) + delta);
+      workspaceStore.updateWorkspaceInState(Workspace.create(rawData));
+    }
+  };
+
+  /** Sends one update of the image and keeps the store and the stats in step. */
+  const updateFinishing = async (
+    imageId: string,
+    payload: Omit<UpdateImageRequest, 'creator_id'>,
+    successMessage: string,
+    errorMessage: string
+  ): Promise<boolean> => {
+    const ownerId = ownerOf(imageId);
+    if (!ownerId) {
+      toast.error('Oturum bilgisi bulunamadı. Lütfen tekrar giriş yapın.');
+      return false;
+    }
+    const before = knownImage(imageId);
+    const wasDone = !!before && isLabelingDone(before);
 
     actionLoading.value = true;
     resetError();
     try {
-      const payload: UpdateImageRequest = {
-        creator_id: ownerId,
-        marked_as_completed: true,
-      };
-
-      const updatedImage = await imageRepo.update(imageId, payload);
+      const updatedImage = await imageRepo.update(imageId, { creator_id: ownerId, ...payload });
       updateImageInState(updatedImage);
-
-      // Update patient stats in store
-      const patientStore = usePatientStore();
-      const currentStats = patientStore.getPatientStats(updatedImage.parentId);
-      if (currentStats && updatedImage.markedAsCompleted) {
-        patientStore.updatePatientStats(
-          updatedImage.parentId,
-          currentStats.total,
-          currentStats.annotated + 1
-        );
-      }
-
-      // Update workspace stats in store
-      const workspaceStore = useWorkspaceStore();
-      const ws = workspaceStore.getWorkspaceById(
-        updatedImage.wsId || workspaceStore.currentWorkspace?.id || ''
-      );
-      if (ws && updatedImage.markedAsCompleted) {
-        const rawData = (ws as any).toJSON();
-        rawData.completed_image_count = (ws.completedImageCount || 0) + 1;
-        workspaceStore.updateWorkspaceInState(Workspace.create(rawData));
-      }
-
-      toast.success(
-        t('image.messages.mark_as_completed_success') || 'Tamamlandı olarak işaretlendi'
-      );
+      const isDone = isLabelingDone(updatedImage);
+      if (isDone !== wasDone) shiftCompletedStats(updatedImage, isDone ? 1 : -1);
+      toast.success(successMessage);
       return true;
     } catch (err: any) {
-      handleError(
-        err,
-        t('image.messages.mark_as_completed_error') || 'İşlem sırasında hata oluştu'
-      );
+      handleError(err, errorMessage);
       return false;
     } finally {
       actionLoading.value = false;
     }
   };
+
+  /** "İşaretleme Tamamlandı" on, or taken back. */
+  const setCompleted = (imageId: string, completed: boolean): Promise<boolean> =>
+    updateFinishing(
+      imageId,
+      { marked_as_completed: completed },
+      completed
+        ? t('image.messages.mark_as_completed_success') || 'Tamamlandı olarak işaretlendi'
+        : 'Tamamlandı işareti geri alındı',
+      t('image.messages.mark_as_completed_error') || 'İşlem sırasında hata oluştu'
+    );
+
+  const markAsCompleted = (imageId: string): Promise<boolean> => setCompleted(imageId, true);
+
+  /** "Çalışmaya uygun değil" on (with an optional note), or taken back; labels are not touched. */
+  const setUnsuitable = (imageId: string, unsuitable: boolean, note = ''): Promise<boolean> =>
+    updateFinishing(
+      imageId,
+      unsuitable ? { unsuitable: true, unsuitable_note: note } : { unsuitable: false },
+      unsuitable ? 'Çalışmaya uygun değil olarak işaretlendi' : 'Uygun değil işareti geri alındı',
+      'İşlem sırasında hata oluştu'
+    );
+
 
   const softDeleteManyImages = async (imageIds: string[], patientId: string): Promise<boolean> => {
     actionLoading.value = true;
@@ -522,5 +554,7 @@ export const useImageStore = defineStore('image', () => {
     getImageCount,
     resetError,
     markAsCompleted,
+    setCompleted,
+    setUnsuitable,
   };
 });

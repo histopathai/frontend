@@ -132,6 +132,15 @@ repos.workspace.getById = async (id: string) => Workspace.create(workspaces.find
 repos.annotationType.listByParent = async () => ({ data: [], pagination: { limit: 100, offset: 0 } });
 repos.annotation.listByImage = async () => ({ data: [], pagination: { limit: 100, offset: 0, has_more: false } });
 repos.image.getById = async (id: string) => (await wait(), Image.create(images.find((i) => i.id === id)));
+repos.image.update = async (id: string, data: any) => {
+  await wait();
+  const doc = images.find((i) => i.id === id);
+  Object.assign(doc, data);
+  if (data.unsuitable === false) Object.assign(doc, { unsuitable_note: '', unsuitable_by: '' });
+  return Image.create(doc);
+};
+// "Çalışmaya uygun değil" already set on one image (?select=ws-bcnb-140.jpg).
+Object.assign(images.find((i) => i.id === 'ws-bcnb-140.jpg'), { unsuitable: true, unsuitable_note: 'Tümör dokusu yetersiz' });
 repos.patient.getById = async (id: string) => Patient.create(patients.find((p) => p.id === id));
 
 const params = new URLSearchParams(location.search);
