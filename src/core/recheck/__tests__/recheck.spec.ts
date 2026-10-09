@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupRechecks, reasonSentence, recheckFromApi, type RecheckRequest } from '..';
+import { groupRechecks, ownReasons, reasonSentence, recheckFromApi, type RecheckRequest } from '..';
 
 function req(imageId: string, wsId: string, imageName: string, status: 'open' | 'done' = 'open'): RecheckRequest {
   return recheckFromApi({ image_id: imageId, ws_id: wsId, image_name: imageName, status });
@@ -9,6 +9,12 @@ describe('reasonSentence', () => {
   it('shows the fixed sentence of a reason', () => {
     expect(reasonSentence({ code: 'subtype', note: 'ignored' })).toBe('Alt tip yeniden incelenmeli');
     expect(reasonSentence({ code: 'polygon_missing', note: '' })).toBe('Poligon eksik');
+  });
+
+  it('shows the dataset reason as a fixed sentence (its note goes over the group)', () => {
+    expect(reasonSentence({ code: 'dataset', note: 'Yeni yüklendi' })).toBe(
+      'Veri seti uzman incelemesine gönderildi'
+    );
   });
 
   it('shows the note of "other"', () => {
@@ -69,5 +75,30 @@ describe('groupRechecks', () => {
   it('drops a workspace whose requests are all done', () => {
     const groups = groupRechecks([req('b', 'w1', 'x', 'done'), req('a', 'w2', 'y')], [], true);
     expect(groups.map((g) => g.wsId)).toEqual(['w2']);
+  });
+});
+
+describe('dataset reasons', () => {
+  const withDataset = (imageId: string, wsId: string, note: string, extra: any[] = []) =>
+    recheckFromApi({
+      image_id: imageId,
+      ws_id: wsId,
+      image_name: imageId,
+      reasons: [{ code: 'dataset', note }, ...extra],
+    });
+
+  it('collects the notes once per workspace', () => {
+    const groups = groupRechecks(
+      [withDataset('a', 'w1', 'Yeni yüklendi'), withDataset('b', 'w1', 'Yeni yüklendi'), withDataset('c', 'w2', 'Başka')],
+      [],
+      false
+    );
+    expect(groups.map((g) => g.datasetNotes)).toEqual([['Yeni yüklendi'], ['Başka']]);
+    expect(groupRechecks([req('x', 'w1', 'x')], [], false)[0]!.datasetNotes).toEqual([]);
+  });
+
+  it("lists only an image's own reasons under it", () => {
+    const r = withDataset('a', 'w1', 'n', [{ code: 'polygon', note: '' }]);
+    expect(ownReasons(r).map((x) => x.code)).toEqual(['polygon']);
   });
 });

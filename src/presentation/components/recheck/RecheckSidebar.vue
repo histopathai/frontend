@@ -27,6 +27,14 @@
           </span>
         </button>
       </div>
+      <button
+        v-if="canRequest"
+        class="mt-2 w-full px-2 py-1.5 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md hover:bg-indigo-100"
+        title="Bir veri setinin tüm görüntülerini sebebiyle birlikte Ek Kontrol'e gönder"
+        @click="$emit('send-workspace')"
+      >
+        Veri setini ek kontrole gönder
+      </button>
     </div>
 
     <div class="flex-1 overflow-y-auto">
@@ -42,6 +50,20 @@
           <span class="truncate">{{ workspaceName(group.wsId) }}</span>
           <span class="shrink-0 ml-2 text-gray-400">{{ group.open }}/{{ group.requests.length }}</span>
         </h3>
+        <div
+          v-if="group.datasetNotes.length"
+          class="mx-3 my-1.5 px-2 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-800"
+        >
+          <p class="font-bold">{{ DATASET_REASON_LABEL }}</p>
+          <p v-for="(n, i) in group.datasetNotes" :key="i" class="mt-0.5">{{ n }}</p>
+          <button
+            v-if="canRequest"
+            class="mt-1 text-[10px] font-bold text-red-600 hover:underline"
+            @click="$emit('withdraw-workspace', group.wsId)"
+          >
+            Geri çek
+          </button>
+        </div>
         <ul>
           <li v-for="r in group.requests" :key="r.imageId">
             <button
@@ -65,8 +87,9 @@
                 >
               </div>
               <ul class="mt-1 space-y-0.5">
+                <li v-if="ownReasons(r).length === 0" class="text-[11px] text-gray-400">Veri seti incelemesi</li>
                 <li
-                  v-for="(reason, i) in r.reasons"
+                  v-for="(reason, i) in ownReasons(r)"
                   :key="i"
                   class="text-[11px] leading-snug"
                   :class="r.status === 'done' ? 'text-gray-400' : 'text-amber-700'"
@@ -83,7 +106,13 @@
 </template>
 
 <script setup lang="ts">
-import { reasonSentence, type RecheckGroup, type RecheckRequest } from '@/core/recheck';
+import {
+  DATASET_REASON_LABEL,
+  ownReasons,
+  reasonSentence,
+  type RecheckGroup,
+  type RecheckRequest,
+} from '@/core/recheck';
 
 defineProps<{
   groups: RecheckGroup[];
@@ -93,7 +122,13 @@ defineProps<{
   hideDone: boolean;
   selectedImageId?: string;
   workspaceName: (wsId: string) => string;
+  canRequest: boolean;
 }>();
 
-defineEmits<{ select: [request: RecheckRequest]; 'update:hideDone': [value: boolean] }>();
+defineEmits<{
+  select: [request: RecheckRequest];
+  'update:hideDone': [value: boolean];
+  'send-workspace': [];
+  'withdraw-workspace': [wsId: string];
+}>();
 </script>

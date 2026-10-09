@@ -9,8 +9,11 @@
         :hide-done="nav.hideDone.value"
         :selected-image-id="nav.selectedImageId.value"
         :workspace-name="nav.workspaceName"
+        :can-request="canRequest"
         @select="nav.select"
         @update:hide-done="(v) => (nav.hideDone.value = v)"
+        @send-workspace="isWorkspaceModalOpen = true"
+        @withdraw-workspace="(wsId) => (withdrawWsId = wsId)"
       />
     </aside>
 
@@ -123,6 +126,19 @@
       @close="isModalOpen = false"
       @sent="nav.upsert"
     />
+    <RecheckWorkspaceModal
+      :is-open="isWorkspaceModalOpen"
+      :workspaces="nav.allWorkspaces.value"
+      @close="isWorkspaceModalOpen = false"
+      @sent="nav.reload"
+    />
+    <ConfirmModal
+      :is-open="!!withdrawWsId"
+      title="Veri setini geri çek"
+      :message="`${withdrawWsId ? nav.workspaceName(withdrawWsId) : ''} veri seti Ek Kontrol listesinden geri çekilir; tek tek gönderilmiş görüntüler listede kalır.`"
+      @confirm="withdraw"
+      @cancel="withdrawWsId = null"
+    />
     <ConfirmModal
       :is-open="isCancelOpen"
       title="Ek Kontrolden çıkar"
@@ -140,6 +156,7 @@ import { reasonSentence } from '@/core/recheck';
 import { useRecheckNavigation } from '@/presentation/composables/recheck/useRecheckNavigation';
 import RecheckSidebar from '@/presentation/components/recheck/RecheckSidebar.vue';
 import RecheckRequestModal from '@/presentation/components/recheck/RecheckRequestModal.vue';
+import RecheckWorkspaceModal from '@/presentation/components/recheck/RecheckWorkspaceModal.vue';
 import ConfirmModal from '@/presentation/components/common/ConfirmModal.vue';
 import PatientMetadataBar from '@/presentation/components/annotator/PatientMetadataBar.vue';
 import Viewer from '@/presentation/components/annotator/Viewer.vue';
@@ -156,10 +173,18 @@ const isDrawingMode = ref(false);
 const isActivityPanelOpen = ref(false);
 const isModalOpen = ref(false);
 const isCancelOpen = ref(false);
+const isWorkspaceModalOpen = ref(false);
+const withdrawWsId = ref<string | null>(null);
 const viewerRef = ref<InstanceType<typeof Viewer> | null>(null);
 
 function refreshViewer() {
   if (nav.selectedImageId.value) viewerRef.value?.loadAnnotations(nav.selectedImageId.value);
+}
+
+async function withdraw() {
+  const wsId = withdrawWsId.value;
+  withdrawWsId.value = null;
+  if (wsId) await nav.withdrawWorkspace(wsId);
 }
 
 async function cancelRequest() {

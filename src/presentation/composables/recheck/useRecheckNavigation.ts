@@ -142,6 +142,20 @@ export function useRecheckNavigation() {
     }
   }
 
+  /** Admins: takes the workspace's "dataset" reason off, then reloads the list. */
+  async function withdrawWorkspace(wsId: string) {
+    try {
+      await repositories.recheck.withdrawWorkspace(wsId);
+      if (selectedRequest.value?.wsId === wsId) {
+        selectedImage.value = null;
+      }
+      await load();
+      toast.success('Veri seti Ek Kontrol listesinden geri çekildi');
+    } catch (e: any) {
+      toast.error(e?.message || 'Geri çekilemedi');
+    }
+  }
+
   async function cancel() {
     const request = selectedRequest.value;
     if (!request) return;
@@ -171,6 +185,7 @@ export function useRecheckNavigation() {
 
   return {
     requests,
+    allWorkspaces,
     groups,
     visible,
     openCount,
@@ -189,6 +204,7 @@ export function useRecheckNavigation() {
     upsert,
     setDone,
     cancel,
+    withdrawWorkspace,
     reload: load,
   };
 }

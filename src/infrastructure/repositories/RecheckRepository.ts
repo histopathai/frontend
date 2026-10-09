@@ -28,6 +28,18 @@ export class RecheckRepository {
     return recheckFromApi(response.data);
   }
 
+  /** Admins: sends every image of the workspace with the note; returns how many. */
+  async requestWorkspace(wsId: string, note: string): Promise<number> {
+    const response = await this.apiClient.post<any>(`/api/v1/proxy/recheck-workspaces/${wsId}`, { note });
+    return response.data?.images ?? 0;
+  }
+
+  /** Admins: takes the workspace's "dataset" reason off; images sent on their own stay. */
+  async withdrawWorkspace(wsId: string): Promise<number> {
+    const response = await this.apiClient.delete<any>(`/api/v1/proxy/recheck-workspaces/${wsId}`);
+    return response?.data?.images ?? 0;
+  }
+
   /** Admins: takes the image out of Ek Kontrol; its annotations are not touched. */
   async cancel(imageId: string): Promise<void> {
     await this.apiClient.delete(`${BASE}/${imageId}`);

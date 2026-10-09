@@ -9,7 +9,9 @@ export type RecheckReasonCode =
   | 'polygon'
   | 'polygon_missing'
   | 'global_label_missing'
-  | 'other';
+  | 'other'
+  /** Set on every image of a workspace sent as a whole; the note says why. */
+  | 'dataset';
 
 export type RecheckStatus = 'open' | 'done';
 
@@ -34,8 +36,12 @@ export interface RecheckRequest {
   completedAt: string | null;
 }
 
-/** The sentence each reason is shown as; "other" is written by the admin. */
-export const RECHECK_REASONS: { code: RecheckReasonCode; label: string }[] = [
+/**
+ * The reasons an admin picks for one image, with the sentence each is shown
+ * as; "other" is written by the admin. "dataset" is set by sending a whole
+ * workspace, not picked here.
+ */
+export const RECHECK_REASONS: { code: Exclude<RecheckReasonCode, 'dataset'>; label: string }[] = [
   { code: 'subtype', label: 'Alt tip yeniden incelenmeli' },
   { code: 'polygon', label: 'Poligon yeniden incelenmeli' },
   { code: 'polygon_missing', label: 'Poligon eksik' },
@@ -45,9 +51,12 @@ export const RECHECK_REASONS: { code: RecheckReasonCode; label: string }[] = [
 
 export const RECHECK_NOTE_MAX = 500;
 
+export const DATASET_REASON_LABEL = 'Veri seti uzman incelemesine gönderildi';
+
 /** "Alt tip yeniden incelenmeli" — or, for "other", the note itself. */
 export function reasonSentence(reason: Pick<RecheckReason, 'code' | 'note'>): string {
   if (reason.code === 'other') return reason.note;
+  if (reason.code === 'dataset') return DATASET_REASON_LABEL;
   return RECHECK_REASONS.find((r) => r.code === reason.code)?.label ?? reason.code;
 }
 
@@ -76,6 +85,13 @@ export interface RecheckGroup {
   wsId: string;
   requests: RecheckRequest[];
   open: number;
+  /** Notes of the workspace's "dataset" reasons, shown once over the group. */
+  datasetNotes: string[];
+}
+
+/** The reasons listed under an image: the "dataset" one is shown over its group. */
+export function ownReasons(request: RecheckRequest): RecheckReason[] {
+  return request.reasons.filter((r) => r.code !== 'dataset');
 }
 
 /** "24.jpg" before "140.jpg": numbers in names compare as numbers. */
@@ -108,5 +124,8 @@ export function groupRechecks(
       wsId,
       requests: [...list].sort((a, b) => byName(a.imageName, b.imageName)),
       open: list.filter((r) => r.status === 'open').length,
+      datasetNotes: [
+        ...new Set(list.flatMap((r) => r.reasons.filter((x) => x.code === 'dataset').map((x) => x.note))),
+      ],
     }));
 }

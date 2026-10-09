@@ -24,6 +24,7 @@ const workspaces = [
   { id: 'ws-bcnb', name: 'BCNB' },
   { id: 'ws-bracs', name: 'BRACS' },
   { id: 'ws-cmb', name: 'CMB-BRCA' },
+  { id: 'ws-bcnb2', name: 'BCNB-2' },
 ].map((ws) => ({
   ...ws,
   creator_id: 'u1',
@@ -67,7 +68,29 @@ add('ws-bracs', 'BRACS_1272', 'BRACS_1272', [['polygon', 'Sınır atipik ve beni
 add('ws-cmb', 'MSB-06801-03-01.svs', 'Patient_0071', [['global_label_missing']]);
 add('ws-cmb', 'MSB-02664-01-02.svs', 'Patient_0033', [['other', 'Hiç etiket yok; tümör varsa poligon ve alt tip girilmeli'], ['polygon_missing']]);
 
+for (const n of ['172', '173', '175']) {
+  add('ws-bcnb2', `${n}.jpg`, n, [['dataset', 'Yeni yüklendi; poligonlar ve global etiketler gözden geçirilmeli']]);
+}
+add('ws-bcnb2', '176.jpg', '176', [['dataset', 'Yeni yüklendi; poligonlar ve global etiketler gözden geçirilmeli'], ['subtype']]);
+
 const repos = repositories as any;
+repos.recheck.requestWorkspace = async (wsId: string, note: string) => {
+  await wait();
+  const list = images.filter((i) => i.ws_id === wsId);
+  for (const img of list) await repos.recheck.request(img.id, 'dataset', note);
+  return list.length;
+};
+repos.recheck.withdrawWorkspace = async (wsId: string) => {
+  await wait();
+  let n = 0;
+  for (const [id, doc] of store) {
+    if (doc.ws_id !== wsId || !doc.reasons.some((r: any) => r.code === 'dataset')) continue;
+    n++;
+    doc.reasons = doc.reasons.filter((r: any) => r.code !== 'dataset');
+    if (doc.reasons.length === 0) store.delete(id);
+  }
+  return n;
+};
 const fromStore = (id: string): RecheckRequest => recheckFromApi(store.get(id));
 repos.recheck.list = async (status?: string) => (
   await wait(),
