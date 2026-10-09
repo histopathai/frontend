@@ -27,6 +27,11 @@ export const RECHECK_OUTCOMES: { code: RecheckOutcome; label: string; needsNote:
   { code: 'unsuitable', label: 'Çalışmaya uygun değil', needsNote: false },
 ];
 
+/** Badge of a finished request. */
+export function finishedBadge(request: Pick<RecheckRequest, 'outcome' | 'autoCompleted'>): string {
+  return request.autoCompleted ? 'Eksik tamamlandı' : outcomeShortLabel(request.outcome);
+}
+
 /** Short form for badges. */
 export function outcomeShortLabel(outcome: RecheckOutcome | null): string {
   if (outcome === 'corrected') return 'Düzeltildi';
@@ -41,6 +46,8 @@ export interface RecheckReason {
   note: string;
   requestedBy: string;
   requestedAt: string;
+  /** Set while a missing-label reason is settled by the image's labels. */
+  resolvedAt: string | null;
 }
 
 export interface RecheckRequest {
@@ -59,6 +66,8 @@ export interface RecheckRequest {
   completedAt: string | null;
   outcome: RecheckOutcome | null;
   completionNote: string;
+  /** Finished because the missing labels were entered, not by the expert. */
+  autoCompleted: boolean;
 }
 
 /**
@@ -100,6 +109,7 @@ export function recheckFromApi(d: any): RecheckRequest {
       note: r.note ?? '',
       requestedBy: r.requested_by ?? '',
       requestedAt: r.requested_at ?? '',
+      resolvedAt: r.resolved_at ?? null,
     })),
     createdAt: d.created_at ?? '',
     updatedAt: d.updated_at ?? '',
@@ -107,6 +117,7 @@ export function recheckFromApi(d: any): RecheckRequest {
     completedAt: d.completed_at ?? null,
     outcome: ['corrected', 'no_change', 'undecided', 'unsuitable'].includes(d.outcome) ? d.outcome : null,
     completionNote: d.completion_note ?? '',
+    autoCompleted: !!d.auto_completed,
   };
 }
 

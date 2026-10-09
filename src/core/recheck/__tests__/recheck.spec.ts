@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   RECHECK_OUTCOMES,
+  finishedBadge,
   groupByPatient,
   groupRechecks,
   outcomeShortLabel,
@@ -47,7 +48,9 @@ describe('recheckFromApi', () => {
       completed_at: 'c',
     });
     expect(r).toMatchObject({ imageId: 'i1', imageName: '24.jpg', patientName: '24', wsId: 'w1', assigneeId: 'p1', status: 'done' });
-    expect(r.reasons).toEqual([{ code: 'subtype', note: 'n', requestedBy: 'u', requestedAt: 't' }]);
+    expect(r.reasons).toEqual([
+      { code: 'subtype', note: 'n', requestedBy: 'u', requestedAt: 't', resolvedAt: null },
+    ]);
     expect(r.completedBy).toBe('e');
   });
 
@@ -141,5 +144,21 @@ describe('groupByPatient', () => {
     const groups = groupByPatient([r('x', '', '')]);
     expect(groups).toHaveLength(1);
     expect(groups[0]!.patientName).toBe('x.svs');
+  });
+});
+
+describe('missing labels entered', () => {
+  it('maps resolved reasons and the automatic finish, with its own badge', () => {
+    const r = recheckFromApi({
+      image_id: 'i1',
+      status: 'done',
+      outcome: 'corrected',
+      auto_completed: true,
+      reasons: [{ code: 'subtype_missing', resolved_at: '2026-10-09T13:00:00Z' }],
+    });
+    expect(r.reasons[0]!.resolvedAt).toBe('2026-10-09T13:00:00Z');
+    expect(r.autoCompleted).toBe(true);
+    expect(finishedBadge(r)).toBe('Eksik tamamlandı');
+    expect(finishedBadge({ outcome: 'corrected', autoCompleted: false })).toBe('Düzeltildi');
   });
 });

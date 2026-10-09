@@ -184,16 +184,23 @@
                       class="shrink-0 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full"
                       :class="r.outcome === 'undecided' || r.outcome === 'unsuitable' ? 'bg-gray-200 text-gray-600' : 'bg-emerald-100 text-emerald-700'"
                       :title="r.completionNote"
-                      >{{ outcomeShortLabel(r.outcome) }}</span
+                      >{{ finishedBadge(r) }}</span
                     >
                   </div>
                   <p
                     v-for="(reason, i) in ownReasons(r)"
                     :key="i"
                     class="mt-0.5 text-[10px] leading-snug"
-                    :class="r.status === 'done' ? 'text-gray-400' : 'text-amber-700'"
+                    :class="
+                      reason.resolvedAt
+                        ? 'text-emerald-600 line-through decoration-emerald-300'
+                        : r.status === 'done'
+                          ? 'text-gray-400'
+                          : 'text-amber-700'
+                    "
+                    :title="reason.resolvedAt ? 'Giderildi: etiket girildi' : ''"
                   >
-                    {{ reasonSentence(reason) }}
+                    <span v-if="reason.resolvedAt" class="no-underline">✓ </span>{{ reasonSentence(reason) }}
                   </p>
                   <p v-if="ownReasons(r).length === 0" class="mt-0.5 text-[10px] text-gray-400">Veri seti incelemesi</p>
                 </div>
@@ -214,7 +221,7 @@
 import { computed, ref, watch } from 'vue';
 import {
   DATASET_REASON_LABEL,
-  outcomeShortLabel,
+  finishedBadge,
   ownReasons,
   reasonSentence,
   type RecheckGroup,

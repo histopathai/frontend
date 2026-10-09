@@ -65,6 +65,10 @@ add('ws-bcnb', '24.jpg', '24', [['subtype']]);
 add('ws-bcnb', '140.jpg', '140', [['subtype']]);
 add('ws-bcnb', '4.jpg', '4', [['subtype', 'Klinik tabloda IDC/ILC dışında bir tip olabilir']]);
 add('ws-bcnb', '60.jpg', '60', [['subtype']], true);
+// A missing subtype entered in Veri Etiketleyici: settled and finished automatically.
+add('ws-bcnb', '172.jpg', '172', [['subtype_missing']], true);
+Object.assign(store.get('ws-bcnb-172.jpg'), { outcome: 'corrected', completion_note: 'Eksik etiket girildi (otomatik)', auto_completed: true });
+store.get('ws-bcnb-172.jpg').reasons[0].resolved_at = now;
 Object.assign(store.get('ws-bcnb-60.jpg'), { outcome: 'no_change', completion_note: 'Kanal yapıları belirgin, tek sıra dizilim yok; IDC ile uyumlu.' });
 add('ws-bracs', 'BRACS_1367', 'BRACS_1367', [['polygon']]);
 add('ws-bracs', 'BRACS_1272', 'BRACS_1272', [['polygon', 'Sınır atipik ve benign alanları da içine alıyor olabilir']]);

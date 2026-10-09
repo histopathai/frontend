@@ -45,7 +45,14 @@
           <ul class="mt-0.5 space-y-0.5">
             <li v-for="(reason, i) in request.reasons" :key="i" class="text-sm text-gray-800">
               <span v-if="request.status === 'done'" class="text-gray-500">Gönderilme nedeni: </span>
-              <span :class="request.status === 'done' ? 'text-gray-600' : 'font-semibold'">{{ reasonSentence(reason) }}</span>
+              <span
+                :class="[
+                  request.status === 'done' ? 'text-gray-600' : 'font-semibold',
+                  reason.resolvedAt ? 'line-through decoration-emerald-400' : '',
+                ]"
+                >{{ reasonSentence(reason) }}</span
+              >
+              <span v-if="reason.resolvedAt" class="ml-1 text-xs font-bold text-emerald-600">✓ giderildi</span>
               <span v-if="reason.code !== 'other' && reason.note" class="text-gray-600"> — {{ reason.note }}</span>
             </li>
           </ul>
