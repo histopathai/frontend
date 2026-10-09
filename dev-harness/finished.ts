@@ -23,14 +23,17 @@ import FinishedHarness from './FinishedHarness.vue';
 const wait = (ms = 40) => new Promise((resolve) => setTimeout(resolve, ms));
 const now = '2026-09-01T10:00:00Z';
 
+// Mixed organs so the dropdown shows its organ groups.
 const workspaces = [
-  { id: 'ws-active', name: 'Aktif veri seti' },
-  { id: 'ws-done', name: 'Bitmiş veri seti' },
-  { id: 'ws-empty', name: 'Yeni boş veri seti' },
+  { id: 'ws-active', name: 'Aktif veri seti', organ_type: 'prostate' },
+  { id: 'ws-done', name: 'Bitmiş veri seti', organ_type: 'prostate' },
+  { id: 'ws-empty', name: 'Yeni boş veri seti', organ_type: 'breast' },
+  { id: 'ws-breast', name: 'BRACS deneme', organ_type: 'breast' },
+  { id: 'ws-lymph', name: 'CAMELYON deneme', organ_type: 'lymph_node' },
+  { id: 'ws-unknown', name: 'Organı belirsiz veri seti', organ_type: 'unknown' },
 ].map((ws) => ({
   ...ws,
   creator_id: 'u1',
-  organ_type: 'prostate',
   organization: 'Deneme',
   description: '',
   license: 'CC',

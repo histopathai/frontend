@@ -41,9 +41,15 @@
             class="appearance-none block w-full pl-3 pr-8 py-2 text-xs bg-white border border-gray-300 text-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm transition-all cursor-pointer hover:border-indigo-300"
           >
             <option :value="undefined" disabled>Seçiniz...</option>
-            <option v-for="ws in workspaces" :key="ws.id" :value="ws.id">
-              {{ ws.name }}
-            </option>
+            <optgroup
+              v-for="group in workspaceGroups"
+              :key="group.organType"
+              :label="`${group.label} (${group.workspaces.length})`"
+            >
+              <option v-for="ws in group.workspaces" :key="ws.id" :value="ws.id">
+                {{ ws.name }}
+              </option>
+            </optgroup>
           </select>
           <div
             class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500"
@@ -362,6 +368,7 @@ import { useAnnotationStore } from '@/stores/annotation';
 import { useAuthStore } from '@/stores/auth';
 import { ApiClient } from '@/infrastructure/api/ApiClient';
 import type { CompletionMode, Progress } from '@/core/completion';
+import { OrganType, OrganTypeUtils } from '@/core/value-objects';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { AnnotationRepository } from '@/infrastructure/repositories/AnnotationRepository';
 
@@ -418,6 +425,30 @@ const hideFinishedTitle = computed(() =>
 const finishedBadgeTitle = computed(() =>
   props.completionMode === 'tissue' ? 'Doku maskesi onaylandı ya da reddedildi' : 'İşaretleme Tamamlandı'
 );
+
+// Workspaces grouped by organ for the dropdown: groups and names sorted in Turkish order,
+// "Bilinmiyor / Diğer" last.
+const workspaceGroups = computed(() => {
+  const groups = new Map<OrganType, Workspace[]>();
+  for (const ws of props.workspaces) {
+    const organ = OrganTypeUtils.isValid(ws.organType) ? ws.organType : OrganType.Unknown;
+    if (!groups.has(organ)) groups.set(organ, []);
+    groups.get(organ)!.push(ws);
+  }
+  return [...groups.entries()]
+    .map(([organType, workspaces]) => ({
+      organType,
+      label: OrganTypeUtils.getTurkishLabel(organType),
+      workspaces: [...workspaces].sort((a, b) => a.name.localeCompare(b.name, 'tr')),
+    }))
+    .sort((a, b) =>
+      a.organType === OrganType.Unknown
+        ? 1
+        : b.organType === OrganType.Unknown
+          ? -1
+          : a.label.localeCompare(b.label, 'tr')
+    );
+});
 
 const filteredPatients = computed(() => {
   if (!searchQuery.value) return props.patients;

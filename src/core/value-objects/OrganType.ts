@@ -74,6 +74,41 @@ export const OrganTypeUtils = {
     return labels[organType];
   },
 
+  getTurkishLabel(organType: OrganType): string {
+    const labels: Record<OrganType, string> = {
+      [OrganType.Unknown]: 'Bilinmiyor / Diğer',
+      [OrganType.Brain]: 'Beyin',
+      [OrganType.Lung]: 'Akciğer',
+      [OrganType.Liver]: 'Karaciğer',
+      [OrganType.Kidney]: 'Böbrek',
+      [OrganType.Heart]: 'Kalp',
+      [OrganType.Stomach]: 'Mide',
+      [OrganType.SmallIntestine]: 'İnce Bağırsak',
+      [OrganType.LargeIntestine]: 'Kalın Bağırsak',
+      [OrganType.Pancreas]: 'Pankreas',
+      [OrganType.Spleen]: 'Dalak',
+      [OrganType.Bladder]: 'Mesane',
+      [OrganType.Prostate]: 'Prostat',
+      [OrganType.Testis]: 'Testis',
+      [OrganType.Ovary]: 'Yumurtalık (Over)',
+      [OrganType.Uterus]: 'Rahim (Uterus)',
+      [OrganType.Skin]: 'Deri (Cilt)',
+      [OrganType.Bone]: 'Kemik',
+      [OrganType.BoneMarrow]: 'Kemik İliği',
+      [OrganType.Breast]: 'Meme',
+      [OrganType.Thyroid]: 'Tiroid',
+      [OrganType.LymphNode]: 'Lenf Düğümü',
+      [OrganType.Esophagus]: 'Yemek Borusu',
+      [OrganType.Gallbladder]: 'Safra Kesesi',
+      [OrganType.SalivaryGland]: 'Tükürük Bezi',
+      [OrganType.AdrenalGland]: 'Böbrek Üstü Bezi',
+      [OrganType.Placenta]: 'Plasenta',
+      [OrganType.Eye]: 'Göz',
+      [OrganType.Tongue]: 'Dil',
+    };
+    return labels[organType];
+  },
+
   normalize(value: string): string {
     if (!value) return '';
 
