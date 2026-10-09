@@ -1,6 +1,7 @@
 // Ek Kontrol on made-up requests: the real tab (RecheckView), with the
 // repositories faked in memory; nothing is saved. ?role=pathologist shows the
-// expert's view (no "Neden ekle" / "Listeden çıkar"), the default is admin.
+// expert's view (no "Neden ekle" / "Listeden çıkar"), the default is admin;
+// ?showDone=1&select=ws-bcnb-60.jpg shows a finished one with the expert's answer.
 // Slide pixels are not served here, so the viewer stays empty.
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
@@ -63,6 +64,7 @@ add('ws-bcnb', '24.jpg', '24', [['subtype']]);
 add('ws-bcnb', '140.jpg', '140', [['subtype']]);
 add('ws-bcnb', '4.jpg', '4', [['subtype', 'Klinik tabloda IDC/ILC dışında bir tip olabilir']]);
 add('ws-bcnb', '60.jpg', '60', [['subtype']], true);
+Object.assign(store.get('ws-bcnb-60.jpg'), { outcome: 'no_change', completion_note: 'Kanal yapıları belirgin, tek sıra dizilim yok; IDC ile uyumlu.' });
 add('ws-bracs', 'BRACS_1367', 'BRACS_1367', [['polygon']]);
 add('ws-bracs', 'BRACS_1272', 'BRACS_1272', [['polygon', 'Sınır atipik ve benign alanları da içine alıyor olabilir']]);
 add('ws-cmb', 'MSB-06801-03-01.svs', 'Patient_0071', [['global_label_missing']]);
@@ -111,11 +113,11 @@ repos.recheck.request = async (imageId: string, reason: string, note: string) =>
   Object.assign(doc, { status: 'open', completed_by: '', completed_at: null });
   return fromStore(imageId);
 };
-repos.recheck.setDone = async (imageId: string, done: boolean) => {
+repos.recheck.setDone = async (imageId: string, done: boolean, outcome = '', note = '') => {
   await wait();
   Object.assign(store.get(imageId), done
-    ? { status: 'done', completed_by: 'u1', completed_at: new Date().toISOString() }
-    : { status: 'open', completed_by: '', completed_at: null });
+    ? { status: 'done', completed_by: 'u1', completed_at: new Date().toISOString(), outcome, completion_note: note }
+    : { status: 'open', completed_by: '', completed_at: null, outcome: '', completion_note: '' });
   return fromStore(imageId);
 };
 repos.recheck.cancel = async (imageId: string) => {
@@ -132,7 +134,11 @@ repos.annotation.listByImage = async () => ({ data: [], pagination: { limit: 100
 repos.image.getById = async (id: string) => (await wait(), Image.create(images.find((i) => i.id === id)));
 repos.patient.getById = async (id: string) => Patient.create(patients.find((p) => p.id === id));
 
-const role = new URLSearchParams(location.search).get('role') === 'pathologist' ? 'pathologist' : 'admin';
+const params = new URLSearchParams(location.search);
+const role = params.get('role') === 'pathologist' ? 'pathologist' : 'admin';
+// ?showDone=1 lists finished requests too; ?select=<image id> opens that one.
+if (params.get('showDone')) localStorage.setItem('histo_hide_finished_recheck', 'false');
+if (params.get('select')) localStorage.setItem('recheck_selected_image_id', params.get('select')!);
 
 const app = createApp(RecheckView).use(createPinia()).use(i18n).use(Toast, { timeout: 1500 });
 useAuthStore().user = User.create({

@@ -79,8 +79,10 @@
                 <span class="text-xs font-semibold text-gray-800 truncate">{{ r.imageName }}</span>
                 <span
                   v-if="r.status === 'done'"
-                  class="shrink-0 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700"
-                  >Tamamlandı</span
+                  class="shrink-0 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded"
+                  :class="r.outcome === 'undecided' ? 'bg-gray-200 text-gray-600' : 'bg-emerald-100 text-emerald-700'"
+                  :title="r.completionNote"
+                  >{{ outcomeShortLabel(r.outcome) }}</span
                 >
                 <span v-if="r.patientName" class="ml-auto shrink-0 text-[10px] text-gray-400"
                   >Hasta {{ r.patientName }}</span
@@ -97,6 +99,9 @@
                   • {{ reasonSentence(reason) }}
                 </li>
               </ul>
+              <p v-if="r.status === 'done' && r.completionNote" class="mt-1 text-[11px] italic text-emerald-800 line-clamp-2">
+                “{{ r.completionNote }}”
+              </p>
             </button>
           </li>
         </ul>
@@ -108,6 +113,7 @@
 <script setup lang="ts">
 import {
   DATASET_REASON_LABEL,
+  outcomeShortLabel,
   ownReasons,
   reasonSentence,
   type RecheckGroup,

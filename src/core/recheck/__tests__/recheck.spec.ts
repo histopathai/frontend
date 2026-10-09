@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { groupRechecks, ownReasons, reasonSentence, recheckFromApi, type RecheckRequest } from '..';
+import {
+  groupRechecks,
+  outcomeShortLabel,
+  ownReasons,
+  reasonSentence,
+  recheckFromApi,
+  type RecheckRequest,
+} from '..';
 
 function req(imageId: string, wsId: string, imageName: string, status: 'open' | 'done' = 'open'): RecheckRequest {
   return recheckFromApi({ image_id: imageId, ws_id: wsId, image_name: imageName, status });
@@ -38,6 +45,15 @@ describe('recheckFromApi', () => {
     expect(r).toMatchObject({ imageId: 'i1', imageName: '24.jpg', patientName: '24', wsId: 'w1', status: 'done' });
     expect(r.reasons).toEqual([{ code: 'subtype', note: 'n', requestedBy: 'u', requestedAt: 't' }]);
     expect(r.completedBy).toBe('e');
+  });
+
+  it("maps the expert's answer and drops an unknown outcome", () => {
+    const r = recheckFromApi({ image_id: 'i1', status: 'done', outcome: 'no_change', completion_note: 'IDC ile uyumlu' });
+    expect(r.outcome).toBe('no_change');
+    expect(r.completionNote).toBe('IDC ile uyumlu');
+    expect(recheckFromApi({ image_id: 'i1', outcome: 'maybe' }).outcome).toBeNull();
+    expect(outcomeShortLabel('undecided')).toBe('Karar verilemedi');
+    expect(outcomeShortLabel(null)).toBe('Tamamlandı');
   });
 
   it('treats a missing status as open and a missing reason list as empty', () => {

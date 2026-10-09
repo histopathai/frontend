@@ -15,6 +15,23 @@ export type RecheckReasonCode =
 
 export type RecheckStatus = 'open' | 'done';
 
+/** What the expert concluded when finishing. */
+export type RecheckOutcome = 'corrected' | 'no_change' | 'undecided';
+
+export const RECHECK_OUTCOMES: { code: RecheckOutcome; label: string; needsNote: boolean }[] = [
+  { code: 'corrected', label: 'Etiketler düzeltildi', needsNote: false },
+  { code: 'no_change', label: 'Değişiklik gerekmedi, mevcut etiket doğru', needsNote: true },
+  { code: 'undecided', label: 'Karar verilemedi', needsNote: true },
+];
+
+/** Short form for badges. */
+export function outcomeShortLabel(outcome: RecheckOutcome | null): string {
+  if (outcome === 'corrected') return 'Düzeltildi';
+  if (outcome === 'no_change') return 'Değişiklik gerekmedi';
+  if (outcome === 'undecided') return 'Karar verilemedi';
+  return 'Tamamlandı';
+}
+
 export interface RecheckReason {
   code: RecheckReasonCode;
   note: string;
@@ -34,6 +51,8 @@ export interface RecheckRequest {
   updatedAt: string;
   completedBy: string | null;
   completedAt: string | null;
+  outcome: RecheckOutcome | null;
+  completionNote: string;
 }
 
 /**
@@ -78,6 +97,8 @@ export function recheckFromApi(d: any): RecheckRequest {
     updatedAt: d.updated_at ?? '',
     completedBy: d.completed_by || null,
     completedAt: d.completed_at ?? null,
+    outcome: ['corrected', 'no_change', 'undecided'].includes(d.outcome) ? d.outcome : null,
+    completionNote: d.completion_note ?? '',
   };
 }
 

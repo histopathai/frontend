@@ -1,5 +1,6 @@
 import {
   recheckFromApi,
+  type RecheckOutcome,
   type RecheckReasonCode,
   type RecheckRequest,
   type RecheckStatus,
@@ -23,8 +24,18 @@ export class RecheckRepository {
     return recheckFromApi(response.data);
   }
 
-  async setDone(imageId: string, done: boolean): Promise<RecheckRequest> {
-    const response = await this.apiClient.put<any>(`${BASE}/${imageId}/status`, { done });
+  /** Done needs the outcome; "no_change" and "undecided" need the note too. */
+  async setDone(
+    imageId: string,
+    done: boolean,
+    outcome?: RecheckOutcome,
+    note = ''
+  ): Promise<RecheckRequest> {
+    const response = await this.apiClient.put<any>(`${BASE}/${imageId}/status`, {
+      done,
+      outcome: outcome ?? '',
+      note,
+    });
     return recheckFromApi(response.data);
   }
 

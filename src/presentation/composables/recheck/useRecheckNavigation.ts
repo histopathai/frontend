@@ -6,7 +6,7 @@ import { useWorkspaceStore } from '@/stores/workspace';
 import { usePatientStore } from '@/stores/patient';
 import { useAnnotationStore } from '@/stores/annotation';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
-import { groupRechecks, type RecheckRequest } from '@/core/recheck';
+import { groupRechecks, type RecheckOutcome, type RecheckRequest } from '@/core/recheck';
 import type { Image } from '@/core/entities/Image';
 import type { Patient } from '@/core/entities/Patient';
 
@@ -130,15 +130,18 @@ export function useRecheckNavigation() {
         : requests.value.map((r, k) => (k === i ? updated : r));
   }
 
-  async function setDone(done: boolean) {
+  /** True when saved, so a dialog can close. */
+  async function setDone(done: boolean, outcome?: RecheckOutcome, note = ''): Promise<boolean> {
     const request = selectedRequest.value;
-    if (!request) return;
+    if (!request) return false;
     try {
-      upsert(await repositories.recheck.setDone(request.imageId, done));
+      upsert(await repositories.recheck.setDone(request.imageId, done, outcome, note));
       if (done) pinnedId.value = request.imageId;
       toast.success(done ? 'Kontrol tamamlandı' : 'Yeniden açıldı');
+      return true;
     } catch (e: any) {
       toast.error(e?.message || 'Kaydedilemedi');
+      return false;
     }
   }
 

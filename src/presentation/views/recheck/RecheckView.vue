@@ -31,9 +31,14 @@
           >
             {{ request.status === 'done' ? 'Ek kontrol tamamlandı' : 'Neden ek kontrole geldi' }}
           </p>
+          <p v-if="request.status === 'done' && request.outcome" class="mt-0.5 text-sm text-emerald-900">
+            <span class="font-semibold">{{ outcomeLabel(request.outcome) }}</span>
+            <span v-if="request.completionNote" class="text-emerald-800"> — {{ request.completionNote }}</span>
+          </p>
           <ul class="mt-0.5 space-y-0.5">
             <li v-for="(reason, i) in request.reasons" :key="i" class="text-sm text-gray-800">
-              <span class="font-semibold">{{ reasonSentence(reason) }}</span>
+              <span v-if="request.status === 'done'" class="text-gray-500">Gönderilme nedeni: </span>
+              <span :class="request.status === 'done' ? 'text-gray-600' : 'font-semibold'">{{ reasonSentence(reason) }}</span>
               <span v-if="reason.code !== 'other' && reason.note" class="text-gray-600"> — {{ reason.note }}</span>
             </li>
           </ul>
@@ -57,7 +62,7 @@
             <button
               v-if="request.status === 'open'"
               class="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-sm"
-              @click="nav.setDone(true)"
+              @click="isCompleteOpen = true"
             >
               Kontrolü tamamla
             </button>
@@ -126,6 +131,12 @@
       @close="isModalOpen = false"
       @sent="nav.upsert"
     />
+    <RecheckCompleteModal
+      :is-open="isCompleteOpen"
+      :image-name="request?.imageName ?? ''"
+      :submit="(outcome, note) => nav.setDone(true, outcome, note)"
+      @close="isCompleteOpen = false"
+    />
     <RecheckWorkspaceModal
       :is-open="isWorkspaceModalOpen"
       :workspaces="nav.allWorkspaces.value"
@@ -152,11 +163,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
-import { reasonSentence } from '@/core/recheck';
+import { reasonSentence, RECHECK_OUTCOMES, type RecheckOutcome } from '@/core/recheck';
 import { useRecheckNavigation } from '@/presentation/composables/recheck/useRecheckNavigation';
 import RecheckSidebar from '@/presentation/components/recheck/RecheckSidebar.vue';
 import RecheckRequestModal from '@/presentation/components/recheck/RecheckRequestModal.vue';
 import RecheckWorkspaceModal from '@/presentation/components/recheck/RecheckWorkspaceModal.vue';
+import RecheckCompleteModal from '@/presentation/components/recheck/RecheckCompleteModal.vue';
 import ConfirmModal from '@/presentation/components/common/ConfirmModal.vue';
 import PatientMetadataBar from '@/presentation/components/annotator/PatientMetadataBar.vue';
 import Viewer from '@/presentation/components/annotator/Viewer.vue';
@@ -174,6 +186,9 @@ const isActivityPanelOpen = ref(false);
 const isModalOpen = ref(false);
 const isCancelOpen = ref(false);
 const isWorkspaceModalOpen = ref(false);
+const isCompleteOpen = ref(false);
+
+const outcomeLabel = (o: RecheckOutcome) => RECHECK_OUTCOMES.find((x) => x.code === o)?.label ?? o;
 const withdrawWsId = ref<string | null>(null);
 const viewerRef = ref<InstanceType<typeof Viewer> | null>(null);
 
