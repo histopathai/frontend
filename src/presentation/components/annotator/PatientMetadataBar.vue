@@ -216,7 +216,7 @@
 
         <!-- "Çalışmaya uygun değil": on, or taken back with a confirm -->
         <button
-          v-if="image && (!readOnly || image.unsuitable)"
+          v-if="image && showUnsuitable && (!readOnly || image.unsuitable)"
           @click="onUnsuitableClick"
           :disabled="readOnly"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold uppercase tracking-tight border shadow-sm flex-shrink-0"
@@ -390,13 +390,18 @@ import { useAuthStore } from '@/stores/auth';
 import UnsuitableModal from '@/presentation/components/annotator/UnsuitableModal.vue';
 import ConfirmModal from '@/presentation/components/common/ConfirmModal.vue';
 
-const props = defineProps<{
-  image: Image | null;
-  patient: Patient | null;
-  currentIndex: number;
-  totalCount: number;
-  isDrawingMode: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    image: Image | null;
+    patient: Patient | null;
+    currentIndex: number;
+    totalCount: number;
+    isDrawingMode: boolean;
+    /** Ek Kontrol hides it: there "Kontrolü tamamla → Çalışmaya uygun değil" sets it. */
+    showUnsuitable?: boolean;
+  }>(),
+  { showUnsuitable: true }
+);
 
 const emit = defineEmits(['prev', 'next', 'startDrawing', 'stopDrawing', 'refreshViewer']);
 

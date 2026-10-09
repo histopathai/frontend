@@ -143,6 +143,12 @@ export function useOpenSeadragon(viewerId: string) {
                   <button id="reject-${id}" title="${isDirty ? 'Önce kaydedin' : 'Reddet'}" ${isDirty ? 'disabled' : ''} style="background: none; border: none; color: #f43f5e; ${isDirty ? 'opacity: 0.3;' : 'cursor: pointer;'} padding: 1px; display: flex; align-items: center; justify-content: center;">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                   </button>
+                  ${authStore.isAdmin ? `
+                  <!-- Admins may also delete someone else's polygon; review stays as it is. -->
+                  <button id="del-${id}" title="Sil (admin)" style="background: none; border: none; color: #94a3b8; cursor: pointer; padding: 1px; display: flex; align-items: center; justify-content: center;">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                  </button>
+                  ` : ''}
                 ` : `
                   <button id="edit-pts-${id}" style="background: none; border: none; color: #94a3b8; cursor: pointer; padding: 1px;">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>

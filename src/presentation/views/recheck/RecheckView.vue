@@ -45,12 +45,32 @@
           <ul class="mt-0.5 space-y-0.5">
             <li v-for="(reason, i) in request.reasons" :key="i" class="text-sm text-gray-800">
               <span v-if="request.status === 'done'" class="text-gray-500">Gönderilme nedeni: </span>
-              <span :class="request.status === 'done' ? 'text-gray-600' : 'font-semibold'">{{ reasonSentence(reason) }}</span>
+              <span
+                :class="[
+                  request.status === 'done' ? 'text-gray-600' : 'font-semibold',
+                  reason.resolvedAt ? 'line-through decoration-emerald-400' : '',
+                ]"
+                >{{ reasonSentence(reason) }}</span
+              >
+              <span v-if="reason.resolvedAt" class="ml-1 text-xs font-bold text-emerald-600">✓ giderildi</span>
               <span v-if="reason.code !== 'other' && reason.note" class="text-gray-600"> — {{ reason.note }}</span>
             </li>
           </ul>
         </div>
         <div class="flex items-center gap-2 shrink-0">
+          <span v-if="canRequest" class="text-[11px] text-gray-500 mr-1">
+            Atanan:
+            <span class="font-semibold" :class="request.assigneeId ? 'text-gray-800' : 'text-red-600'">
+              {{ request.assigneeId ? nameOf(request.assigneeId) || 'Bilinmeyen kullanıcı' : 'Atanmamış' }}
+            </span>
+          </span>
+          <button
+            v-if="canRequest"
+            class="px-2.5 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            @click="isAssignOpen = true"
+          >
+            Atamayı değiştir
+          </button>
           <button
             v-if="canRequest"
             class="px-2.5 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -90,6 +110,7 @@
         :is-drawing-mode="isDrawingMode"
         :current-index="nav.selectedIndex.value"
         :total-count="nav.visible.value.length"
+        :show-unsuitable="false"
         @start-drawing="isDrawingMode = true"
         @stop-drawing="isDrawingMode = false"
         @prev="nav.prev"
@@ -135,8 +156,16 @@
       :is-open="isModalOpen"
       :image-id="request?.imageId ?? null"
       :image-name="request?.imageName ?? ''"
+      :assignee-id="request?.assigneeId"
       @close="isModalOpen = false"
       @sent="nav.upsert"
+    />
+    <RecheckAssignModal
+      :is-open="isAssignOpen"
+      :image-name="request?.imageName ?? ''"
+      :current="request?.assigneeId ?? ''"
+      :submit="nav.assign"
+      @close="isAssignOpen = false"
     />
     <RecheckCompleteModal
       :is-open="isCompleteOpen"
@@ -176,6 +205,8 @@ import RecheckSidebar from '@/presentation/components/recheck/RecheckSidebar.vue
 import RecheckRequestModal from '@/presentation/components/recheck/RecheckRequestModal.vue';
 import RecheckWorkspaceModal from '@/presentation/components/recheck/RecheckWorkspaceModal.vue';
 import RecheckCompleteModal from '@/presentation/components/recheck/RecheckCompleteModal.vue';
+import RecheckAssignModal from '@/presentation/components/recheck/RecheckAssignModal.vue';
+import { usePathologists } from '@/presentation/composables/recheck/usePathologists';
 import ConfirmModal from '@/presentation/components/common/ConfirmModal.vue';
 import PatientMetadataBar from '@/presentation/components/annotator/PatientMetadataBar.vue';
 import Viewer from '@/presentation/components/annotator/Viewer.vue';
@@ -194,6 +225,11 @@ const isModalOpen = ref(false);
 const isCancelOpen = ref(false);
 const isWorkspaceModalOpen = ref(false);
 const isCompleteOpen = ref(false);
+const isAssignOpen = ref(false);
+
+// Admins see who each request goes to.
+const { nameOf, load: loadPathologists } = usePathologists();
+if (authStore.can('recheck.request')) loadPathologists().catch(() => {});
 
 const outcomeLabel = (o: RecheckOutcome) => RECHECK_OUTCOMES.find((x) => x.code === o)?.label ?? o;
 const withdrawWsId = ref<string | null>(null);

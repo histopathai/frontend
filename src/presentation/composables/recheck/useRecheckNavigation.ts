@@ -1,4 +1,4 @@
-import { computed, ref, shallowRef, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useToast } from 'vue-toastification';
 import { repositories } from '@/services';
@@ -94,6 +94,58 @@ export function useRecheckNavigation() {
     }
   }
 
+  /**
+   * Reads the list again without a spinner or a toast: the server settles
+   * missing-label reasons when labels are saved (here or in Veri Etiketleyici),
+   * and other people change requests too.
+   */
+  let refreshing = false;
+  async function refresh() {
+    if (refreshing || loadingList.value) return;
+    refreshing = true;
+    try {
+      requests.value = await repositories.recheck.list();
+    } catch (e) {
+      console.error('Failed to refresh the Ek Kontrol list:', e);
+    } finally {
+      refreshing = false;
+    }
+  }
+
+  // Labels saved in this tab: the server reconciled the image, read it again.
+  let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  const scheduleRefresh = () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(refresh, 1500);
+  };
+  // Unsaved changes went out (saved).
+  watch(
+    () => annotationStore.pendingCount + annotationStore.dirtyCount,
+    (count, before) => {
+      if (before > 0 && count === 0) scheduleRefresh();
+    }
+  );
+  // An annotation of the open image was deleted.
+  watch(
+    () => [selectedImageId.value, annotationStore.annotations.length] as const,
+    ([imageId, count], [beforeId, beforeCount]) => {
+      if (imageId && imageId === beforeId && count < beforeCount) scheduleRefresh();
+    }
+  );
+  // Coming back to the window, and every minute while it is shown.
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') refresh();
+  };
+  document.addEventListener('visibilitychange', onVisible);
+  window.addEventListener('focus', onVisible);
+  const poll = setInterval(onVisible, 60_000);
+  onBeforeUnmount(() => {
+    clearTimeout(saveTimer);
+    clearInterval(poll);
+    document.removeEventListener('visibilitychange', onVisible);
+    window.removeEventListener('focus', onVisible);
+  });
+
   let opening = 0;
   /** Workspace whose annotation types are in the store. */
   let typesOf: string | undefined;
@@ -180,13 +232,47 @@ export function useRecheckNavigation() {
   async function setDone(done: boolean, outcome?: RecheckOutcome, note = ''): Promise<boolean> {
     const request = selectedRequest.value;
     if (!request) return false;
+    const wasUnsuitable = request.status === 'done' && request.outcome === 'unsuitable';
+    const following = visible.value[selectedIndex.value + 1] ?? visible.value[selectedIndex.value - 1];
     try {
       upsert(await repositories.recheck.setDone(request.imageId, done, outcome, note));
-      if (done) pinnedId.value = request.imageId;
+      // The server set or cleared "Çalışmaya uygun değil" on the image: show it.
+      if ((done && outcome === 'unsuitable') || wasUnsuitable) refreshImage(request.imageId);
       toast.success(done ? 'Kontrol tamamlandı' : 'Yeniden açıldı');
+      if (done && hideDone.value && following && following.imageId !== request.imageId) {
+        // Finished: off the list, on to the next one, as "İşaretleme Tamamlandı" does.
+        select(following);
+      } else if (done) {
+        pinnedId.value = request.imageId;
+      }
       return true;
     } catch (e: any) {
       toast.error(e?.message || 'Kaydedilemedi');
+      return false;
+    }
+  }
+
+  async function refreshImage(imageId: string) {
+    try {
+      const image = await repositories.image.getById(imageId);
+      if (selectedImageId.value !== imageId) return;
+      imageStore.setCurrentImage(image);
+      selectedImage.value = image;
+    } catch (e) {
+      console.error('Failed to reload the image:', e);
+    }
+  }
+
+  /** Admins: gives the open request to another pathologist. */
+  async function assign(assigneeId: string): Promise<boolean> {
+    const request = selectedRequest.value;
+    if (!request) return false;
+    try {
+      upsert(await repositories.recheck.assign(request.imageId, assigneeId));
+      toast.success('Atama değiştirildi');
+      return true;
+    } catch (e: any) {
+      toast.error(e?.message || 'Atama değiştirilemedi');
       return false;
     }
   }
@@ -267,6 +353,8 @@ export function useRecheckNavigation() {
     setDone,
     cancel,
     withdrawWorkspace,
+    assign,
     reload: load,
+    refresh,
   };
 }

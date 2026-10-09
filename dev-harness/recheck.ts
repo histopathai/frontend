@@ -55,6 +55,7 @@ function add(wsId: string, imageName: string, patientName: string, reasons: [str
   store.set(imageId, {
     image_id: imageId, image_name: imageName, patient_id: patientId, patient_name: patientName, ws_id: wsId,
     status: done ? 'done' : 'open',
+    assignee_id: 'u2',
     reasons: reasons.map(([code, note]) => ({ code, note: note ?? '', requested_by: 'u1', requested_at: now })),
     created_at: now, updated_at: now, completed_by: done ? 'u2' : '', completed_at: done ? now : null,
   });
@@ -64,6 +65,10 @@ add('ws-bcnb', '24.jpg', '24', [['subtype']]);
 add('ws-bcnb', '140.jpg', '140', [['subtype']]);
 add('ws-bcnb', '4.jpg', '4', [['subtype', 'Klinik tabloda IDC/ILC dışında bir tip olabilir']]);
 add('ws-bcnb', '60.jpg', '60', [['subtype']], true);
+// A missing subtype entered in Veri Etiketleyici: settled and finished automatically.
+add('ws-bcnb', '172.jpg', '172', [['subtype_missing']], true);
+Object.assign(store.get('ws-bcnb-172.jpg'), { outcome: 'corrected', completion_note: 'Eksik etiket girildi (otomatik)', auto_completed: true });
+store.get('ws-bcnb-172.jpg').reasons[0].resolved_at = now;
 Object.assign(store.get('ws-bcnb-60.jpg'), { outcome: 'no_change', completion_note: 'Kanal yapıları belirgin, tek sıra dizilim yok; IDC ile uyumlu.' });
 add('ws-bracs', 'BRACS_1367', 'BRACS_1367', [['polygon']]);
 add('ws-bracs', 'BRACS_1272', 'BRACS_1272', [['polygon', 'Sınır atipik ve benign alanları da içine alıyor olabilir']]);
@@ -76,6 +81,18 @@ for (const n of ['172', '173', '175']) {
 add('ws-bcnb2', '176.jpg', '176', [['dataset', 'Yeni yüklendi; poligonlar ve global etiketler gözden geçirilmeli'], ['subtype']]);
 
 const repos = repositories as any;
+repos.admin.getAllUsers = async () => ({
+  data: [
+    User.create({ user_id: 'u2', email: 'mine@ornek.edu.tr', display_name: 'Mine Özşen', status: 'active', role: 'pathologist', created_at: now, updated_at: now }),
+    User.create({ user_id: 'u3', email: 'ayse@ornek.edu.tr', display_name: 'Ayşe Yılmaz', status: 'active', role: 'pathologist', created_at: now, updated_at: now }),
+  ],
+  pagination: { limit: 100, offset: 0 },
+});
+repos.recheck.assign = async (imageId: string, assigneeId: string) => {
+  await wait();
+  Object.assign(store.get(imageId), { assignee_id: assigneeId });
+  return fromStore(imageId);
+};
 repos.recheck.requestWorkspace = async (wsId: string, note: string) => {
   await wait();
   const list = images.filter((i) => i.ws_id === wsId);
