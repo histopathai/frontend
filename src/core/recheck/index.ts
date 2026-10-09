@@ -49,6 +49,8 @@ export interface RecheckRequest {
   patientId: string;
   patientName: string;
   wsId: string;
+  /** The pathologist it was sent to; empty for requests made before assignment. */
+  assigneeId: string;
   status: RecheckStatus;
   reasons: RecheckReason[];
   createdAt: string;
@@ -91,6 +93,7 @@ export function recheckFromApi(d: any): RecheckRequest {
     patientId: d.patient_id ?? '',
     patientName: d.patient_name ?? '',
     wsId: d.ws_id ?? '',
+    assigneeId: d.assignee_id ?? '',
     status: d.status === 'done' ? 'done' : 'open',
     reasons: (d.reasons ?? []).map((r: any) => ({
       code: r.code,

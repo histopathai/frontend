@@ -180,13 +180,41 @@ export function useRecheckNavigation() {
   async function setDone(done: boolean, outcome?: RecheckOutcome, note = ''): Promise<boolean> {
     const request = selectedRequest.value;
     if (!request) return false;
+    const wasUnsuitable = request.status === 'done' && request.outcome === 'unsuitable';
     try {
       upsert(await repositories.recheck.setDone(request.imageId, done, outcome, note));
+      // The server set or cleared "Çalışmaya uygun değil" on the image: show it.
+      if ((done && outcome === 'unsuitable') || wasUnsuitable) refreshImage(request.imageId);
       if (done) pinnedId.value = request.imageId;
       toast.success(done ? 'Kontrol tamamlandı' : 'Yeniden açıldı');
       return true;
     } catch (e: any) {
       toast.error(e?.message || 'Kaydedilemedi');
+      return false;
+    }
+  }
+
+  async function refreshImage(imageId: string) {
+    try {
+      const image = await repositories.image.getById(imageId);
+      if (selectedImageId.value !== imageId) return;
+      imageStore.setCurrentImage(image);
+      selectedImage.value = image;
+    } catch (e) {
+      console.error('Failed to reload the image:', e);
+    }
+  }
+
+  /** Admins: gives the open request to another pathologist. */
+  async function assign(assigneeId: string): Promise<boolean> {
+    const request = selectedRequest.value;
+    if (!request) return false;
+    try {
+      upsert(await repositories.recheck.assign(request.imageId, assigneeId));
+      toast.success('Atama değiştirildi');
+      return true;
+    } catch (e: any) {
+      toast.error(e?.message || 'Atama değiştirilemedi');
       return false;
     }
   }
@@ -267,6 +295,7 @@ export function useRecheckNavigation() {
     setDone,
     cancel,
     withdrawWorkspace,
+    assign,
     reload: load,
   };
 }

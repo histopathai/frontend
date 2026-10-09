@@ -40,12 +40,13 @@ describe('recheckFromApi', () => {
       patient_id: 'p1',
       patient_name: '24',
       ws_id: 'w1',
+      assignee_id: 'p1',
       status: 'done',
       reasons: [{ code: 'subtype', note: 'n', requested_by: 'u', requested_at: 't' }],
       completed_by: 'e',
       completed_at: 'c',
     });
-    expect(r).toMatchObject({ imageId: 'i1', imageName: '24.jpg', patientName: '24', wsId: 'w1', status: 'done' });
+    expect(r).toMatchObject({ imageId: 'i1', imageName: '24.jpg', patientName: '24', wsId: 'w1', assigneeId: 'p1', status: 'done' });
     expect(r.reasons).toEqual([{ code: 'subtype', note: 'n', requestedBy: 'u', requestedAt: 't' }]);
     expect(r.completedBy).toBe('e');
   });

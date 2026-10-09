@@ -18,9 +18,26 @@ export class RecheckRepository {
     return (response.data ?? []).map(recheckFromApi);
   }
 
-  /** Admins: adds the reason to the image's request (made or reopened as needed). */
-  async request(imageId: string, reason: RecheckReasonCode, note: string): Promise<RecheckRequest> {
-    const response = await this.apiClient.post<any>(`${BASE}/${imageId}/reasons`, { reason, note });
+  /** Admins: adds the reason to the image's request (made or reopened as needed) and sends it to the pathologist. */
+  async request(
+    imageId: string,
+    reason: RecheckReasonCode,
+    note: string,
+    assigneeId: string
+  ): Promise<RecheckRequest> {
+    const response = await this.apiClient.post<any>(`${BASE}/${imageId}/reasons`, {
+      reason,
+      note,
+      assignee_id: assigneeId,
+    });
+    return recheckFromApi(response.data);
+  }
+
+  /** Admins: gives the request to another pathologist; reasons and status are kept. */
+  async assign(imageId: string, assigneeId: string): Promise<RecheckRequest> {
+    const response = await this.apiClient.put<any>(`${BASE}/${imageId}/assignee`, {
+      assignee_id: assigneeId,
+    });
     return recheckFromApi(response.data);
   }
 
@@ -39,9 +56,12 @@ export class RecheckRepository {
     return recheckFromApi(response.data);
   }
 
-  /** Admins: sends every image of the workspace with the note; returns how many. */
-  async requestWorkspace(wsId: string, note: string): Promise<number> {
-    const response = await this.apiClient.post<any>(`/api/v1/proxy/recheck-workspaces/${wsId}`, { note });
+  /** Admins: sends every image of the workspace with the note to the pathologist; returns how many. */
+  async requestWorkspace(wsId: string, note: string, assigneeId: string): Promise<number> {
+    const response = await this.apiClient.post<any>(`/api/v1/proxy/recheck-workspaces/${wsId}`, {
+      note,
+      assignee_id: assigneeId,
+    });
     return response.data?.images ?? 0;
   }
 

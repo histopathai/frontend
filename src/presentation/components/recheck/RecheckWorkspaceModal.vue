@@ -26,6 +26,8 @@
             </select>
           </label>
 
+          <PathologistSelect v-model="assigneeId" class="mt-4" />
+
           <label class="block mt-4">
             <span class="text-[11px] font-bold uppercase tracking-wide text-gray-400">
               Sebebi (veri setinin üstünde gösterilir)
@@ -66,6 +68,7 @@ import { repositories } from '@/services';
 import { RECHECK_NOTE_MAX } from '@/core/recheck';
 import { OrganType, OrganTypeUtils } from '@/core/value-objects';
 import type { Workspace } from '@/core/entities/Workspace';
+import PathologistSelect from './PathologistSelect.vue';
 
 const props = defineProps<{ isOpen: boolean; workspaces: Workspace[] }>();
 const emit = defineEmits<{ close: []; sent: [wsId: string] }>();
@@ -73,6 +76,7 @@ const emit = defineEmits<{ close: []; sent: [wsId: string] }>();
 const toast = useToast();
 const wsId = ref('');
 const note = ref('');
+const assigneeId = ref('');
 const sending = ref(false);
 
 watch(
@@ -81,6 +85,7 @@ watch(
     if (!open) return;
     wsId.value = '';
     note.value = '';
+    assigneeId.value = '';
   }
 );
 
@@ -103,7 +108,9 @@ const groups = computed(() => {
     );
 });
 
-const canSend = computed(() => !!wsId.value && note.value.trim().length > 0);
+const canSend = computed(
+  () => !!wsId.value && !!assigneeId.value && note.value.trim().length > 0
+);
 
 function close() {
   if (!sending.value) emit('close');
@@ -113,7 +120,7 @@ async function send() {
   if (!canSend.value) return;
   sending.value = true;
   try {
-    const n = await repositories.recheck.requestWorkspace(wsId.value, note.value.trim());
+    const n = await repositories.recheck.requestWorkspace(wsId.value, note.value.trim(), assigneeId.value);
     toast.success(`${n} görüntü Ek Kontrol sekmesine gönderildi`);
     emit('sent', wsId.value);
     emit('close');

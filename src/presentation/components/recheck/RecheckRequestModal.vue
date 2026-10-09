@@ -13,6 +13,8 @@
             gönderilir; görüntü ve etiketleri olduğu yerde kalır.
           </p>
 
+          <PathologistSelect v-model="assigneeId" class="mt-5" />
+
           <fieldset class="mt-5 space-y-2">
             <legend class="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-2">Neden</legend>
             <label
@@ -69,13 +71,21 @@ import {
   type RecheckReasonCode,
   type RecheckRequest,
 } from '@/core/recheck';
+import PathologistSelect from './PathologistSelect.vue';
 
-const props = defineProps<{ isOpen: boolean; imageId: string | null; imageName: string }>();
+const props = defineProps<{
+  isOpen: boolean;
+  imageId: string | null;
+  imageName: string;
+  /** Pre-selected pathologist, e.g. the one the request already goes to. */
+  assigneeId?: string;
+}>();
 const emit = defineEmits<{ close: []; sent: [request: RecheckRequest] }>();
 
 const toast = useToast();
 const reason = ref<RecheckReasonCode>('subtype');
 const note = ref('');
+const assigneeId = ref('');
 const sending = ref(false);
 
 watch(
@@ -84,11 +94,15 @@ watch(
     if (!open) return;
     reason.value = 'subtype';
     note.value = '';
+    assigneeId.value = props.assigneeId ?? '';
   }
 );
 
 const canSend = computed(
-  () => !!props.imageId && (reason.value !== 'other' || note.value.trim().length > 0)
+  () =>
+    !!props.imageId &&
+    !!assigneeId.value &&
+    (reason.value !== 'other' || note.value.trim().length > 0)
 );
 
 function close() {
@@ -99,7 +113,12 @@ async function send() {
   if (!props.imageId || !canSend.value) return;
   sending.value = true;
   try {
-    const request = await repositories.recheck.request(props.imageId, reason.value, note.value.trim());
+    const request = await repositories.recheck.request(
+      props.imageId,
+      reason.value,
+      note.value.trim(),
+      assigneeId.value
+    );
     toast.success('Ek Kontrol sekmesine gönderildi');
     emit('sent', request);
     emit('close');

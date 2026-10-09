@@ -55,6 +55,7 @@ function add(wsId: string, imageName: string, patientName: string, reasons: [str
   store.set(imageId, {
     image_id: imageId, image_name: imageName, patient_id: patientId, patient_name: patientName, ws_id: wsId,
     status: done ? 'done' : 'open',
+    assignee_id: 'u2',
     reasons: reasons.map(([code, note]) => ({ code, note: note ?? '', requested_by: 'u1', requested_at: now })),
     created_at: now, updated_at: now, completed_by: done ? 'u2' : '', completed_at: done ? now : null,
   });
@@ -76,6 +77,18 @@ for (const n of ['172', '173', '175']) {
 add('ws-bcnb2', '176.jpg', '176', [['dataset', 'Yeni yüklendi; poligonlar ve global etiketler gözden geçirilmeli'], ['subtype']]);
 
 const repos = repositories as any;
+repos.admin.getAllUsers = async () => ({
+  data: [
+    User.create({ user_id: 'u2', email: 'mine@ornek.edu.tr', display_name: 'Mine Özşen', status: 'active', role: 'pathologist', created_at: now, updated_at: now }),
+    User.create({ user_id: 'u3', email: 'ayse@ornek.edu.tr', display_name: 'Ayşe Yılmaz', status: 'active', role: 'pathologist', created_at: now, updated_at: now }),
+  ],
+  pagination: { limit: 100, offset: 0 },
+});
+repos.recheck.assign = async (imageId: string, assigneeId: string) => {
+  await wait();
+  Object.assign(store.get(imageId), { assignee_id: assigneeId });
+  return fromStore(imageId);
+};
 repos.recheck.requestWorkspace = async (wsId: string, note: string) => {
   await wait();
   const list = images.filter((i) => i.ws_id === wsId);
