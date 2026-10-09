@@ -23,8 +23,8 @@ export const RECHECK_OUTCOMES: { code: RecheckOutcome; label: string; needsNote:
   { code: 'corrected', label: 'Etiketler düzeltildi', needsNote: false },
   { code: 'no_change', label: 'Değişiklik gerekmedi, mevcut etiket doğru', needsNote: true },
   { code: 'undecided', label: 'Karar verilemedi', needsNote: true },
-  /** The expert's way to take an image out of the study; its labels stay as they are. */
-  { code: 'unsuitable', label: 'Çalışmaya uygun değil', needsNote: true },
+  /** The expert's way to take an image out of the study; its labels stay as they are. No note needed. */
+  { code: 'unsuitable', label: 'Çalışmaya uygun değil', needsNote: false },
 ];
 
 /** Short form for badges. */

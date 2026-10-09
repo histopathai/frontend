@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  RECHECK_OUTCOMES,
   groupByPatient,
   groupRechecks,
   outcomeShortLabel,
@@ -56,6 +57,7 @@ describe('recheckFromApi', () => {
     expect(recheckFromApi({ image_id: 'i1', outcome: 'maybe' }).outcome).toBeNull();
     expect(outcomeShortLabel('undecided')).toBe('Karar verilemedi');
     expect(outcomeShortLabel('unsuitable')).toBe('Uygun değil');
+    expect(RECHECK_OUTCOMES.filter((o) => o.needsNote).map((o) => o.code)).toEqual(['no_change', 'undecided']);
     expect(recheckFromApi({ image_id: 'i1', outcome: 'unsuitable' }).outcome).toBe('unsuitable');
     expect(outcomeShortLabel(null)).toBe('Tamamlandı');
   });
