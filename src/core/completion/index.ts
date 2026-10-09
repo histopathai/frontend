@@ -2,7 +2,8 @@ import type { TissueMaskStatus } from '@/core/entities/TissueMask';
 
 /**
  * What "finished" means in a tab. Dataset labelling finishes an image with
- * "İşaretleme Tamamlandı", Doku Maskeleri with an approved or rejected mask.
+ * "İşaretleme Tamamlandı" or "Çalışmaya uygun değil", Doku Maskeleri with an
+ * approved or rejected mask.
  * The patch grid stores nothing, so nothing can be finished there.
  */
 export type CompletionMode = 'labeling' | 'tissue' | 'none';
@@ -10,6 +11,8 @@ export type CompletionMode = 'labeling' | 'tissue' | 'none';
 export interface CompletableImage {
   id: string;
   markedAsCompleted: boolean;
+  /** "Çalışmaya uygun değil": nothing left to label either. */
+  unsuitable?: boolean;
   width: number | null;
   height: number | null;
   isProcessed(): boolean;
@@ -38,6 +41,11 @@ export function needsTissueMask(image: CompletableImage): boolean {
   return image.isProcessed() && ((image.width ?? 0) > 3000 || (image.height ?? 0) > 3000);
 }
 
+/** Labelling is over: completed, or out of the study. */
+export function isLabelingDone(image: Pick<CompletableImage, 'markedAsCompleted' | 'unsuitable'>): boolean {
+  return image.markedAsCompleted || !!image.unsuitable;
+}
+
 function isWork(mode: CompletionMode, image: CompletableImage): boolean {
   if (mode === 'labeling') return true;
   if (mode === 'tissue') return needsTissueMask(image);
@@ -45,7 +53,7 @@ function isWork(mode: CompletionMode, image: CompletableImage): boolean {
 }
 
 function isDone(mode: CompletionMode, image: CompletableImage, maskStatus: MaskStatusLookup) {
-  if (mode === 'labeling') return image.markedAsCompleted;
+  if (mode === 'labeling') return isLabelingDone(image);
   if (mode === 'tissue') return isMaskDone(maskStatus(image.id));
   return false;
 }

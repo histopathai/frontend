@@ -29,6 +29,11 @@ export interface ImageProps {
 
   status: ImageStatus;
   markedAsCompleted: boolean;
+  /** "Çalışmaya uygun değil": out of the study; labels are kept. */
+  unsuitable: boolean;
+  unsuitableBy: string | null;
+  unsuitableAt: Date | null;
+  unsuitableNote: string | null;
   createdAt: Date;
   updatedAt: Date;
   metadata?: any;
@@ -68,6 +73,10 @@ export class Image {
       magnificationLabel: data.magnification_label ?? null,
       status: ImageStatus.fromString(data.status || 'PROCESSING'),
       markedAsCompleted: !!data.marked_as_completed,
+      unsuitable: !!data.unsuitable,
+      unsuitableBy: data.unsuitable_by || null,
+      unsuitableAt: data.unsuitable_at ? new Date(data.unsuitable_at) : null,
+      unsuitableNote: data.unsuitable_note || null,
       createdAt: typeof data.created_at === 'string' ? new Date(data.created_at) : data.created_at,
       updatedAt: typeof data.updated_at === 'string' ? new Date(data.updated_at) : data.updated_at,
       metadata: data.metadata || data.meta || undefined,
@@ -124,6 +133,22 @@ export class Image {
 
   get markedAsCompleted(): boolean {
     return this.props.markedAsCompleted;
+  }
+
+  get unsuitable(): boolean {
+    return this.props.unsuitable;
+  }
+
+  get unsuitableBy(): string | null {
+    return this.props.unsuitableBy;
+  }
+
+  get unsuitableAt(): Date | null {
+    return this.props.unsuitableAt;
+  }
+
+  get unsuitableNote(): string | null {
+    return this.props.unsuitableNote;
   }
 
   get magnification(): OpticalMagnification | null {

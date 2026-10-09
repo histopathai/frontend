@@ -41,6 +41,19 @@ describe('isImageFinished', () => {
     expect(isImageFinished('labeling', image('a', { markedAsCompleted: true }), noMasks)).toBe(true);
   });
 
+  it('labelling: an image out of the study ("Çalışmaya uygun değil") is finished too', () => {
+    expect(isImageFinished('labeling', image('a', { unsuitable: true }), noMasks)).toBe(true);
+    expect(progressOf('labeling', [image('a', { unsuitable: true }), image('b')], noMasks)).toEqual({
+      images: 2,
+      total: 2,
+      done: 1,
+    });
+  });
+
+  it('tissue: "Çalışmaya uygun değil" does not decide the mask', () => {
+    expect(isImageFinished('tissue', image('a', { unsuitable: true }), noMasks)).toBe(false);
+  });
+
   it('tissue: finished with an approved or rejected mask, whatever the labelling says', () => {
     const done = image('a', { markedAsCompleted: true });
     expect(isImageFinished('tissue', done, noMasks)).toBe(false);

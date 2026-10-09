@@ -259,8 +259,14 @@
                         >
                           {{ image.name }}
                         </p>
+                        <span
+                          v-if="image.unsuitable"
+                          class="shrink-0 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600"
+                          :title="image.unsuitableNote ? `Çalışmaya uygun değil: ${image.unsuitableNote}` : 'Çalışmaya uygun değil'"
+                          >Uygun değil</span
+                        >
                         <svg
-                          v-if="isImageFinished(image)"
+                          v-else-if="isImageFinished(image)"
                           xmlns="http://www.w3.org/2000/svg"
                           viewBox="0 0 20 20"
                           fill="currentColor"

@@ -6,6 +6,7 @@ import { useWorkspaceStore } from '@/stores/workspace';
 import { usePatientStore } from '@/stores/patient';
 import { useAnnotationStore } from '@/stores/annotation';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
+import { useImageStore } from '@/stores/image';
 import {
   groupByPatient,
   groupRechecks,
@@ -32,6 +33,7 @@ export function useRecheckNavigation() {
   const patientStore = usePatientStore();
   const annotationStore = useAnnotationStore();
   const annotationTypeStore = useAnnotationTypeStore();
+  const imageStore = useImageStore();
   const { allWorkspaces } = storeToRefs(workspaceStore);
 
   const requests = ref<RecheckRequest[]>([]);
@@ -126,6 +128,9 @@ export function useRecheckNavigation() {
       ]);
       if (run !== opening) return;
       patientStore.setCurrentPatient(patient);
+      // The store's current image: the metadata bar's actions (İşaretleme Tamamlandı,
+      // Uygun değil) find the owner there and write their result back to it.
+      imageStore.setCurrentImage(image);
       selectedPatient.value = patient;
       selectedImage.value = image;
     } catch (e: any) {
@@ -134,6 +139,16 @@ export function useRecheckNavigation() {
       if (run === opening) loadingImage.value = false;
     }
   }
+
+  // An action of the metadata bar updated the open image: show the new copy.
+  watch(
+    () => imageStore.currentImage,
+    (image) => {
+      if (image && image.id === selectedImageId.value && image !== selectedImage.value) {
+        selectedImage.value = image as Image;
+      }
+    }
+  );
 
   function selectWorkspace(wsId: string) {
     if (wsId === selectedWsId.value) return;

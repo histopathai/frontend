@@ -36,6 +36,9 @@ export interface UpdateImageRequest {
   height?: number;
   magnification?: MagnificationRequest;
   marked_as_completed?: boolean;
+  /** "Çalışmaya uygun değil" on (true) or off (false); who is taken from the session. */
+  unsuitable?: boolean;
+  unsuitable_note?: string;
   metadata?: any;
 }
 
