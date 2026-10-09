@@ -182,7 +182,7 @@
                     <span
                       v-if="r.status === 'done'"
                       class="shrink-0 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full"
-                      :class="r.outcome === 'undecided' ? 'bg-gray-200 text-gray-600' : 'bg-emerald-100 text-emerald-700'"
+                      :class="r.outcome === 'undecided' || r.outcome === 'unsuitable' ? 'bg-gray-200 text-gray-600' : 'bg-emerald-100 text-emerald-700'"
                       :title="r.completionNote"
                       >{{ outcomeShortLabel(r.outcome) }}</span
                     >

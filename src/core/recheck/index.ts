@@ -17,12 +17,14 @@ export type RecheckReasonCode =
 export type RecheckStatus = 'open' | 'done';
 
 /** What the expert concluded when finishing. */
-export type RecheckOutcome = 'corrected' | 'no_change' | 'undecided';
+export type RecheckOutcome = 'corrected' | 'no_change' | 'undecided' | 'unsuitable';
 
 export const RECHECK_OUTCOMES: { code: RecheckOutcome; label: string; needsNote: boolean }[] = [
   { code: 'corrected', label: 'Etiketler düzeltildi', needsNote: false },
   { code: 'no_change', label: 'Değişiklik gerekmedi, mevcut etiket doğru', needsNote: true },
   { code: 'undecided', label: 'Karar verilemedi', needsNote: true },
+  /** The expert's way to take an image out of the study; its labels stay as they are. */
+  { code: 'unsuitable', label: 'Çalışmaya uygun değil', needsNote: true },
 ];
 
 /** Short form for badges. */
@@ -30,6 +32,7 @@ export function outcomeShortLabel(outcome: RecheckOutcome | null): string {
   if (outcome === 'corrected') return 'Düzeltildi';
   if (outcome === 'no_change') return 'Değişiklik gerekmedi';
   if (outcome === 'undecided') return 'Karar verilemedi';
+  if (outcome === 'unsuitable') return 'Uygun değil';
   return 'Tamamlandı';
 }
 
@@ -99,7 +102,7 @@ export function recheckFromApi(d: any): RecheckRequest {
     updatedAt: d.updated_at ?? '',
     completedBy: d.completed_by || null,
     completedAt: d.completed_at ?? null,
-    outcome: ['corrected', 'no_change', 'undecided'].includes(d.outcome) ? d.outcome : null,
+    outcome: ['corrected', 'no_change', 'undecided', 'unsuitable'].includes(d.outcome) ? d.outcome : null,
     completionNote: d.completion_note ?? '',
   };
 }

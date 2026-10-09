@@ -55,6 +55,8 @@ describe('recheckFromApi', () => {
     expect(r.completionNote).toBe('IDC ile uyumlu');
     expect(recheckFromApi({ image_id: 'i1', outcome: 'maybe' }).outcome).toBeNull();
     expect(outcomeShortLabel('undecided')).toBe('Karar verilemedi');
+    expect(outcomeShortLabel('unsuitable')).toBe('Uygun değil');
+    expect(recheckFromApi({ image_id: 'i1', outcome: 'unsuitable' }).outcome).toBe('unsuitable');
     expect(outcomeShortLabel(null)).toBe('Tamamlandı');
   });
 
