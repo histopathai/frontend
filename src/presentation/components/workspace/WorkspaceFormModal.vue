@@ -143,6 +143,7 @@
 import { toRef, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { Workspace } from '@/core/entities/Workspace';
+import { OrganTypeUtils } from '@/core/value-objects';
 import { useWorkspaceForm } from '@/presentation/composables/workspace/useWorkspaceForm';
 
 const props = defineProps({
@@ -169,35 +170,7 @@ const {
   saveWorkspace,
 } = useWorkspaceForm(emit, toRef(props, 'workspaceToEdit'));
 
-const organOptions = [
-  { value: 'adrenal_gland', label: 'Böbrek Üstü Bezi' },
-  { value: 'bladder', label: 'Mesane' },
-  { value: 'bone', label: 'Kemik' },
-  { value: 'bone_marrow', label: 'Kemik İliği' },
-  { value: 'brain', label: 'Beyin' },
-  { value: 'breast', label: 'Meme' },
-  { value: 'esophagus', label: 'Yemek Borusu' },
-  { value: 'eye', label: 'Göz' },
-  { value: 'gallbladder', label: 'Safra Kesesi' },
-  { value: 'heart', label: 'Kalp' },
-  { value: 'kidney', label: 'Böbrek' },
-  { value: 'large_intestine', label: 'Kalın Bağırsak' },
-  { value: 'liver', label: 'Karaciğer' },
-  { value: 'lung', label: 'Akciğer' },
-  { value: 'lymph_node', label: 'Lenf Düğümü' },
-  { value: 'ovary', label: 'Yumurtalık (Over)' },
-  { value: 'pancreas', label: 'Pankreas' },
-  { value: 'placenta', label: 'Plasenta' },
-  { value: 'prostate', label: 'Prostat' },
-  { value: 'salivary_gland', label: 'Tükürük Bezi' },
-  { value: 'skin', label: 'Deri (Cilt)' },
-  { value: 'small_intestine', label: 'İnce Bağırsak' },
-  { value: 'spleen', label: 'Dalak' },
-  { value: 'stomach', label: 'Mide' },
-  { value: 'testis', label: 'Testis' },
-  { value: 'thyroid', label: 'Tiroid' },
-  { value: 'tongue', label: 'Dil' },
-  { value: 'uterus', label: 'Rahim (Uterus)' },
-  { value: 'unknown', label: 'Bilinmiyor / Diğer' },
-].sort((a, b) => a.label.localeCompare(b.label, 'tr'));
+const organOptions = OrganTypeUtils.getAll()
+  .map((value) => ({ value, label: OrganTypeUtils.getTurkishLabel(value) }))
+  .sort((a, b) => a.label.localeCompare(b.label, 'tr'));
 </script>
