@@ -9,6 +9,8 @@ import type { UserRoleValue } from '@/core/value-objects/UserRole';
  *   tissue.access      the tissue mask tab, read-write
  *   patchGrid.access   the patch grid tab
  *   admin.access       the admin panel
+ *   recheck.request    send an image to Ek Kontrol, or take it out
+ *   recheck.complete   mark an Ek Kontrol request done
  *
  * A module moving under the groups adds its capability here and nowhere else.
  */
@@ -17,11 +19,27 @@ export type Capability =
   | 'dataset.write'
   | 'tissue.access'
   | 'patchGrid.access'
-  | 'admin.access';
+  | 'admin.access'
+  | 'recheck.request'
+  | 'recheck.complete';
 
 const CAPABILITIES: Record<UserRoleValue, readonly Capability[]> = {
-  admin: ['labeling.write', 'dataset.write', 'tissue.access', 'patchGrid.access', 'admin.access'],
-  pathologist: ['labeling.write', 'dataset.write', 'tissue.access', 'patchGrid.access'],
+  admin: [
+    'labeling.write',
+    'dataset.write',
+    'tissue.access',
+    'patchGrid.access',
+    'admin.access',
+    'recheck.request',
+    'recheck.complete',
+  ],
+  pathologist: [
+    'labeling.write',
+    'dataset.write',
+    'tissue.access',
+    'patchGrid.access',
+    'recheck.complete',
+  ],
   // Looks at the labelled data without changing a record; works on masks and patches.
   datascientist: ['tissue.access', 'patchGrid.access'],
   unassigned: [],

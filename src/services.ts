@@ -10,6 +10,7 @@ import { AdminRepository } from './infrastructure/repositories/AdminRepository';
 import { TissueMaskRepository } from './infrastructure/repositories/TissueMaskRepository';
 import { BlindTestRepository } from './infrastructure/repositories/BlindTestRepository';
 import { BlindTestGuestRepository } from './infrastructure/repositories/BlindTestGuestRepository';
+import { RecheckRepository } from './infrastructure/repositories/RecheckRepository';
 import type { IBlindTestGuestRepository } from './core/repositories/IBlindTestRepository';
 
 const apiClient = new ApiClient(import.meta.env.VITE_API_BASE_URL);
@@ -25,6 +26,7 @@ export const repositories = {
   annotationReview: new AnnotationReviewRepository(apiClient),
   tissueMask: new TissueMaskRepository(apiClient),
   blindTest: new BlindTestRepository(apiClient),
+  recheck: new RecheckRepository(apiClient),
   /** The blind test of an invitation link, for people without an account. */
   blindTestGuest: (token: string): IBlindTestGuestRepository =>
     new BlindTestGuestRepository(import.meta.env.VITE_API_BASE_URL, token),
