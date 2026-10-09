@@ -6,6 +6,7 @@
  */
 export type RecheckReasonCode =
   | 'subtype'
+  | 'subtype_missing'
   | 'polygon'
   | 'polygon_missing'
   | 'global_label_missing'
@@ -62,6 +63,7 @@ export interface RecheckRequest {
  */
 export const RECHECK_REASONS: { code: Exclude<RecheckReasonCode, 'dataset'>; label: string }[] = [
   { code: 'subtype', label: 'Alt tip yeniden incelenmeli' },
+  { code: 'subtype_missing', label: 'Alt tip eksik' },
   { code: 'polygon', label: 'Poligon yeniden incelenmeli' },
   { code: 'polygon_missing', label: 'Poligon eksik' },
   { code: 'global_label_missing', label: 'Global etiket eksik' },

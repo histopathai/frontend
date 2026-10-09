@@ -16,6 +16,7 @@ describe('reasonSentence', () => {
   it('shows the fixed sentence of a reason', () => {
     expect(reasonSentence({ code: 'subtype', note: 'ignored' })).toBe('Alt tip yeniden incelenmeli');
     expect(reasonSentence({ code: 'polygon_missing', note: '' })).toBe('Poligon eksik');
+    expect(reasonSentence({ code: 'subtype_missing', note: '' })).toBe('Alt tip eksik');
   });
 
   it('shows the dataset reason as a fixed sentence (its note goes over the group)', () => {
