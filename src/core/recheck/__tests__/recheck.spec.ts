@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  groupByPatient,
   groupRechecks,
   outcomeShortLabel,
   ownReasons,
@@ -117,5 +118,23 @@ describe('dataset reasons', () => {
   it("lists only an image's own reasons under it", () => {
     const r = withDataset('a', 'w1', 'n', [{ code: 'polygon', note: '' }]);
     expect(ownReasons(r).map((x) => x.code)).toEqual(['polygon']);
+  });
+});
+
+describe('groupByPatient', () => {
+  const r = (imageId: string, patientId: string, patientName: string, status: 'open' | 'done' = 'open') =>
+    recheckFromApi({ image_id: imageId, image_name: `${imageId}.svs`, patient_id: patientId, patient_name: patientName, status });
+
+  it('groups images under their patient, patients in numeric order', () => {
+    const groups = groupByPatient([r('b', 'p2', '140'), r('a', 'p1', '24'), r('c', 'p2', '140', 'done')]);
+    expect(groups.map((g) => g.patientName)).toEqual(['24', '140']);
+    expect(groups[1]!.requests.map((x) => x.imageId)).toEqual(['b', 'c']);
+    expect(groups[1]!.done).toBe(1);
+  });
+
+  it('gives an image without a patient its own row, named after the image', () => {
+    const groups = groupByPatient([r('x', '', '')]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.patientName).toBe('x.svs');
   });
 });

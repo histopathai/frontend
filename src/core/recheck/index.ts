@@ -152,3 +152,28 @@ export function groupRechecks(
       ],
     }));
 }
+
+export interface RecheckPatientGroup {
+  patientId: string;
+  patientName: string;
+  requests: RecheckRequest[];
+  done: number;
+}
+
+/** A workspace's requests by patient (as Veri Etiketleyici lists them), names in numeric order. */
+export function groupByPatient(requests: RecheckRequest[]): RecheckPatientGroup[] {
+  const byPatient = new Map<string, RecheckRequest[]>();
+  for (const r of requests) {
+    const key = r.patientId || `image:${r.imageId}`;
+    if (!byPatient.has(key)) byPatient.set(key, []);
+    byPatient.get(key)!.push(r);
+  }
+  return [...byPatient.entries()]
+    .map(([patientId, list]) => ({
+      patientId,
+      patientName: list[0]!.patientName || list[0]!.imageName,
+      requests: [...list].sort((a, b) => byName(a.imageName, b.imageName)),
+      done: list.filter((r) => r.status === 'done').length,
+    }))
+    .sort((a, b) => byName(a.patientName, b.patientName));
+}
