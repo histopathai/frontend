@@ -7,6 +7,8 @@ const ALL: Capability[] = [
   'tissue.access',
   'patchGrid.access',
   'admin.access',
+  'recheck.request',
+  'recheck.complete',
 ];
 
 describe('can', () => {
@@ -14,12 +16,13 @@ describe('can', () => {
     for (const capability of ALL) expect(can('admin', capability)).toBe(true);
   });
 
-  it('lets pathologists write everywhere except the admin panel', () => {
+  it('lets pathologists write everywhere except the admin panel and sending to Ek Kontrol', () => {
     expect(ALL.filter((c) => can('pathologist', c))).toEqual([
       'labeling.write',
       'dataset.write',
       'tissue.access',
       'patchGrid.access',
+      'recheck.complete',
     ]);
   });
 

@@ -50,6 +50,17 @@
           />
         </div>
 
+        <!-- Admins: send the image to Ek Kontrol -->
+        <button
+          v-if="selectedImage && canRequestRecheck"
+          @click="isRecheckModalOpen = true"
+          class="absolute top-3 z-20 flex items-center gap-1.5 px-2.5 py-1.5 bg-white/90 backdrop-blur-sm border border-amber-200 rounded-lg shadow-md hover:shadow-lg hover:bg-amber-50 transition-all"
+          :class="isActivityPanelOpen ? 'right-3' : 'right-28'"
+          title="Bu görüntüyü uzmanın yeniden bakması için Ek Kontrol sekmesine gönder"
+        >
+          <span class="text-[10px] font-bold text-amber-700">İncelemeye gönder</span>
+        </button>
+
         <!-- Activity Panel Toggle Button -->
         <button
           v-if="selectedImageId && !isActivityPanelOpen"
@@ -72,6 +83,13 @@
         />
       </div>
     </main>
+
+    <RecheckRequestModal
+      :is-open="isRecheckModalOpen"
+      :image-id="selectedImage?.id ?? null"
+      :image-name="selectedImage?.name ?? ''"
+      @close="isRecheckModalOpen = false"
+    />
   </div>
 </template>
 
@@ -82,6 +100,8 @@ import AnnotatorSidebar from '@/presentation/components/annotator/AnnotatorSideb
 import PatientMetadataBar from '@/presentation/components/annotator/PatientMetadataBar.vue';
 import Viewer from '@/presentation/components/annotator/Viewer.vue';
 import ActivityPanel from '@/presentation/components/annotator/ActivityPanel.vue';
+import RecheckRequestModal from '@/presentation/components/recheck/RecheckRequestModal.vue';
+import { useAuthStore } from '@/stores/auth';
 
 const {
   loading,
@@ -115,6 +135,8 @@ const totalImagesCount = computed(() => currentImages.value.length);
 
 const isDrawingMode = ref(false);
 const isActivityPanelOpen = ref(false);
+const isRecheckModalOpen = ref(false);
+const canRequestRecheck = computed(() => useAuthStore().can('recheck.request'));
 const viewerRef = ref<InstanceType<typeof Viewer> | null>(null);
 
 function handleStartDrawing() {

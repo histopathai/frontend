@@ -22,6 +22,11 @@ const appRoutes: RouteRecordRaw = {
       component: () => import('@/presentation/views/annotator/AnnotatorView.vue'),
     },
     {
+      path: 'ek-kontrol',
+      name: 'Recheck',
+      component: () => import('@/presentation/views/recheck/RecheckView.vue'),
+    },
+    {
       path: 'tissue',
       name: 'TissueMasks',
       component: () => import('@/presentation/views/tissue/TissueMaskView.vue'),
