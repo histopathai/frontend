@@ -16,7 +16,10 @@
         :hide-finished="hideFinished"
         :patient-progress="patientProgress"
         :is-image-finished="isImageFinished"
+        :can-show-unsuitable="canShowUnsuitable"
+        :show-unsuitable="showUnsuitable"
         @update:hide-finished="setHideFinished"
+        @update:show-unsuitable="setShowUnsuitable"
         @workspace-selected="selectWorkspace"
         @patient-selected="selectPatient"
         @image-selected="selectImage"
@@ -127,6 +130,9 @@ const {
   completionMode,
   hideFinished,
   setHideFinished,
+  canShowUnsuitable,
+  showUnsuitable,
+  setShowUnsuitable,
   patientProgress,
   isImageFinished,
 } = useAnnotatorNavigation({ completion: 'labeling' });

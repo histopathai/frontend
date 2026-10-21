@@ -234,6 +234,10 @@ export function useAnnotatorNavigation(options: { completion?: CompletionMode } 
     if (value && currentPage.value !== 1) setPage(1);
   }
 
+  function setShowUnsuitable(value: boolean) {
+    completion.showUnsuitable.value = value;
+  }
+
   function searchPatients(query: string) {
     if (!selectedWorkspaceId.value) return;
 
@@ -315,7 +319,8 @@ export function useAnnotatorNavigation(options: { completion?: CompletionMode } 
 
   // A finished image can only be selected from before the switch was on (or from
   // the last visit); move on to work that is left. One that turns finished while
-  // open stays, see useCompletionFilter.
+  // open stays, see useCompletionFilter. The same for an unsuitable one, which
+  // is hidden with the switch off too.
   watch(
     [
       completion.filtering,
@@ -327,12 +332,25 @@ export function useAnnotatorNavigation(options: { completion?: CompletionMode } 
     ],
     () => {
       const patientId = selectedPatientId.value;
-      if (!completion.filtering.value || !completion.ready.value || !patientId) return;
+      const hiding = completion.filtering.value || completion.hidingUnsuitable.value;
+      if (!hiding || !completion.ready.value || !patientId) return;
       if (imageStore.loading || !imagesByPatient.value.has(patientId)) return;
       if (selectedImage.value && completion.isImageVisible(selectedImage.value)) return;
 
       const firstImage = currentImages.value[0];
       if (firstImage) return selectImage(firstImage);
+      if (!completion.filtering.value) {
+        // Only unsuitable images here: on to the next patient that is listed.
+        const images = imagesByPatient.value.get(patientId) ?? [];
+        const other =
+          images.length > 0 && images.every((img) => img.unsuitable)
+            ? (nextMatching(allPatients.value, patientId, completion.isPatientVisible) ??
+              allPatients.value.find((p) => p.id !== patientId && completion.isPatientVisible(p)))
+            : undefined;
+        if (other) return selectPatient(other);
+        if (selectedImageId.value) clearImageSelection();
+        return;
+      }
 
       const withWork =
         nextMatching(allPatients.value, patientId, completion.hasWorkLeft) ??
@@ -416,6 +434,9 @@ export function useAnnotatorNavigation(options: { completion?: CompletionMode } 
     completionMode: completion.mode,
     hideFinished: completion.hideFinished,
     setHideFinished,
+    canShowUnsuitable: completion.canShowUnsuitable,
+    showUnsuitable: completion.showUnsuitable,
+    setShowUnsuitable,
     patientProgress: completion.patientProgress,
     isImageFinished: completion.isImageFinished,
     setMaskStatus: completion.setMaskStatus,

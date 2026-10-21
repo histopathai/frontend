@@ -2,7 +2,7 @@ import type { TissueMaskStatus } from '@/core/entities/TissueMask';
 
 /**
  * What "finished" means in a tab. Dataset labelling finishes an image with
- * "İşaretleme Tamamlandı" or "Çalışmaya uygun değil", Doku Maskeleri with an
+ * "İşaretleme Tamamlandı" or "Değerlendirmeye uygun değil", Doku Maskeleri with an
  * approved or rejected mask.
  * The patch grid stores nothing, so nothing can be finished there.
  */
@@ -11,7 +11,7 @@ export type CompletionMode = 'labeling' | 'tissue' | 'none';
 export interface CompletableImage {
   id: string;
   markedAsCompleted: boolean;
-  /** "Çalışmaya uygun değil": nothing left to label either. */
+  /** "Değerlendirmeye uygun değil": nothing left to label either. */
   unsuitable?: boolean;
   width: number | null;
   height: number | null;

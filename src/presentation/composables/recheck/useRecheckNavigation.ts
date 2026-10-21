@@ -7,9 +7,11 @@ import { usePatientStore } from '@/stores/patient';
 import { useAnnotationStore } from '@/stores/annotation';
 import { useAnnotationTypeStore } from '@/stores/annotation_type';
 import { useImageStore } from '@/stores/image';
+import { useAuthStore } from '@/stores/auth';
 import {
   groupByPatient,
   groupRechecks,
+  isUnsuitable,
   type RecheckOutcome,
   type RecheckRequest,
 } from '@/core/recheck';
@@ -19,6 +21,7 @@ import type { Patient } from '@/core/entities/Patient';
 const STORAGE_KEY_IMG = 'recheck_selected_image_id';
 const STORAGE_KEY_WS = 'recheck_selected_workspace_id';
 const STORAGE_KEY_HIDE = 'histo_hide_finished_recheck';
+const STORAGE_KEY_UNSUITABLE = 'histo_show_unsuitable_recheck';
 
 /**
  * Ek Kontrol: the list comes from the recheck requests, not from paging
@@ -43,6 +46,17 @@ export function useRecheckNavigation() {
   const hideDone = ref(localStorage.getItem(STORAGE_KEY_HIDE) !== 'false');
   watch(hideDone, (v) => localStorage.setItem(STORAGE_KEY_HIDE, String(v)));
 
+  // "Değerlendirmeye uygun değil" requests are left out whatever "Bitenleri
+  // Gizle" says; admins may list them again to take the mark back.
+  const canShowUnsuitable = computed(() => useAuthStore().can('unsuitable.show'));
+  const showUnsuitable = ref(localStorage.getItem(STORAGE_KEY_UNSUITABLE) === 'true');
+  watch(showUnsuitable, (v) => localStorage.setItem(STORAGE_KEY_UNSUITABLE, String(v)));
+  const showingUnsuitable = computed(() => canShowUnsuitable.value && showUnsuitable.value);
+  /** The requests the tab lists; everything below is counted from these. */
+  const listed = computed(() =>
+    showingUnsuitable.value ? requests.value : requests.value.filter((r) => !isUnsuitable(r))
+  );
+
   const selectedImageId = ref<string | undefined>(localStorage.getItem(STORAGE_KEY_IMG) || undefined);
   watch(selectedImageId, (id) =>
     id ? localStorage.setItem(STORAGE_KEY_IMG, id) : localStorage.removeItem(STORAGE_KEY_IMG)
@@ -65,23 +79,29 @@ export function useRecheckNavigation() {
 
   const workspaceOrder = computed(() => allWorkspaces.value.map((w) => w.id));
   /** Every workspace with a request, with its counts, for the dropdown. */
-  const workspaceGroups = computed(() => groupRechecks(requests.value, workspaceOrder.value, false));
+  const workspaceGroups = computed(() => groupRechecks(listed.value, workspaceOrder.value, false));
   /** The selected workspace as listed (done ones out with "Bitenleri Gizle"). */
   const currentGroup = computed(
     () =>
-      groupRechecks(requests.value, workspaceOrder.value, hideDone.value, pinnedId.value).find(
+      groupRechecks(
+        listed.value,
+        workspaceOrder.value,
+        hideDone.value,
+        pinnedId.value,
+        showingUnsuitable.value
+      ).find(
         (g) => g.wsId === selectedWsId.value
       ) ?? null
   );
   const patients = computed(() => groupByPatient(currentGroup.value?.requests ?? []));
   const visible = computed(() => patients.value.flatMap((p) => p.requests));
   const selectedRequest = computed(
-    () => requests.value.find((r) => r.imageId === selectedImageId.value) ?? null
+    () => listed.value.find((r) => r.imageId === selectedImageId.value) ?? null
   );
   const selectedIndex = computed(() =>
     visible.value.findIndex((r) => r.imageId === selectedImageId.value)
   );
-  const openCount = computed(() => requests.value.filter((r) => r.status === 'open').length);
+  const openCount = computed(() => listed.value.filter((r) => r.status === 'open').length);
 
   async function load() {
     loadingList.value = true;
@@ -193,11 +213,14 @@ export function useRecheckNavigation() {
   }
 
   // An action of the metadata bar updated the open image: show the new copy.
+  // "Uygun değil" there closes or reopens the request on the server: read it.
   watch(
     () => imageStore.currentImage,
     (image) => {
       if (image && image.id === selectedImageId.value && image !== selectedImage.value) {
+        const wasUnsuitable = selectedImage.value?.unsuitable;
         selectedImage.value = image as Image;
+        if (wasUnsuitable !== undefined && wasUnsuitable !== image.unsuitable) refresh();
       }
     }
   );
@@ -236,10 +259,11 @@ export function useRecheckNavigation() {
     const following = visible.value[selectedIndex.value + 1] ?? visible.value[selectedIndex.value - 1];
     try {
       upsert(await repositories.recheck.setDone(request.imageId, done, outcome, note));
-      // The server set or cleared "Çalışmaya uygun değil" on the image: show it.
+      // The server set or cleared "Değerlendirmeye uygun değil" on the image: show it.
       if ((done && outcome === 'unsuitable') || wasUnsuitable) refreshImage(request.imageId);
       toast.success(done ? 'Kontrol tamamlandı' : 'Yeniden açıldı');
-      if (done && hideDone.value && following && following.imageId !== request.imageId) {
+      const leaves = hideDone.value || (outcome === 'unsuitable' && !showingUnsuitable.value);
+      if (done && leaves && following && following.imageId !== request.imageId) {
         // Finished: off the list, on to the next one, as "İşaretleme Tamamlandı" does.
         select(following);
       } else if (done) {
@@ -316,7 +340,15 @@ export function useRecheckNavigation() {
 
   // First visit, another workspace, or the last image is gone: open the first one in the list.
   watch(visible, (list) => {
-    if (loadingList.value || list.length === 0) return;
+    if (loadingList.value) return;
+    if (list.length === 0) {
+      // The last one left the list (marked unsuitable): nothing is open.
+      if (selectedImageId.value && !selectedRequest.value && requests.value.length > 0) {
+        selectedImage.value = null;
+        selectedImageId.value = undefined;
+      }
+      return;
+    }
     if (selectedImage.value && selectedRequest.value) return;
     const stored = list.find((r) => r.imageId === selectedImageId.value);
     select(stored ?? list[0]!);
@@ -327,6 +359,9 @@ export function useRecheckNavigation() {
 
   return {
     requests,
+    listed,
+    canShowUnsuitable,
+    showUnsuitable,
     allWorkspaces,
     workspaceGroups,
     currentGroup,

@@ -24,7 +24,10 @@
           :hide-finished="nav.hideFinished.value"
           :patient-progress="nav.patientProgress"
           :is-image-finished="nav.isImageFinished"
+          :can-show-unsuitable="nav.canShowUnsuitable.value"
+          :show-unsuitable="nav.showUnsuitable.value"
           @update:hide-finished="nav.setHideFinished"
+          @update:show-unsuitable="nav.setShowUnsuitable"
           @workspace-selected="nav.selectWorkspace"
           @patient-selected="nav.selectPatient"
           @image-selected="nav.selectImage"
@@ -40,6 +43,9 @@
           <button id="next" @click="nav.nextImage">Sonraki ›</button>
           <button v-if="mode === 'labeling'" id="finish" :disabled="!nav.selectedImage.value" @click="finish">
             İşaretleme Tamamlandı
+          </button>
+          <button v-if="mode === 'labeling'" id="unsuitable" :disabled="!nav.selectedImage.value" @click="unsuitable">
+            Uygun değil
           </button>
           <button v-if="mode === 'tissue'" id="finish" :disabled="!nav.selectedImage.value" @click="approve">
             Maskeyi onayla
@@ -76,6 +82,11 @@ const imageStore = useImageStore();
 async function finish() {
   const image = nav.selectedImage.value;
   if (image && (await imageStore.markAsCompleted(image.id))) nav.nextImage();
+}
+
+async function unsuitable() {
+  const image = nav.selectedImage.value;
+  if (image && (await imageStore.setUnsuitable(image.id, true))) nav.nextImage();
 }
 
 // What TissueMaskView does when the editor's mask changes; the tab does not move on.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isUnsuitable,
   RECHECK_OUTCOMES,
   finishedBadge,
   groupByPatient,
@@ -160,5 +161,25 @@ describe('missing labels entered', () => {
     expect(r.autoCompleted).toBe(true);
     expect(finishedBadge(r)).toBe('Eksik tamamlandı');
     expect(finishedBadge({ outcome: 'corrected', autoCompleted: false })).toBe('Düzeltildi');
+  });
+});
+
+describe('isUnsuitable', () => {
+  it('is only a request closed as unsuitable', () => {
+    expect(isUnsuitable({ status: 'done', outcome: 'unsuitable' })).toBe(true);
+    expect(isUnsuitable({ status: 'open', outcome: null })).toBe(false);
+    expect(isUnsuitable({ status: 'done', outcome: 'corrected' })).toBe(false);
+  });
+});
+
+describe('groupRechecks with unsuitable ones shown', () => {
+  const req = (imageId: string, status: 'open' | 'done', outcome: any = null) =>
+    ({ ...recheckFromApi({ image_id: imageId, ws_id: 'ws1', status }), outcome });
+  it('keeps them through "Bitenleri Gizle"; other done ones still go', () => {
+    const list = [req('a', 'open'), req('b', 'done', 'unsuitable'), req('c', 'done', 'corrected')];
+    const ids = (keep: boolean) =>
+      groupRechecks(list, [], true, undefined, keep)[0]!.requests.map((r) => r.imageId);
+    expect(ids(true)).toEqual(['a', 'b']);
+    expect(ids(false)).toEqual(['a']);
   });
 });

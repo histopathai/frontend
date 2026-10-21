@@ -3,7 +3,9 @@
 // tab. The data holds the cases that went wrong before:
 //   - a patient with 25 images whose newest 20 are finished (the API pages by 20),
 //   - a page of patients that is finished from top to bottom,
-//   - a finished dataset, and a new one without images that must stay listed.
+//   - a finished dataset, and a new one without images that must stay listed,
+//   - "Değerlendirmeye uygun değil" images, hidden whatever the switch says; an
+//     admin lists them with "Uygun Değilleri Göster" (?role=pathologist: no switch).
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import Toast from 'vue-toastification';
@@ -46,7 +48,11 @@ const patients: any[] = [];
 const images: any[] = [];
 export const masks = new Map<string, TissueMaskStatus>();
 
-function addPatient(wsId: string, name: string, shots: { done?: boolean; mask?: TissueMaskStatus; small?: boolean }[]) {
+function addPatient(
+  wsId: string,
+  name: string,
+  shots: { done?: boolean; mask?: TissueMaskStatus; small?: boolean; unsuitable?: boolean }[]
+) {
   const id = `${wsId}-p${patients.filter((p) => p.parent.id === wsId).length}`;
   patients.push({ id, name, creator_id: 'u1', parent: { id: wsId, type: 'workspace' }, created_at: now, updated_at: now });
   shots.forEach((shot, i) => {
@@ -62,6 +68,7 @@ function addPatient(wsId: string, name: string, shots: { done?: boolean; mask?: 
       height: shot.small ? 600 : 31000,
       status: 'processed',
       marked_as_completed: !!shot.done,
+      unsuitable: !!shot.unsuitable,
       created_at: now,
       updated_at: now,
     });
@@ -78,6 +85,8 @@ addPatient('ws-active', '25 görüntü, ilk 20 bitmiş', [
 addPatient('ws-active', 'Tamamı bitmiş', [finishedShot, finishedShot, { done: true, mask: 'rejected' }]);
 addPatient('ws-active', 'Görüntüsüz hasta', []);
 addPatient('ws-active', '4 görüntü, 1 bitmiş', [finishedShot, { mask: 'edited' }, {}, { small: true }]);
+addPatient('ws-active', 'Tamamı uygun değil', [{ unsuitable: true }, { unsuitable: true }]);
+addPatient('ws-active', '3 görüntü, 1 uygun değil', [{}, { unsuitable: true }, {}]);
 for (let i = 4; i < 24; i++) addPatient('ws-active', `Bitmiş hasta ${i}`, [finishedShot, finishedShot]);
 for (let i = 24; i < 45; i++) addPatient('ws-active', `Devam eden hasta ${i}`, [finishedShot, {}, {}]);
 addPatient('ws-done', 'Bitmiş A', [finishedShot, finishedShot]);
@@ -143,7 +152,7 @@ useAuthStore().user = User.create({
   email: 'deneme@ornek.edu.tr',
   display_name: 'Deneme',
   status: 'active',
-  role: 'admin',
+  role: new URLSearchParams(location.search).get('role') === 'pathologist' ? 'pathologist' : 'admin',
   admin_approved: true,
   created_at: now,
   updated_at: now,

@@ -29,7 +29,7 @@ export interface ImageProps {
 
   status: ImageStatus;
   markedAsCompleted: boolean;
-  /** "Çalışmaya uygun değil": out of the study; labels are kept. */
+  /** "Değerlendirmeye uygun değil": out of the study; labels are kept. */
   unsuitable: boolean;
   unsuitableBy: string | null;
   unsuitableAt: Date | null;

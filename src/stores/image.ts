@@ -418,12 +418,12 @@ export const useImageStore = defineStore('image', () => {
 
   const markAsCompleted = (imageId: string): Promise<boolean> => setCompleted(imageId, true);
 
-  /** "Çalışmaya uygun değil" on (with an optional note), or taken back; labels are not touched. */
+  /** "Değerlendirmeye uygun değil" on (with an optional note), or taken back; labels are not touched. */
   const setUnsuitable = (imageId: string, unsuitable: boolean, note = ''): Promise<boolean> =>
     updateFinishing(
       imageId,
       unsuitable ? { unsuitable: true, unsuitable_note: note } : { unsuitable: false },
-      unsuitable ? 'Çalışmaya uygun değil olarak işaretlendi' : 'Uygun değil işareti geri alındı',
+      unsuitable ? 'Değerlendirmeye uygun değil olarak işaretlendi' : 'Uygun değil işareti geri alındı',
       'İşlem sırasında hata oluştu'
     );
 

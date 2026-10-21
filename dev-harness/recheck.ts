@@ -1,7 +1,8 @@
 // Ek Kontrol on made-up requests: the real tab (RecheckView), with the
 // repositories faked in memory; nothing is saved. ?role=pathologist shows the
 // expert's view (no "Neden ekle" / "Listeden çıkar"), the default is admin;
-// ?showDone=1&select=ws-bcnb-60.jpg shows a finished one with the expert's answer.
+// ?showDone=1&select=ws-bcnb-60.jpg shows a finished one with the expert's answer;
+// ?showUnsuitable=1 lists the unsuitable ones too (admins only).
 // Slide pixels are not served here, so the viewer stays empty.
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
@@ -154,16 +155,27 @@ repos.image.update = async (id: string, data: any) => {
   const doc = images.find((i) => i.id === id);
   Object.assign(doc, data);
   if (data.unsuitable === false) Object.assign(doc, { unsuitable_note: '', unsuitable_by: '' });
+  // As main-service does: the image's request closes as unsuitable, or opens again.
+  const request = store.get(id);
+  const closed = request?.status === 'done' && request?.outcome === 'unsuitable';
+  if (request && data.unsuitable === true && !closed) {
+    Object.assign(request, { status: 'done', outcome: 'unsuitable', completed_by: 'u1', completed_at: new Date().toISOString(), completion_note: data.unsuitable_note ?? '', auto_completed: false });
+  } else if (request && data.unsuitable === false && closed) {
+    Object.assign(request, { status: 'open', outcome: '', completed_by: '', completed_at: null, completion_note: '' });
+  }
   return Image.create(doc);
 };
-// "Çalışmaya uygun değil" already set on one image (?select=ws-bcnb-140.jpg).
+// "Değerlendirmeye uygun değil" already set on one image: out of the list, unless an
+// admin turns on "Uygun Değilleri Göster" (?showUnsuitable=1&select=ws-bcnb-140.jpg).
 Object.assign(images.find((i) => i.id === 'ws-bcnb-140.jpg'), { unsuitable: true, unsuitable_note: 'Tümör dokusu yetersiz' });
+Object.assign(store.get('ws-bcnb-140.jpg'), { status: 'done', outcome: 'unsuitable', completed_by: 'u2', completed_at: now, completion_note: 'Tümör dokusu yetersiz' });
 repos.patient.getById = async (id: string) => Patient.create(patients.find((p) => p.id === id));
 
 const params = new URLSearchParams(location.search);
 const role = params.get('role') === 'pathologist' ? 'pathologist' : 'admin';
 // ?showDone=1 lists finished requests too; ?select=<image id> opens that one.
 if (params.get('showDone')) localStorage.setItem('histo_hide_finished_recheck', 'false');
+localStorage.setItem('histo_show_unsuitable_recheck', params.get('showUnsuitable') ? 'true' : 'false');
 if (params.get('select')) localStorage.setItem('recheck_selected_image_id', params.get('select')!);
 
 const app = createApp(RecheckView).use(createPinia()).use(i18n).use(Toast, { timeout: 1500 });

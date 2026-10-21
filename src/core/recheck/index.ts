@@ -24,8 +24,16 @@ export const RECHECK_OUTCOMES: { code: RecheckOutcome; label: string; needsNote:
   { code: 'no_change', label: 'Değişiklik gerekmedi, mevcut etiket doğru', needsNote: true },
   { code: 'undecided', label: 'Karar verilemedi', needsNote: true },
   /** The expert's way to take an image out of the study; its labels stay as they are. No note needed. */
-  { code: 'unsuitable', label: 'Çalışmaya uygun değil', needsNote: false },
+  { code: 'unsuitable', label: 'Değerlendirmeye uygun değil', needsNote: false },
 ];
+
+/**
+ * Closed as "Değerlendirmeye uygun değil" (here, or by marking the image in
+ * Veri Etiketleyici): left out of the list unless an admin asks for it.
+ */
+export function isUnsuitable(request: Pick<RecheckRequest, 'status' | 'outcome'>): boolean {
+  return request.status === 'done' && request.outcome === 'unsuitable';
+}
 
 /** Badge of a finished request. */
 export function finishedBadge(request: Pick<RecheckRequest, 'outcome' | 'autoCompleted'>): string {
@@ -140,17 +148,20 @@ const byName = new Intl.Collator('tr', { numeric: true }).compare;
 /**
  * Requests by workspace, in the order of `workspaceOrder` (workspaces not in
  * it last); images by name inside. With `hideDone`, done requests are left out
- * except `keepId` (the one open in the viewer stays until the user moves on).
+ * except `keepId` (the one open in the viewer stays until the user moves on)
+ * and, with `keepUnsuitable`, the unsuitable ones an admin asked to see.
  */
 export function groupRechecks(
   requests: RecheckRequest[],
   workspaceOrder: string[],
   hideDone: boolean,
-  keepId?: string
+  keepId?: string,
+  keepUnsuitable = false
 ): RecheckGroup[] {
   const groups = new Map<string, RecheckRequest[]>();
   for (const r of requests) {
-    if (hideDone && r.status === 'done' && r.imageId !== keepId) continue;
+    const kept = r.imageId === keepId || (keepUnsuitable && isUnsuitable(r));
+    if (hideDone && r.status === 'done' && !kept) continue;
     if (!groups.has(r.wsId)) groups.set(r.wsId, []);
     groups.get(r.wsId)!.push(r);
   }

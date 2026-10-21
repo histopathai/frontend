@@ -1,6 +1,7 @@
 import { computed, ref, shallowRef, watch, type Ref } from 'vue';
 import { repositories } from '@/services';
 import { useImageStore } from '@/stores/image';
+import { useAuthStore } from '@/stores/auth';
 import type { Image } from '@/core/entities/Image';
 import type { Patient } from '@/core/entities/Patient';
 import type { Workspace } from '@/core/entities/Workspace';
@@ -60,6 +61,18 @@ export function useCompletionFilter(mode: CompletionMode, sources: Sources) {
   watch(hideFinished, (value) => localStorage.setItem(storageKey, String(value)));
 
   const filtering = computed(() => mode !== 'none' && hideFinished.value);
+
+  // "Değerlendirmeye uygun değil" images leave Veri Etiketleyici whatever the
+  // switch above says; admins may list them again to take the mark back.
+  const authStore = useAuthStore();
+  const canShowUnsuitable = computed(() => mode === 'labeling' && authStore.can('unsuitable.show'));
+  const showUnsuitableKey = `histo_show_unsuitable_${mode}`;
+  const showUnsuitable = ref(localStorage.getItem(showUnsuitableKey) === 'true');
+  watch(showUnsuitable, (value) => localStorage.setItem(showUnsuitableKey, String(value)));
+  const hidingUnsuitable = computed(
+    () => mode === 'labeling' && !(canShowUnsuitable.value && showUnsuitable.value)
+  );
+  const isHiddenUnsuitable = (image: Image) => hidingUnsuitable.value && !!image.unsuitable;
 
   // --- Tissue masks of the selected workspace ---------------------------------
 
@@ -167,7 +180,9 @@ export function useCompletionFilter(mode: CompletionMode, sources: Sources) {
   function patientProgress(patientId: string): Progress | undefined {
     const images = patientImages.value.get(patientId);
     if (!images || !ready.value) return undefined;
-    return progressOf(mode, images, maskStatus);
+    // Counted as listed: hidden unsuitable images are neither work nor shown.
+    const listed = hidingUnsuitable.value ? images.filter((img) => !img.unsuitable) : images;
+    return progressOf(mode, listed, maskStatus);
   }
 
   // --- Finished workspaces -------------------------------------------------------
@@ -247,12 +262,21 @@ export function useCompletionFilter(mode: CompletionMode, sources: Sources) {
   );
 
   function isImageVisible(image: Image): boolean {
-    return !filtering.value || !isImageFinished(image) || image.id === pinnedImageId.value;
+    if (image.id === pinnedImageId.value) return true;
+    if (isHiddenUnsuitable(image)) return false;
+    return !filtering.value || !isImageFinished(image);
+  }
+
+  /** Every image of the patient is hidden as unsuitable: nothing to open it for. */
+  function onlyUnsuitable(patientId: string): boolean {
+    const images = patientImages.value.get(patientId);
+    return hidingUnsuitable.value && !!images?.length && images.every((img) => img.unsuitable);
   }
 
   function isPatientVisible(patient: Patient): boolean {
-    if (!filtering.value) return true;
     if (pinnedImageId.value && patient.id === sources.selectedPatientId.value) return true;
+    if (onlyUnsuitable(patient.id)) return false;
+    if (!filtering.value) return true;
     const progress = patientProgress(patient.id);
     // Not known yet: keep it rather than hide a patient that may have work left.
     return !progress || !isProgressFinished(mode, progress);
@@ -278,6 +302,9 @@ export function useCompletionFilter(mode: CompletionMode, sources: Sources) {
     mode,
     hideFinished,
     filtering,
+    canShowUnsuitable,
+    showUnsuitable,
+    hidingUnsuitable,
     ready,
     visibleWorkspaces,
     visiblePatients,
