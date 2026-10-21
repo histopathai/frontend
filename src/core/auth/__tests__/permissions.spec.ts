@@ -9,6 +9,7 @@ const ALL: Capability[] = [
   'admin.access',
   'recheck.request',
   'recheck.complete',
+  'unsuitable.show',
 ];
 
 describe('can', () => {

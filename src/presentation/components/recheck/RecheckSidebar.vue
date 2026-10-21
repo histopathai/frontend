@@ -31,6 +31,32 @@
             </span>
           </button>
         </div>
+        <!-- Admins: list the "Değerlendirmeye uygun değil" ones to take the mark back -->
+        <div v-if="canShowUnsuitable" class="flex justify-end mb-1.5">
+          <button
+            type="button"
+            role="switch"
+            :aria-checked="showUnsuitable"
+            class="flex items-center gap-1.5 group"
+            title="Değerlendirmeye uygun değil olarak kapatılanları da listele (yalnızca adminler)"
+            @click="$emit('update:showUnsuitable', !showUnsuitable)"
+          >
+            <span
+              class="text-[8px] font-black uppercase tracking-tight transition-colors"
+              :class="showUnsuitable ? 'text-gray-700' : 'text-gray-400 group-hover:text-gray-600'"
+              >Uygun Değilleri Göster</span
+            >
+            <span
+              class="relative inline-flex h-3.5 w-7 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out shadow-sm"
+              :class="showUnsuitable ? 'bg-gray-600' : 'bg-gray-200'"
+            >
+              <span
+                class="pointer-events-none inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                :class="showUnsuitable ? 'translate-x-3.5' : 'translate-x-0'"
+              ></span>
+            </span>
+          </button>
+        </div>
         <div class="relative">
           <select
             :value="selectedWsId"
@@ -244,6 +270,8 @@ const props = defineProps<{
   loading: boolean;
   hideDone: boolean;
   canRequest: boolean;
+  canShowUnsuitable: boolean;
+  showUnsuitable: boolean;
   workspaceName: (wsId: string) => string;
 }>();
 
@@ -252,6 +280,7 @@ defineEmits<{
   'toggle-patient': [patientId: string];
   select: [request: RecheckRequest];
   'update:hideDone': [value: boolean];
+  'update:showUnsuitable': [value: boolean];
   'send-workspace': [];
   'withdraw-workspace': [wsId: string];
 }>();

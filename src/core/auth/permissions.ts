@@ -11,6 +11,7 @@ import type { UserRoleValue } from '@/core/value-objects/UserRole';
  *   admin.access       the admin panel
  *   recheck.request    send an image to Ek Kontrol, or take it out
  *   recheck.complete   mark an Ek Kontrol request done
+ *   unsuitable.show    list "Değerlendirmeye uygun değil" images (hidden from the rest) to take the mark back
  *
  * A module moving under the groups adds its capability here and nowhere else.
  */
@@ -21,7 +22,8 @@ export type Capability =
   | 'patchGrid.access'
   | 'admin.access'
   | 'recheck.request'
-  | 'recheck.complete';
+  | 'recheck.complete'
+  | 'unsuitable.show';
 
 const CAPABILITIES: Record<UserRoleValue, readonly Capability[]> = {
   admin: [
@@ -32,6 +34,7 @@ const CAPABILITIES: Record<UserRoleValue, readonly Capability[]> = {
     'admin.access',
     'recheck.request',
     'recheck.complete',
+    'unsuitable.show',
   ],
   pathologist: [
     'labeling.write',

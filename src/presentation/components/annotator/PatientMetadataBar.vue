@@ -214,9 +214,9 @@
           </span>
         </button>
 
-        <!-- "Çalışmaya uygun değil": on, or taken back with a confirm -->
+        <!-- "Değerlendirmeye uygun değil": on, or taken back with a confirm -->
         <button
-          v-if="image && showUnsuitable && (!readOnly || image.unsuitable)"
+          v-if="image && (!readOnly || image.unsuitable)"
           @click="onUnsuitableClick"
           :disabled="readOnly"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold uppercase tracking-tight border shadow-sm flex-shrink-0"
@@ -227,8 +227,8 @@
           "
           :title="
             image.unsuitable
-              ? `Çalışmaya uygun değil${image.unsuitableNote ? ': ' + image.unsuitableNote : ''}${readOnly ? '' : ' — geri almak için tıklayın'}`
-              : 'Görüntüyü çalışmanın dışında say; etiketler silinmez'
+              ? `Değerlendirmeye uygun değil${image.unsuitableNote ? ': ' + image.unsuitableNote : ''}${readOnly ? '' : ' — geri almak için tıklayın'}`
+              : 'Görüntü kalitesi ya da veri değerlendirmeye uygun değilse işaretleyin; listelerden kalkar, etiketler silinmez'
           "
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
@@ -271,7 +271,7 @@
           :message="
             undoing === 'completed'
               ? 'Görüntü yeniden bitmemiş sayılır; etiketleri değişmez.'
-              : 'Görüntü yeniden çalışmaya dahil edilir; etiketleri değişmez.'
+              : 'Görüntü yeniden değerlendirmeye alınır ve listelerde görünür; etiketleri değişmez.'
           "
           confirm-label="Geri al"
           tone="neutral"
@@ -390,18 +390,13 @@ import { useAuthStore } from '@/stores/auth';
 import UnsuitableModal from '@/presentation/components/annotator/UnsuitableModal.vue';
 import ConfirmModal from '@/presentation/components/common/ConfirmModal.vue';
 
-const props = withDefaults(
-  defineProps<{
-    image: Image | null;
-    patient: Patient | null;
-    currentIndex: number;
-    totalCount: number;
-    isDrawingMode: boolean;
-    /** Ek Kontrol hides it: there "Kontrolü tamamla → Çalışmaya uygun değil" sets it. */
-    showUnsuitable?: boolean;
-  }>(),
-  { showUnsuitable: true }
-);
+const props = defineProps<{
+  image: Image | null;
+  patient: Patient | null;
+  currentIndex: number;
+  totalCount: number;
+  isDrawingMode: boolean;
+}>();
 
 const emit = defineEmits(['prev', 'next', 'startDrawing', 'stopDrawing', 'refreshViewer']);
 

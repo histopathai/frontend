@@ -7,10 +7,11 @@
     >
       <div class="rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col bg-white">
         <div class="p-6">
-          <h3 class="text-lg font-bold text-gray-900">Çalışmaya uygun değil</h3>
+          <h3 class="text-lg font-bold text-gray-900">Değerlendirmeye uygun değil</h3>
           <p class="text-xs text-gray-500 mt-1">
-            <span class="font-semibold text-gray-700">{{ imageName }}</span> çalışmanın dışında
-            sayılır ve bitmiş olarak işaretlenir. Etiketleri silinmez; işaret istendiğinde geri alınır.
+            <span class="font-semibold text-gray-700">{{ imageName }}</span> değerlendirmenin dışında
+            sayılır; Veri Etiketleyici ve Ek Kontrol listelerinden kalkar. Etiketleri silinmez; adminler
+            işareti geri alabilir.
           </p>
           <label class="block mt-4">
             <span class="text-[11px] font-bold uppercase tracking-wide text-gray-400">Not (isteğe bağlı)</span>
@@ -19,7 +20,7 @@
               rows="3"
               maxlength="500"
               class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
-              placeholder="Örn. Tümör dokusu yetersiz."
+              placeholder="Örn. Görüntü bulanık, tümör dokusu yetersiz."
             />
           </label>
         </div>
